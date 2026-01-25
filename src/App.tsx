@@ -1,15 +1,21 @@
 import { useState, useRef, useEffect } from 'react'
-import { Box, Typography, Paper } from '@mui/material'
+import { Box, Typography, Paper, Alert, Snackbar } from '@mui/material'
 import SmartToyIcon from '@mui/icons-material/SmartToy'
 import { ChatMessage } from './components/ChatMessage'
 import { ChatInput } from './components/ChatInput'
 import type { Message } from './types'
 import { getDummyResponse, generateId } from './utils/dummyResponses'
+import { sendMessage, isConfigured, OpenAIError } from './services/openai'
+
+const SYSTEM_PROMPT = `You are a helpful, friendly assistant. Be concise and clear in your responses.`
 
 function App() {
   const [messages, setMessages] = useState<Message[]>([])
   const [isTyping, setIsTyping] = useState(false)
+  const [error, setError] = useState<string | null>(null)
   const messagesEndRef = useRef<HTMLDivElement>(null)
+
+  const apiConfigured = isConfigured()
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
@@ -27,20 +33,40 @@ function App() {
       timestamp: new Date(),
     }
 
-    setMessages((prev) => [...prev, userMessage])
+    const updatedMessages = [...messages, userMessage]
+    setMessages(updatedMessages)
     setIsTyping(true)
+    setError(null)
 
-    // Simulate API delay
-    setTimeout(() => {
+    try {
+      let responseContent: string
+
+      if (apiConfigured) {
+        // Use OpenAI API
+        responseContent = await sendMessage(updatedMessages, SYSTEM_PROMPT)
+      } else {
+        // Fallback to dummy responses
+        await new Promise((resolve) => setTimeout(resolve, 1000 + Math.random() * 1000))
+        responseContent = getDummyResponse()
+      }
+
       const botMessage: Message = {
         id: generateId(),
-        content: getDummyResponse(),
+        content: responseContent,
         role: 'assistant',
         timestamp: new Date(),
       }
       setMessages((prev) => [...prev, botMessage])
+    } catch (err) {
+      const errorMessage = err instanceof OpenAIError ? err.message : 'An unexpected error occurred'
+      setError(errorMessage)
+    } finally {
       setIsTyping(false)
-    }, 1000 + Math.random() * 1000)
+    }
+  }
+
+  const handleCloseError = () => {
+    setError(null)
   }
 
   return (
@@ -67,6 +93,21 @@ function App() {
         <Typography variant="h6" component="h1">
           Chatbot
         </Typography>
+        {!apiConfigured && (
+          <Typography
+            variant="caption"
+            sx={{
+              ml: 'auto',
+              bgcolor: 'warning.light',
+              color: 'warning.contrastText',
+              px: 1,
+              py: 0.5,
+              borderRadius: 1,
+            }}
+          >
+            Demo Mode
+          </Typography>
+        )}
       </Paper>
 
       {/* Messages area */}
@@ -90,7 +131,11 @@ function App() {
           >
             <SmartToyIcon sx={{ fontSize: 64, mb: 2, opacity: 0.5 }} />
             <Typography variant="h6">Welcome to Chatbot</Typography>
-            <Typography variant="body2">Send a message to start the conversation</Typography>
+            <Typography variant="body2">
+              {apiConfigured
+                ? 'Send a message to start the conversation'
+                : 'Running in demo mode. Add your OpenAI API key to enable AI responses.'}
+            </Typography>
           </Box>
         ) : (
           <>
@@ -110,6 +155,13 @@ function App() {
 
       {/* Input area */}
       <ChatInput onSend={handleSend} disabled={isTyping} />
+
+      {/* Error snackbar */}
+      <Snackbar open={!!error} autoHideDuration={6000} onClose={handleCloseError}>
+        <Alert onClose={handleCloseError} severity="error" sx={{ width: '100%' }}>
+          {error}
+        </Alert>
+      </Snackbar>
     </Box>
   )
 }
