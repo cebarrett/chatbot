@@ -1,21 +1,41 @@
-import { useState, useRef, useEffect } from 'react'
+import { useState, useRef, useEffect, useCallback, useMemo } from 'react'
 import { Box, Typography, Paper, Alert, Snackbar } from '@mui/material'
 import SmartToyIcon from '@mui/icons-material/SmartToy'
 import { ChatMessage } from './components/ChatMessage'
 import { ChatInput } from './components/ChatInput'
-import type { Message } from './types'
+import { ChatHistorySidebar } from './components/ChatHistorySidebar'
+import type { Message, Chat } from './types'
 import { getDummyResponse, generateId } from './utils/dummyResponses'
+import { loadChats, saveChats, generateChatTitle } from './utils/chatStorage'
 import { sendMessage, isConfigured, OpenAIError } from './services/openai'
 
 const SYSTEM_PROMPT = `You are a helpful, friendly assistant. Be concise and clear in your responses.`
 
 function App() {
-  const [messages, setMessages] = useState<Message[]>([])
+  const [chats, setChats] = useState<Chat[]>([])
+  const [activeChatId, setActiveChatId] = useState<string | null>(null)
   const [isTyping, setIsTyping] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const messagesEndRef = useRef<HTMLDivElement>(null)
 
   const apiConfigured = isConfigured()
+
+  const activeChat = chats.find((c) => c.id === activeChatId) || null
+  const messages = useMemo(() => activeChat?.messages || [], [activeChat?.messages])
+
+  useEffect(() => {
+    const savedChats = loadChats()
+    setChats(savedChats)
+    if (savedChats.length > 0) {
+      setActiveChatId(savedChats[0].id)
+    }
+  }, [])
+
+  useEffect(() => {
+    if (chats.length > 0) {
+      saveChats(chats)
+    }
+  }, [chats])
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
@@ -25,7 +45,42 @@ function App() {
     scrollToBottom()
   }, [messages])
 
+  const createNewChat = useCallback(() => {
+    const newChat: Chat = {
+      id: generateId(),
+      title: 'New Chat',
+      messages: [],
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    }
+    setChats((prev) => [newChat, ...prev])
+    setActiveChatId(newChat.id)
+    return newChat.id
+  }, [])
+
+  const handleSelectChat = (chatId: string) => {
+    setActiveChatId(chatId)
+  }
+
+  const handleDeleteChat = (chatId: string) => {
+    setChats((prev) => {
+      const filtered = prev.filter((c) => c.id !== chatId)
+      if (chatId === activeChatId) {
+        setActiveChatId(filtered.length > 0 ? filtered[0].id : null)
+      }
+      if (filtered.length === 0) {
+        localStorage.removeItem('chatbot_history')
+      }
+      return filtered
+    })
+  }
+
   const handleSend = async (content: string) => {
+    let currentChatId = activeChatId
+    if (!currentChatId) {
+      currentChatId = createNewChat()
+    }
+
     const userMessage: Message = {
       id: generateId(),
       content,
@@ -33,19 +88,33 @@ function App() {
       timestamp: new Date(),
     }
 
-    const updatedMessages = [...messages, userMessage]
-    setMessages(updatedMessages)
+    setChats((prev) =>
+      prev.map((chat) => {
+        if (chat.id === currentChatId) {
+          const updatedMessages = [...chat.messages, userMessage]
+          return {
+            ...chat,
+            messages: updatedMessages,
+            title: chat.messages.length === 0 ? generateChatTitle(updatedMessages) : chat.title,
+            updatedAt: new Date(),
+          }
+        }
+        return chat
+      })
+    )
+
     setIsTyping(true)
     setError(null)
 
     try {
       let responseContent: string
 
+      const currentChat = chats.find((c) => c.id === currentChatId)
+      const updatedMessages = [...(currentChat?.messages || []), userMessage]
+
       if (apiConfigured) {
-        // Use OpenAI API
         responseContent = await sendMessage(updatedMessages, SYSTEM_PROMPT)
       } else {
-        // Fallback to dummy responses
         await new Promise((resolve) => setTimeout(resolve, 1000 + Math.random() * 1000))
         responseContent = getDummyResponse()
       }
@@ -56,7 +125,19 @@ function App() {
         role: 'assistant',
         timestamp: new Date(),
       }
-      setMessages((prev) => [...prev, botMessage])
+
+      setChats((prev) =>
+        prev.map((chat) => {
+          if (chat.id === currentChatId) {
+            return {
+              ...chat,
+              messages: [...chat.messages, botMessage],
+              updatedAt: new Date(),
+            }
+          }
+          return chat
+        })
+      )
     } catch (err) {
       const errorMessage = err instanceof OpenAIError ? err.message : 'An unexpected error occurred'
       setError(errorMessage)
@@ -74,89 +155,101 @@ function App() {
       sx={{
         height: '100vh',
         display: 'flex',
-        flexDirection: 'column',
         bgcolor: 'grey.50',
       }}
     >
-      {/* Header */}
-      <Paper
-        elevation={1}
-        sx={{
-          p: 2,
-          display: 'flex',
-          alignItems: 'center',
-          gap: 1,
-          borderRadius: 0,
-        }}
-      >
-        <SmartToyIcon color="primary" />
-        <Typography variant="h6" component="h1">
-          Chatbot
-        </Typography>
-        {!apiConfigured && (
-          <Typography
-            variant="caption"
-            sx={{
-              ml: 'auto',
-              bgcolor: 'warning.light',
-              color: 'warning.contrastText',
-              px: 1,
-              py: 0.5,
-              borderRadius: 1,
-            }}
-          >
-            Demo Mode
-          </Typography>
-        )}
-      </Paper>
+      <ChatHistorySidebar
+        chats={chats}
+        activeChatId={activeChatId}
+        onSelectChat={handleSelectChat}
+        onNewChat={createNewChat}
+        onDeleteChat={handleDeleteChat}
+      />
 
-      {/* Messages area */}
       <Box
         sx={{
           flex: 1,
-          overflow: 'auto',
-          p: 2,
+          display: 'flex',
+          flexDirection: 'column',
+          minWidth: 0,
         }}
       >
-        {messages.length === 0 ? (
-          <Box
-            sx={{
-              height: '100%',
-              display: 'flex',
-              flexDirection: 'column',
-              alignItems: 'center',
-              justifyContent: 'center',
-              color: 'text.secondary',
-            }}
-          >
-            <SmartToyIcon sx={{ fontSize: 64, mb: 2, opacity: 0.5 }} />
-            <Typography variant="h6">Welcome to Chatbot</Typography>
-            <Typography variant="body2">
-              {apiConfigured
-                ? 'Send a message to start the conversation'
-                : 'Running in demo mode. Add your OpenAI API key to enable AI responses.'}
+        <Paper
+          elevation={1}
+          sx={{
+            p: 2,
+            display: 'flex',
+            alignItems: 'center',
+            gap: 1,
+            borderRadius: 0,
+          }}
+        >
+          <SmartToyIcon color="primary" />
+          <Typography variant="h6" component="h1">
+            Chatbot
+          </Typography>
+          {!apiConfigured && (
+            <Typography
+              variant="caption"
+              sx={{
+                ml: 'auto',
+                bgcolor: 'warning.light',
+                color: 'warning.contrastText',
+                px: 1,
+                py: 0.5,
+                borderRadius: 1,
+              }}
+            >
+              Demo Mode
             </Typography>
-          </Box>
-        ) : (
-          <>
-            {messages.map((message) => (
-              <ChatMessage key={message.id} message={message} />
-            ))}
-            {isTyping && (
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, ml: 1, color: 'text.secondary' }}>
-                <SmartToyIcon fontSize="small" />
-                <Typography variant="body2">Typing...</Typography>
-              </Box>
-            )}
-            <div ref={messagesEndRef} />
-          </>
-        )}
+          )}
+        </Paper>
+
+        <Box
+          sx={{
+            flex: 1,
+            overflow: 'auto',
+            p: 2,
+          }}
+        >
+          {messages.length === 0 ? (
+            <Box
+              sx={{
+                height: '100%',
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                justifyContent: 'center',
+                color: 'text.secondary',
+              }}
+            >
+              <SmartToyIcon sx={{ fontSize: 64, mb: 2, opacity: 0.5 }} />
+              <Typography variant="h6">Welcome to Chatbot</Typography>
+              <Typography variant="body2">
+                {apiConfigured
+                  ? 'Send a message to start the conversation'
+                  : 'Running in demo mode. Add your OpenAI API key to enable AI responses.'}
+              </Typography>
+            </Box>
+          ) : (
+            <>
+              {messages.map((message) => (
+                <ChatMessage key={message.id} message={message} />
+              ))}
+              {isTyping && (
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, ml: 1, color: 'text.secondary' }}>
+                  <SmartToyIcon fontSize="small" />
+                  <Typography variant="body2">Typing...</Typography>
+                </Box>
+              )}
+              <div ref={messagesEndRef} />
+            </>
+          )}
+        </Box>
+
+        <ChatInput onSend={handleSend} disabled={isTyping} />
       </Box>
 
-      {/* Input area */}
-      <ChatInput onSend={handleSend} disabled={isTyping} />
-
-      {/* Error snackbar */}
       <Snackbar open={!!error} autoHideDuration={6000} onClose={handleCloseError}>
         <Alert onClose={handleCloseError} severity="error" sx={{ width: '100%' }}>
           {error}
