@@ -8,8 +8,12 @@ import type { Message, Chat } from './types'
 import { getDummyResponse, generateId } from './utils/dummyResponses'
 import { loadChats, saveChats, generateChatTitle } from './utils/chatStorage'
 import { sendMessageStream, isConfigured, OpenAIError } from './services/openai'
-import { getQualityRating as getClaudeRating } from './services/claudeJudge'
-import { getGeminiQualityRating as getGeminiRating } from './services/geminiJudge'
+import {
+  loadEnabledJudges,
+  saveEnabledJudges,
+  fetchRatingsFromJudges,
+} from './services/judgeRegistry'
+import { JudgeSelector } from './components/JudgeSelector'
 import type { QualityRating } from './types'
 
 const SYSTEM_PROMPT = `You are a helpful, friendly assistant. Be concise and clear in your responses.`
@@ -19,6 +23,7 @@ function App() {
   const [activeChatId, setActiveChatId] = useState<string | null>(null)
   const [isTyping, setIsTyping] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [enabledJudges, setEnabledJudges] = useState<string[]>(() => loadEnabledJudges())
   const messagesEndRef = useRef<HTMLDivElement>(null)
 
   const apiConfigured = isConfigured()
@@ -96,7 +101,7 @@ function App() {
   }, [])
 
   const updateMessageRating = useCallback(
-    (chatId: string, messageId: string, judge: 'claude' | 'gemini', rating: QualityRating) => {
+    (chatId: string, messageId: string, judgeId: string, rating: QualityRating) => {
       setChats((prev) =>
         prev.map((chat) => {
           if (chat.id === chatId) {
@@ -108,7 +113,7 @@ function App() {
                     ...msg,
                     judgeRatings: {
                       ...msg.judgeRatings,
-                      [judge]: rating,
+                      [judgeId]: rating,
                     },
                   }
                 }
@@ -122,6 +127,16 @@ function App() {
     },
     []
   )
+
+  const handleToggleJudge = useCallback((judgeId: string) => {
+    setEnabledJudges((prev) => {
+      const newEnabled = prev.includes(judgeId)
+        ? prev.filter((id) => id !== judgeId)
+        : [...prev, judgeId]
+      saveEnabledJudges(newEnabled)
+      return newEnabled
+    })
+  }, [])
 
   const streamDummyResponse = async (
     chatId: string,
@@ -195,13 +210,17 @@ function App() {
         await streamDummyResponse(chatIdForStream, botMessageId, finalResponse)
       }
 
-      // Fetch quality ratings from both judges in parallel (async, non-blocking)
-      getClaudeRating(content, finalResponse).then((rating) => {
-        updateMessageRating(chatIdForStream, botMessageId, 'claude', rating)
-      })
-      getGeminiRating(content, finalResponse).then((rating) => {
-        updateMessageRating(chatIdForStream, botMessageId, 'gemini', rating)
-      })
+      // Fetch quality ratings from enabled judges in parallel (async, non-blocking)
+      if (enabledJudges.length > 0) {
+        fetchRatingsFromJudges(
+          enabledJudges,
+          content,
+          finalResponse,
+          (judgeId, rating) => {
+            updateMessageRating(chatIdForStream, botMessageId, judgeId, rating)
+          }
+        )
+      }
     } catch (err) {
       const errorMessage = err instanceof OpenAIError ? err.message : 'An unexpected error occurred'
       setError(errorMessage)
@@ -264,21 +283,23 @@ function App() {
           <Typography variant="h6" component="h1">
             Chatbot
           </Typography>
-          {!apiConfigured && (
-            <Typography
-              variant="caption"
-              sx={{
-                ml: 'auto',
-                bgcolor: 'warning.light',
-                color: 'warning.contrastText',
-                px: 1,
-                py: 0.5,
-                borderRadius: 1,
-              }}
-            >
-              Demo Mode
-            </Typography>
-          )}
+          <Box sx={{ ml: 'auto', display: 'flex', alignItems: 'center', gap: 1 }}>
+            <JudgeSelector enabledJudges={enabledJudges} onToggleJudge={handleToggleJudge} />
+            {!apiConfigured && (
+              <Typography
+                variant="caption"
+                sx={{
+                  bgcolor: 'warning.light',
+                  color: 'warning.contrastText',
+                  px: 1,
+                  py: 0.5,
+                  borderRadius: 1,
+                }}
+              >
+                Demo Mode
+              </Typography>
+            )}
+          </Box>
         </Paper>
 
         <Box
@@ -310,7 +331,7 @@ function App() {
           ) : (
             <>
               {messages.map((message) => (
-                <ChatMessage key={message.id} message={message} />
+                <ChatMessage key={message.id} message={message} enabledJudges={enabledJudges} />
               ))}
               {isTyping && (
                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, ml: 1, color: 'text.secondary' }}>

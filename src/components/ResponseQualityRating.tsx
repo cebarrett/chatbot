@@ -3,9 +3,11 @@ import { Box, Chip, Collapse, Typography, Paper, CircularProgress } from '@mui/m
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore'
 import ExpandLessIcon from '@mui/icons-material/ExpandLess'
 import type { JudgeRatings, QualityRating } from '../types'
+import { getJudgeById } from '../services/judgeRegistry'
 
 interface ResponseQualityRatingProps {
   ratings: JudgeRatings
+  enabledJudges: string[]
 }
 
 function getRatingColor(score: number): 'success' | 'warning' | 'error' {
@@ -23,20 +25,36 @@ function getRatingLabel(score: number): string {
 }
 
 interface SingleRatingBadgeProps {
+  judgeId: string
   judgeName: string
+  judgeColor: string
   rating: QualityRating | undefined
   expanded: boolean
   onToggle: () => void
 }
 
-function SingleRatingBadge({ judgeName, rating, expanded, onToggle }: SingleRatingBadgeProps) {
+function SingleRatingBadge({
+  judgeName,
+  judgeColor,
+  rating,
+  expanded,
+  onToggle,
+}: SingleRatingBadgeProps) {
   if (!rating) {
     return (
       <Chip
         label={
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+            <Box
+              sx={{
+                width: 8,
+                height: 8,
+                borderRadius: '50%',
+                bgcolor: judgeColor,
+              }}
+            />
             <Typography variant="caption" sx={{ fontWeight: 600 }}>
-              {judgeName}:
+              {judgeName}
             </Typography>
             <CircularProgress size={12} color="inherit" />
           </Box>
@@ -55,6 +73,14 @@ function SingleRatingBadge({ judgeName, rating, expanded, onToggle }: SingleRati
     <Chip
       label={
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+          <Box
+            sx={{
+              width: 8,
+              height: 8,
+              borderRadius: '50%',
+              bgcolor: judgeColor,
+            }}
+          />
           <Typography variant="caption" sx={{ fontWeight: 600 }}>
             {judgeName}: {rating.score.toFixed(1)}
           </Typography>
@@ -79,11 +105,13 @@ function SingleRatingBadge({ judgeName, rating, expanded, onToggle }: SingleRati
 
 interface RatingDetailsProps {
   judgeName: string
+  judgeColor: string
   rating: QualityRating
-  color: 'success' | 'warning' | 'error'
 }
 
-function RatingDetails({ judgeName, rating, color }: RatingDetailsProps) {
+function RatingDetails({ judgeName, judgeColor, rating }: RatingDetailsProps) {
+  const color = getRatingColor(rating.score)
+
   return (
     <Paper
       variant="outlined"
@@ -92,12 +120,25 @@ function RatingDetails({ judgeName, rating, color }: RatingDetailsProps) {
         bgcolor: 'background.paper',
         borderColor: `${color}.main`,
         flex: 1,
-        minWidth: 0,
+        minWidth: 200,
       }}
     >
-      <Typography variant="caption" sx={{ fontWeight: 700, color: `${color}.main`, display: 'block', mb: 0.5 }}>
-        {judgeName}
-      </Typography>
+      <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, mb: 0.5 }}>
+        <Box
+          sx={{
+            width: 10,
+            height: 10,
+            borderRadius: '50%',
+            bgcolor: judgeColor,
+          }}
+        />
+        <Typography variant="caption" sx={{ fontWeight: 700, color: `${color}.main` }}>
+          {judgeName}
+        </Typography>
+        <Typography variant="caption" sx={{ fontWeight: 700, color: `${color}.main` }}>
+          - {rating.score.toFixed(1)}/10
+        </Typography>
+      </Box>
       <Typography variant="body2" sx={{ mb: rating.problems.length > 0 ? 1.5 : 0 }}>
         {rating.explanation}
       </Typography>
@@ -133,48 +174,57 @@ function RatingDetails({ judgeName, rating, color }: RatingDetailsProps) {
   )
 }
 
-export function ResponseQualityRating({ ratings }: ResponseQualityRatingProps) {
+export function ResponseQualityRating({ ratings, enabledJudges }: ResponseQualityRatingProps) {
   const [expanded, setExpanded] = useState(false)
 
-  const hasAnyRating = ratings.claude || ratings.gemini
+  // Filter to only show enabled judges
+  const judgesWithRatings = enabledJudges
+    .map((judgeId) => ({
+      judgeId,
+      judge: getJudgeById(judgeId),
+      rating: ratings[judgeId],
+    }))
+    .filter((item) => item.judge !== undefined)
 
-  if (!hasAnyRating) {
+  if (judgesWithRatings.length === 0) {
     return null
   }
 
   return (
     <Box sx={{ mt: 1.5 }}>
       <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
-        <SingleRatingBadge
-          judgeName="Claude"
-          rating={ratings.claude}
-          expanded={expanded}
-          onToggle={() => setExpanded(!expanded)}
-        />
-        <SingleRatingBadge
-          judgeName="Gemini"
-          rating={ratings.gemini}
-          expanded={expanded}
-          onToggle={() => setExpanded(!expanded)}
-        />
+        {judgesWithRatings.map(({ judgeId, judge, rating }) => (
+          <SingleRatingBadge
+            key={judgeId}
+            judgeId={judgeId}
+            judgeName={judge!.name}
+            judgeColor={judge!.color}
+            rating={rating}
+            expanded={expanded}
+            onToggle={() => setExpanded(!expanded)}
+          />
+        ))}
       </Box>
 
       <Collapse in={expanded}>
-        <Box sx={{ display: 'flex', gap: 1, mt: 1, flexDirection: { xs: 'column', sm: 'row' } }}>
-          {ratings.claude && (
-            <RatingDetails
-              judgeName="Claude"
-              rating={ratings.claude}
-              color={getRatingColor(ratings.claude.score)}
-            />
-          )}
-          {ratings.gemini && (
-            <RatingDetails
-              judgeName="Gemini"
-              rating={ratings.gemini}
-              color={getRatingColor(ratings.gemini.score)}
-            />
-          )}
+        <Box
+          sx={{
+            display: 'flex',
+            gap: 1,
+            mt: 1,
+            flexWrap: 'wrap',
+          }}
+        >
+          {judgesWithRatings
+            .filter(({ rating }) => rating !== undefined)
+            .map(({ judgeId, judge, rating }) => (
+              <RatingDetails
+                key={judgeId}
+                judgeName={judge!.name}
+                judgeColor={judge!.color}
+                rating={rating!}
+              />
+            ))}
         </Box>
       </Collapse>
     </Box>

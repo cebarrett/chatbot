@@ -4,10 +4,8 @@ export interface QualityRating {
   problems: string[]
 }
 
-export interface JudgeRatings {
-  claude?: QualityRating
-  gemini?: QualityRating
-}
+// Dynamic judge ratings - keyed by judge ID
+export type JudgeRatings = Record<string, QualityRating>
 
 export interface Message {
   id: string

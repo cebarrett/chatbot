@@ -7,9 +7,10 @@ import { ResponseQualityRating } from './ResponseQualityRating'
 
 interface ChatMessageProps {
   message: Message
+  enabledJudges: string[]
 }
 
-export function ChatMessage({ message }: ChatMessageProps) {
+export function ChatMessage({ message, enabledJudges }: ChatMessageProps) {
   const isUser = message.role === 'user'
 
   return (
@@ -111,7 +112,7 @@ export function ChatMessage({ message }: ChatMessageProps) {
           </Typography>
 
           {!isUser && message.judgeRatings && (
-            <ResponseQualityRating ratings={message.judgeRatings} />
+            <ResponseQualityRating ratings={message.judgeRatings} enabledJudges={enabledJudges} />
           )}
         </Paper>
       </Box>
