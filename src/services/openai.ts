@@ -64,7 +64,7 @@ export async function sendMessage(
       Authorization: `Bearer ${apiKey}`,
     },
     body: JSON.stringify({
-      model: import.meta.env.VITE_OPENAI_MODEL || 'gpt-4o-mini',
+      model: import.meta.env.VITE_OPENAI_MODEL || 'gpt-5.2',
       messages: openAIMessages,
       temperature: 0.7,
     }),
