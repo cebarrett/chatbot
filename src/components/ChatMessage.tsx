@@ -53,7 +53,7 @@ export function ChatMessage({ message }: ChatMessageProps) {
             borderTopLeftRadius: isUser ? 2 : 0,
           }}
         >
-          <Typography variant="body1">{message.content}</Typography>
+          <Typography variant="body1" sx={{ whiteSpace: 'pre-wrap' }}>{message.content}</Typography>
           <Typography
             variant="caption"
             sx={{
