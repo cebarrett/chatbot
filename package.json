@@ -7,7 +7,9 @@
     "dev": "vite",
     "build": "tsc -b && vite build",
     "lint": "eslint .",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "deploy": "./scripts/deploy.sh",
+    "deploy:prod": "S3_BUCKET=$S3_BUCKET ./scripts/deploy.sh"
   },
   "dependencies": {
     "react": "^19.2.0",
