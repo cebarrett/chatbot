@@ -1,8 +1,15 @@
+export interface QualityRating {
+  score: number // 1.0 to 10.0 (two significant figures)
+  explanation: string
+  problems: string[]
+}
+
 export interface Message {
   id: string
   content: string
   role: 'user' | 'assistant'
   timestamp: Date
+  qualityRating?: QualityRating
 }
 
 export interface Chat {

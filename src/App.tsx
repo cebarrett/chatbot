@@ -8,6 +8,8 @@ import type { Message, Chat } from './types'
 import { getDummyResponse, generateId } from './utils/dummyResponses'
 import { loadChats, saveChats, generateChatTitle } from './utils/chatStorage'
 import { sendMessageStream, isConfigured, OpenAIError } from './services/openai'
+import { getQualityRating } from './services/claudeJudge'
+import type { QualityRating } from './types'
 
 const SYSTEM_PROMPT = `You are a helpful, friendly assistant. Be concise and clear in your responses.`
 
@@ -92,6 +94,25 @@ function App() {
     )
   }, [])
 
+  const updateMessageRating = useCallback(
+    (chatId: string, messageId: string, qualityRating: QualityRating) => {
+      setChats((prev) =>
+        prev.map((chat) => {
+          if (chat.id === chatId) {
+            return {
+              ...chat,
+              messages: chat.messages.map((msg) =>
+                msg.id === messageId ? { ...msg, qualityRating } : msg
+              ),
+            }
+          }
+          return chat
+        })
+      )
+    },
+    []
+  )
+
   const streamDummyResponse = async (
     chatId: string,
     messageId: string,
@@ -152,14 +173,22 @@ function App() {
       const currentChat = chats.find((c) => c.id === currentChatId)
       const messagesForApi = [...(currentChat?.messages || []), userMessage]
 
+      let finalResponse = ''
+
       if (apiConfigured) {
         await sendMessageStream(messagesForApi, SYSTEM_PROMPT, (streamedContent) => {
+          finalResponse = streamedContent
           updateBotMessage(chatIdForStream, botMessageId, streamedContent)
         })
       } else {
-        const fullResponse = getDummyResponse()
-        await streamDummyResponse(chatIdForStream, botMessageId, fullResponse)
+        finalResponse = getDummyResponse()
+        await streamDummyResponse(chatIdForStream, botMessageId, finalResponse)
       }
+
+      // Fetch quality rating from Claude judge (async, non-blocking)
+      getQualityRating(content, finalResponse).then((rating) => {
+        updateMessageRating(chatIdForStream, botMessageId, rating)
+      })
     } catch (err) {
       const errorMessage = err instanceof OpenAIError ? err.message : 'An unexpected error occurred'
       setError(errorMessage)

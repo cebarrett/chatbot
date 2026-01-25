@@ -3,6 +3,7 @@ import SmartToyIcon from '@mui/icons-material/SmartToy'
 import PersonIcon from '@mui/icons-material/Person'
 import ReactMarkdown from 'react-markdown'
 import type { Message } from '../types'
+import { ResponseQualityRating } from './ResponseQualityRating'
 
 interface ChatMessageProps {
   message: Message
@@ -108,6 +109,10 @@ export function ChatMessage({ message }: ChatMessageProps) {
           >
             {message.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
           </Typography>
+
+          {!isUser && message.qualityRating && (
+            <ResponseQualityRating rating={message.qualityRating} />
+          )}
         </Paper>
       </Box>
     </Box>
