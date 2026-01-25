@@ -1,73 +1,93 @@
-# React + TypeScript + Vite
+# Chatbot
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+A React + TypeScript frontend application built with Vite.
 
-Currently, two official plugins are available:
+## Prerequisites
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) (or [oxc](https://oxc.rs) when used in [rolldown-vite](https://vite.dev/guide/rolldown)) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+- Node.js 18+
+- npm 9+
+- AWS CLI (for deployment)
 
-## React Compiler
+## Getting Started
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+```bash
+# Install dependencies
+npm install
 
-## Expanding the ESLint configuration
-
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
-
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
-
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+# Start development server
+npm run dev
 ```
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
+The app will be available at `http://localhost:5173`.
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
+## Scripts
 
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+| Command | Description |
+|---------|-------------|
+| `npm run dev` | Start development server |
+| `npm run build` | Build for production |
+| `npm run preview` | Preview production build locally |
+| `npm run lint` | Run ESLint |
+| `npm run deploy` | Deploy to S3 |
+
+## Deployment
+
+This project deploys to Amazon S3 for static hosting.
+
+### Setup
+
+1. Configure AWS CLI with your credentials:
+   ```bash
+   aws configure
+   ```
+
+2. Create an S3 bucket with static website hosting enabled
+
+3. Set up your environment:
+   ```bash
+   cp .env.example .env
+   # Edit .env with your S3_BUCKET name
+   ```
+
+### Deploy
+
+```bash
+# Deploy with environment variable
+S3_BUCKET=your-bucket-name npm run deploy
+
+# Or with .env configured
+npm run deploy
 ```
+
+### CloudFront (Optional)
+
+For CloudFront cache invalidation, set the distribution ID:
+
+```bash
+S3_BUCKET=your-bucket CLOUDFRONT_DISTRIBUTION_ID=EXXXXX npm run deploy
+```
+
+## Project Structure
+
+```
+├── public/             # Static assets
+├── src/
+│   ├── assets/         # Images and other assets
+│   ├── App.tsx         # Main application component
+│   ├── App.css         # Application styles
+│   ├── main.tsx        # Application entry point
+│   └── index.css       # Global styles
+├── scripts/
+│   └── deploy.sh       # S3 deployment script
+├── index.html          # HTML entry point
+├── vite.config.ts      # Vite configuration
+├── tsconfig.json       # TypeScript configuration
+└── eslint.config.js    # ESLint configuration
+```
+
+## Tech Stack
+
+- React 19
+- TypeScript 5.9
+- Vite 7
+- ESLint
