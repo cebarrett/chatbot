@@ -7,7 +7,7 @@ import { ChatHistorySidebar } from './components/ChatHistorySidebar'
 import type { Message, Chat } from './types'
 import { getDummyResponse, generateId } from './utils/dummyResponses'
 import { loadChats, saveChats, generateChatTitle } from './utils/chatStorage'
-import { sendMessage, isConfigured, OpenAIError } from './services/openai'
+import { sendMessageStream, isConfigured, OpenAIError } from './services/openai'
 
 const SYSTEM_PROMPT = `You are a helpful, friendly assistant. Be concise and clear in your responses.`
 
@@ -75,6 +75,38 @@ function App() {
     })
   }
 
+  const updateBotMessage = useCallback((chatId: string, messageId: string, content: string) => {
+    setChats((prev) =>
+      prev.map((chat) => {
+        if (chat.id === chatId) {
+          return {
+            ...chat,
+            messages: chat.messages.map((msg) =>
+              msg.id === messageId ? { ...msg, content } : msg
+            ),
+            updatedAt: new Date(),
+          }
+        }
+        return chat
+      })
+    )
+  }, [])
+
+  const streamDummyResponse = async (
+    chatId: string,
+    messageId: string,
+    fullResponse: string
+  ) => {
+    const words = fullResponse.split(' ')
+    let accumulated = ''
+
+    for (let i = 0; i < words.length; i++) {
+      accumulated += (i === 0 ? '' : ' ') + words[i]
+      updateBotMessage(chatId, messageId, accumulated)
+      await new Promise((resolve) => setTimeout(resolve, 50 + Math.random() * 50))
+    }
+  }
+
   const handleSend = async (content: string) => {
     let currentChatId = activeChatId
     if (!currentChatId) {
@@ -88,10 +120,18 @@ function App() {
       timestamp: new Date(),
     }
 
+    const botMessageId = generateId()
+    const botMessage: Message = {
+      id: botMessageId,
+      content: '',
+      role: 'assistant',
+      timestamp: new Date(),
+    }
+
     setChats((prev) =>
       prev.map((chat) => {
         if (chat.id === currentChatId) {
-          const updatedMessages = [...chat.messages, userMessage]
+          const updatedMessages = [...chat.messages, userMessage, botMessage]
           return {
             ...chat,
             messages: updatedMessages,
@@ -106,41 +146,35 @@ function App() {
     setIsTyping(true)
     setError(null)
 
-    try {
-      let responseContent: string
+    const chatIdForStream = currentChatId
 
+    try {
       const currentChat = chats.find((c) => c.id === currentChatId)
-      const updatedMessages = [...(currentChat?.messages || []), userMessage]
+      const messagesForApi = [...(currentChat?.messages || []), userMessage]
 
       if (apiConfigured) {
-        responseContent = await sendMessage(updatedMessages, SYSTEM_PROMPT)
+        await sendMessageStream(messagesForApi, SYSTEM_PROMPT, (streamedContent) => {
+          updateBotMessage(chatIdForStream, botMessageId, streamedContent)
+        })
       } else {
-        await new Promise((resolve) => setTimeout(resolve, 1000 + Math.random() * 1000))
-        responseContent = getDummyResponse()
+        const fullResponse = getDummyResponse()
+        await streamDummyResponse(chatIdForStream, botMessageId, fullResponse)
       }
-
-      const botMessage: Message = {
-        id: generateId(),
-        content: responseContent,
-        role: 'assistant',
-        timestamp: new Date(),
-      }
-
+    } catch (err) {
+      const errorMessage = err instanceof OpenAIError ? err.message : 'An unexpected error occurred'
+      setError(errorMessage)
+      // Remove the empty bot message on error
       setChats((prev) =>
         prev.map((chat) => {
-          if (chat.id === currentChatId) {
+          if (chat.id === chatIdForStream) {
             return {
               ...chat,
-              messages: [...chat.messages, botMessage],
-              updatedAt: new Date(),
+              messages: chat.messages.filter((msg) => msg.id !== botMessageId),
             }
           }
           return chat
         })
       )
-    } catch (err) {
-      const errorMessage = err instanceof OpenAIError ? err.message : 'An unexpected error occurred'
-      setError(errorMessage)
     } finally {
       setIsTyping(false)
     }
