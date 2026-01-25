@@ -110,8 +110,8 @@ export function ChatMessage({ message }: ChatMessageProps) {
             {message.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
           </Typography>
 
-          {!isUser && message.qualityRating && (
-            <ResponseQualityRating rating={message.qualityRating} />
+          {!isUser && message.judgeRatings && (
+            <ResponseQualityRating ratings={message.judgeRatings} />
           )}
         </Paper>
       </Box>

@@ -4,12 +4,17 @@ export interface QualityRating {
   problems: string[]
 }
 
+export interface JudgeRatings {
+  claude?: QualityRating
+  gemini?: QualityRating
+}
+
 export interface Message {
   id: string
   content: string
   role: 'user' | 'assistant'
   timestamp: Date
-  qualityRating?: QualityRating
+  judgeRatings?: JudgeRatings
 }
 
 export interface Chat {

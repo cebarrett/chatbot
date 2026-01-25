@@ -8,7 +8,8 @@ import type { Message, Chat } from './types'
 import { getDummyResponse, generateId } from './utils/dummyResponses'
 import { loadChats, saveChats, generateChatTitle } from './utils/chatStorage'
 import { sendMessageStream, isConfigured, OpenAIError } from './services/openai'
-import { getQualityRating } from './services/claudeJudge'
+import { getQualityRating as getClaudeRating } from './services/claudeJudge'
+import { getGeminiQualityRating as getGeminiRating } from './services/geminiJudge'
 import type { QualityRating } from './types'
 
 const SYSTEM_PROMPT = `You are a helpful, friendly assistant. Be concise and clear in your responses.`
@@ -95,15 +96,24 @@ function App() {
   }, [])
 
   const updateMessageRating = useCallback(
-    (chatId: string, messageId: string, qualityRating: QualityRating) => {
+    (chatId: string, messageId: string, judge: 'claude' | 'gemini', rating: QualityRating) => {
       setChats((prev) =>
         prev.map((chat) => {
           if (chat.id === chatId) {
             return {
               ...chat,
-              messages: chat.messages.map((msg) =>
-                msg.id === messageId ? { ...msg, qualityRating } : msg
-              ),
+              messages: chat.messages.map((msg) => {
+                if (msg.id === messageId) {
+                  return {
+                    ...msg,
+                    judgeRatings: {
+                      ...msg.judgeRatings,
+                      [judge]: rating,
+                    },
+                  }
+                }
+                return msg
+              }),
             }
           }
           return chat
@@ -185,9 +195,12 @@ function App() {
         await streamDummyResponse(chatIdForStream, botMessageId, finalResponse)
       }
 
-      // Fetch quality rating from Claude judge (async, non-blocking)
-      getQualityRating(content, finalResponse).then((rating) => {
-        updateMessageRating(chatIdForStream, botMessageId, rating)
+      // Fetch quality ratings from both judges in parallel (async, non-blocking)
+      getClaudeRating(content, finalResponse).then((rating) => {
+        updateMessageRating(chatIdForStream, botMessageId, 'claude', rating)
+      })
+      getGeminiRating(content, finalResponse).then((rating) => {
+        updateMessageRating(chatIdForStream, botMessageId, 'gemini', rating)
       })
     } catch (err) {
       const errorMessage = err instanceof OpenAIError ? err.message : 'An unexpected error occurred'
