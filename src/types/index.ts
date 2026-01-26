@@ -21,4 +21,5 @@ export interface Chat {
   messages: Message[]
   createdAt: Date
   updatedAt: Date
+  providerId?: string // Chat provider (claude, openai, gemini) - defaults to claude
 }
