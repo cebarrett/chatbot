@@ -3,12 +3,14 @@ import SmartToyIcon from '@mui/icons-material/SmartToy'
 import PersonIcon from '@mui/icons-material/Person'
 import ReactMarkdown from 'react-markdown'
 import type { Message } from '../types'
+import { ResponseQualityRating } from './ResponseQualityRating'
 
 interface ChatMessageProps {
   message: Message
+  enabledJudges: string[]
 }
 
-export function ChatMessage({ message }: ChatMessageProps) {
+export function ChatMessage({ message, enabledJudges }: ChatMessageProps) {
   const isUser = message.role === 'user'
 
   return (
@@ -108,6 +110,10 @@ export function ChatMessage({ message }: ChatMessageProps) {
           >
             {message.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
           </Typography>
+
+          {!isUser && message.judgeRatings && (
+            <ResponseQualityRating ratings={message.judgeRatings} enabledJudges={enabledJudges} />
+          )}
         </Paper>
       </Box>
     </Box>
