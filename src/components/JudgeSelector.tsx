@@ -115,7 +115,7 @@ export function JudgeSelector({ enabledJudges, onToggleJudge }: JudgeSelectorPro
                 {isConfigured ? (
                   <CheckCircleIcon fontSize="small" sx={{ color: 'success.main' }} />
                 ) : (
-                  <Tooltip title={`Set ${judge.getApiKeyEnvVar} to enable`}>
+                  <Tooltip title="Configure AppSync backend to enable">
                     <ErrorOutlineIcon fontSize="small" sx={{ color: 'warning.main' }} />
                   </Tooltip>
                 )}

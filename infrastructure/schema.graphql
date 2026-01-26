@@ -1,0 +1,92 @@
+# GraphQL Schema for Chatbot AppSync API
+
+# Input types
+input SendMessageInput {
+  requestId: String!
+  provider: ChatProvider!
+  messages: [ChatMessageInput!]!
+  model: String
+}
+
+input ChatMessageInput {
+  role: MessageRole!
+  content: String!
+}
+
+input JudgeInput {
+  judgeProvider: ChatProvider!
+  originalPrompt: String!
+  responseToJudge: String!
+  respondingProvider: String!
+  model: String
+}
+
+# Enums
+enum ChatProvider {
+  OPENAI
+  ANTHROPIC
+  GEMINI
+}
+
+enum MessageRole {
+  user
+  assistant
+  system
+}
+
+# Output types
+type SendMessageResponse {
+  requestId: String!
+  status: String!
+  message: String
+}
+
+type MessageChunk {
+  requestId: String!
+  chunk: String!
+  done: Boolean!
+  error: String
+}
+
+type JudgeResponse {
+  score: Float!
+  explanation: String!
+  problems: [String!]!
+  judgeProvider: String!
+}
+
+# Queries
+type Query {
+  # Health check endpoint
+  health: String!
+}
+
+# Mutations
+type Mutation {
+  # Send a message to an LLM provider - triggers streaming via subscription
+  sendMessage(input: SendMessageInput!): SendMessageResponse!
+
+  # Internal mutation called by Lambda to publish chunks to subscribers
+  publishChunk(
+    requestId: String!
+    chunk: String!
+    done: Boolean!
+    error: String
+  ): MessageChunk!
+
+  # Judge a response quality
+  judgeResponse(input: JudgeInput!): JudgeResponse!
+}
+
+# Subscriptions
+type Subscription {
+  # Subscribe to message chunks for a specific request
+  onMessageChunk(requestId: String!): MessageChunk
+    @aws_subscribe(mutations: ["publishChunk"])
+}
+
+schema {
+  query: Query
+  mutation: Mutation
+  subscription: Subscription
+}

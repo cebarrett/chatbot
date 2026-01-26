@@ -243,10 +243,12 @@ function App() {
       // Fetch quality ratings from enabled judges in parallel (async, non-blocking)
       // Pass full conversation history for context-aware evaluation
       if (enabledJudges.length > 0) {
+        const respondingProviderId = currentChat?.providerId || DEFAULT_PROVIDER_ID
         fetchRatingsFromJudges(
           enabledJudges,
           messagesForApi,
           finalResponse,
+          respondingProviderId,
           (judgeId, rating) => {
             updateMessageRating(chatIdForStream, botMessageId, judgeId, rating)
           }
@@ -366,7 +368,7 @@ function App() {
               <Typography variant="body2">
                 {providerConfigured
                   ? 'Send a message to start the conversation'
-                  : `Running in demo mode. Set ${activeProvider?.getApiKeyEnvVar || 'API key'} to enable AI responses.`}
+                  : 'Running in demo mode. Configure AppSync backend to enable AI responses.'}
               </Typography>
             </Box>
           ) : (

@@ -1,0 +1,19 @@
+{
+  "name": "chatbot-lambda",
+  "version": "1.0.0",
+  "description": "Lambda functions for chatbot AppSync API",
+  "main": "dist/index.js",
+  "scripts": {
+    "build": "tsc",
+    "clean": "rm -rf dist",
+    "prebuild": "npm run clean"
+  },
+  "dependencies": {
+    "@aws-sdk/client-secrets-manager": "^3.400.0"
+  },
+  "devDependencies": {
+    "@types/aws-lambda": "^8.10.119",
+    "@types/node": "^20.0.0",
+    "typescript": "^5.0.0"
+  }
+}

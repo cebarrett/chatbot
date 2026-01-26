@@ -1,23 +1,14 @@
 import type { Message } from '../types'
 import {
-  sendMessageStream as sendOpenAIStream,
-  isConfigured as isOpenAIConfigured,
-} from './openai'
-import {
-  sendMessageStream as sendClaudeStream,
-  isConfigured as isClaudeConfigured,
-} from './claudeChat'
-import {
-  sendMessageStream as sendGeminiStream,
-  isConfigured as isGeminiConfigured,
-} from './geminiChat'
+  sendMessageStream as sendAppSyncStream,
+  isConfigured as isAppSyncConfigured,
+} from './appsyncChat'
 
 export interface ChatProviderConfig {
   id: string
   name: string
   description: string
   color: string
-  getApiKeyEnvVar: string
   isConfigured: () => boolean
   sendMessageStream: (
     messages: Message[],
@@ -26,34 +17,41 @@ export interface ChatProviderConfig {
   ) => Promise<string>
 }
 
+// Create a wrapper that binds the provider ID
+function createProviderStream(providerId: string) {
+  return (
+    messages: Message[],
+    systemPrompt: string | undefined,
+    onChunk: (content: string) => void
+  ) => sendAppSyncStream(providerId, messages, systemPrompt, onChunk)
+}
+
 // Registry of all available chat providers
+// Now all providers use AppSync backend - no direct API calls
 export const chatProviderRegistry: ChatProviderConfig[] = [
   {
     id: 'claude',
     name: 'Claude',
     description: 'Anthropic Claude AI',
     color: '#D97706', // Amber/orange
-    getApiKeyEnvVar: 'VITE_CLAUDE_API_KEY',
-    isConfigured: isClaudeConfigured,
-    sendMessageStream: sendClaudeStream,
+    isConfigured: isAppSyncConfigured,
+    sendMessageStream: createProviderStream('claude'),
   },
   {
     id: 'openai',
     name: 'OpenAI',
     description: 'OpenAI GPT',
     color: '#10A37F', // OpenAI green
-    getApiKeyEnvVar: 'VITE_OPENAI_API_KEY',
-    isConfigured: isOpenAIConfigured,
-    sendMessageStream: sendOpenAIStream,
+    isConfigured: isAppSyncConfigured,
+    sendMessageStream: createProviderStream('openai'),
   },
   {
     id: 'gemini',
     name: 'Gemini',
     description: 'Google Gemini AI',
     color: '#4285F4', // Google blue
-    getApiKeyEnvVar: 'VITE_GEMINI_API_KEY',
-    isConfigured: isGeminiConfigured,
-    sendMessageStream: sendGeminiStream,
+    isConfigured: isAppSyncConfigured,
+    sendMessageStream: createProviderStream('gemini'),
   },
 ]
 
