@@ -1,6 +1,7 @@
 import type { QualityRating, Message } from '../types'
 import { getQualityRating as getClaudeRating } from './claudeJudge'
 import { getGeminiQualityRating as getGeminiRating } from './geminiJudge'
+import { getOpenAIQualityRating as getOpenAIRating } from './openaiJudge'
 
 export interface JudgeConfig {
   id: string
@@ -31,6 +32,15 @@ export const judgeRegistry: JudgeConfig[] = [
     getApiKeyEnvVar: 'VITE_GEMINI_API_KEY',
     isConfigured: () => !!import.meta.env.VITE_GEMINI_API_KEY,
     getRating: getGeminiRating,
+  },
+  {
+    id: 'openai',
+    name: 'OpenAI',
+    description: 'OpenAI GPT',
+    color: '#10A37F', // OpenAI green
+    getApiKeyEnvVar: 'VITE_OPENAI_API_KEY',
+    isConfigured: () => !!import.meta.env.VITE_OPENAI_API_KEY,
+    getRating: getOpenAIRating,
   },
 ]
 

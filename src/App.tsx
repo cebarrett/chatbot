@@ -4,10 +4,14 @@ import SmartToyIcon from '@mui/icons-material/SmartToy'
 import { ChatMessage } from './components/ChatMessage'
 import { ChatInput } from './components/ChatInput'
 import { ChatHistorySidebar } from './components/ChatHistorySidebar'
+import { ProviderSelector } from './components/ProviderSelector'
 import type { Message, Chat } from './types'
 import { getDummyResponse, generateId } from './utils/dummyResponses'
 import { loadChats, saveChats, generateChatTitle } from './utils/chatStorage'
-import { sendMessageStream, isConfigured, OpenAIError } from './services/openai'
+import {
+  getProviderById,
+  DEFAULT_PROVIDER_ID,
+} from './services/chatProviderRegistry'
 import {
   loadEnabledJudges,
   saveEnabledJudges,
@@ -26,9 +30,10 @@ function App() {
   const [enabledJudges, setEnabledJudges] = useState<string[]>(() => loadEnabledJudges())
   const messagesEndRef = useRef<HTMLDivElement>(null)
 
-  const apiConfigured = isConfigured()
-
   const activeChat = chats.find((c) => c.id === activeChatId) || null
+  const activeProviderId = activeChat?.providerId || DEFAULT_PROVIDER_ID
+  const activeProvider = getProviderById(activeProviderId)
+  const providerConfigured = activeProvider?.isConfigured() ?? false
   const messages = useMemo(() => activeChat?.messages || [], [activeChat?.messages])
 
   useEffect(() => {
@@ -60,6 +65,7 @@ function App() {
       messages: [],
       createdAt: new Date(),
       updatedAt: new Date(),
+      providerId: DEFAULT_PROVIDER_ID,
     }
     setChats((prev) => [newChat, ...prev])
     setActiveChatId(newChat.id)
@@ -138,6 +144,25 @@ function App() {
     })
   }, [])
 
+  const handleChangeProvider = useCallback(
+    (providerId: string) => {
+      if (!activeChatId) return
+      setChats((prev) =>
+        prev.map((chat) => {
+          if (chat.id === activeChatId) {
+            return {
+              ...chat,
+              providerId,
+              updatedAt: new Date(),
+            }
+          }
+          return chat
+        })
+      )
+    },
+    [activeChatId]
+  )
+
   const streamDummyResponse = async (
     chatId: string,
     messageId: string,
@@ -197,11 +222,12 @@ function App() {
     try {
       const currentChat = chats.find((c) => c.id === currentChatId)
       const messagesForApi = [...(currentChat?.messages || []), userMessage]
+      const provider = getProviderById(currentChat?.providerId || DEFAULT_PROVIDER_ID)
 
       let finalResponse = ''
 
-      if (apiConfigured) {
-        await sendMessageStream(messagesForApi, SYSTEM_PROMPT, (streamedContent) => {
+      if (provider?.isConfigured()) {
+        await provider.sendMessageStream(messagesForApi, SYSTEM_PROMPT, (streamedContent) => {
           finalResponse = streamedContent
           updateBotMessage(chatIdForStream, botMessageId, streamedContent)
         })
@@ -223,7 +249,7 @@ function App() {
         )
       }
     } catch (err) {
-      const errorMessage = err instanceof OpenAIError ? err.message : 'An unexpected error occurred'
+      const errorMessage = err instanceof Error ? err.message : 'An unexpected error occurred'
       setError(errorMessage)
       // Remove the empty bot message on error
       setChats((prev) =>
@@ -285,8 +311,13 @@ function App() {
             Chatbot
           </Typography>
           <Box sx={{ ml: 'auto', display: 'flex', alignItems: 'center', gap: 1 }}>
+            <ProviderSelector
+              selectedProviderId={activeProviderId}
+              onSelectProvider={handleChangeProvider}
+              disabled={isTyping || !activeChatId}
+            />
             <JudgeSelector enabledJudges={enabledJudges} onToggleJudge={handleToggleJudge} />
-            {!apiConfigured && (
+            {!providerConfigured && (
               <Typography
                 variant="caption"
                 sx={{
@@ -324,9 +355,9 @@ function App() {
               <SmartToyIcon sx={{ fontSize: 64, mb: 2, opacity: 0.5 }} />
               <Typography variant="h6">Welcome to Chatbot</Typography>
               <Typography variant="body2">
-                {apiConfigured
+                {providerConfigured
                   ? 'Send a message to start the conversation'
-                  : 'Running in demo mode. Add your OpenAI API key to enable AI responses.'}
+                  : `Running in demo mode. Set ${activeProvider?.getApiKeyEnvVar || 'API key'} to enable AI responses.`}
               </Typography>
             </Box>
           ) : (
