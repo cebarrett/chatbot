@@ -1,9 +1,34 @@
 // AppSync client for GraphQL operations with WebSocket subscriptions
+// Uses Clerk JWT tokens for OIDC authentication
 import { getAppSyncConfig, isAppSyncConfigured } from '../config/appsync';
 
 interface GraphQLResponse<T> {
   data?: T;
   errors?: Array<{ message: string }>;
+}
+
+// Token provider function type - will be set by the auth context
+type TokenProvider = () => Promise<string | null>;
+
+let tokenProvider: TokenProvider | null = null;
+
+// Set the token provider (called from auth context)
+export function setTokenProvider(provider: TokenProvider): void {
+  tokenProvider = provider;
+}
+
+// Get the current auth token
+async function getAuthToken(): Promise<string> {
+  if (!tokenProvider) {
+    throw new Error('Token provider not set. Ensure auth context is initialized.');
+  }
+
+  const token = await tokenProvider();
+  if (!token) {
+    throw new Error('No auth token available. User may not be signed in.');
+  }
+
+  return token;
 }
 
 // Execute a GraphQL mutation or query
@@ -12,12 +37,13 @@ export async function executeGraphQL<T>(
   variables?: Record<string, unknown>
 ): Promise<T> {
   const config = getAppSyncConfig();
+  const token = await getAuthToken();
 
   const response = await fetch(config.endpoint, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
-      'x-api-key': config.apiKey,
+      Authorization: token,
     },
     body: JSON.stringify({ query, variables }),
   });
@@ -51,24 +77,25 @@ interface SubscriptionCallbacks<T> {
   onComplete?: () => void;
 }
 
-// Create a WebSocket subscription to AppSync
-export function createSubscription<T>(
+// Create a WebSocket subscription to AppSync with OIDC auth
+export async function createSubscription<T>(
   subscription: string,
   variables: Record<string, unknown>,
   callbacks: SubscriptionCallbacks<T>
-): SubscriptionConnection {
+): Promise<SubscriptionConnection> {
   const config = getAppSyncConfig();
+  const token = await getAuthToken();
 
   // Convert HTTPS endpoint to WSS for real-time
   const realtimeEndpoint = config.endpoint
     .replace('https://', 'wss://')
     .replace('/graphql', '/graphql/realtime');
 
-  // Encode the header and payload for AppSync real-time
+  // Encode the header for AppSync real-time with OIDC auth
   const header = btoa(
     JSON.stringify({
       host: new URL(config.endpoint).host,
-      'x-api-key': config.apiKey,
+      Authorization: token,
     })
   );
 
@@ -103,7 +130,7 @@ export function createSubscription<T>(
               extensions: {
                 authorization: {
                   host: new URL(config.endpoint).host,
-                  'x-api-key': config.apiKey,
+                  Authorization: token,
                 },
               },
             },

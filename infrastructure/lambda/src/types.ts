@@ -42,24 +42,17 @@ export interface JudgeResponse {
   judgeProvider: string;
 }
 
-// Lambda event types
+// User identity from OIDC token (Clerk)
+export interface UserIdentity {
+  sub: string; // User ID
+  issuer: string; // Clerk issuer URL
+  claims?: Record<string, unknown>; // Additional claims from JWT
+}
+
+// Lambda event types - matches the resolver payload structure
 export interface AppSyncEvent<T> {
   arguments: T;
-  identity?: {
-    sub?: string;
-    issuer?: string;
-    username?: string;
-    claims?: Record<string, unknown>;
-  };
-  source?: Record<string, unknown>;
-  request: {
-    headers: Record<string, string>;
-  };
-  info: {
-    fieldName: string;
-    parentTypeName: string;
-    variables: Record<string, unknown>;
-  };
+  identity: UserIdentity;
 }
 
 // Secrets structure

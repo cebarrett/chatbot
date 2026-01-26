@@ -1,7 +1,11 @@
+import { SignatureV4 } from '@aws-sdk/signature-v4';
+import { Sha256 } from '@aws-crypto/sha256-js';
+import { defaultProvider } from '@aws-sdk/credential-provider-node';
+import { HttpRequest } from '@smithy/protocol-http';
 import { MessageChunk } from './types';
 
 const APPSYNC_URL = process.env.APPSYNC_URL;
-const APPSYNC_API_KEY = process.env.APPSYNC_API_KEY;
+const AWS_REGION = process.env.AWS_REGION || 'us-east-1';
 
 const PUBLISH_CHUNK_MUTATION = `
   mutation PublishChunk($requestId: String!, $chunk: String!, $done: Boolean!, $error: String) {
@@ -14,31 +18,55 @@ const PUBLISH_CHUNK_MUTATION = `
   }
 `;
 
+// Create a SigV4 signer for AppSync
+const signer = new SignatureV4({
+  credentials: defaultProvider(),
+  region: AWS_REGION,
+  service: 'appsync',
+  sha256: Sha256,
+});
+
 export async function publishChunk(
   requestId: string,
   chunk: string,
   done: boolean,
   error?: string
 ): Promise<MessageChunk> {
-  if (!APPSYNC_URL || !APPSYNC_API_KEY) {
-    throw new Error('AppSync configuration missing');
+  if (!APPSYNC_URL) {
+    throw new Error('APPSYNC_URL environment variable not set');
   }
 
-  const response = await fetch(APPSYNC_URL, {
+  const url = new URL(APPSYNC_URL);
+  const body = JSON.stringify({
+    query: PUBLISH_CHUNK_MUTATION,
+    variables: {
+      requestId,
+      chunk,
+      done,
+      error: error || null,
+    },
+  });
+
+  // Create the HTTP request for signing
+  const request = new HttpRequest({
     method: 'POST',
+    hostname: url.hostname,
+    path: url.pathname,
     headers: {
       'Content-Type': 'application/json',
-      'x-api-key': APPSYNC_API_KEY,
+      host: url.hostname,
     },
-    body: JSON.stringify({
-      query: PUBLISH_CHUNK_MUTATION,
-      variables: {
-        requestId,
-        chunk,
-        done,
-        error: error || null,
-      },
-    }),
+    body,
+  });
+
+  // Sign the request with IAM credentials
+  const signedRequest = await signer.sign(request);
+
+  // Make the request
+  const response = await fetch(APPSYNC_URL, {
+    method: 'POST',
+    headers: signedRequest.headers as Record<string, string>,
+    body,
   });
 
   if (!response.ok) {

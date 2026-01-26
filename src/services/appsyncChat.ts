@@ -67,7 +67,7 @@ export async function sendMessageStream(
 ): Promise<string> {
   if (!isAppSyncConfigured()) {
     throw new AppSyncChatError(
-      'AppSync not configured. Please set VITE_APPSYNC_URL and VITE_APPSYNC_API_KEY.'
+      'AppSync not configured. Please set VITE_APPSYNC_URL in your .env file.'
     );
   }
 
@@ -85,41 +85,48 @@ export async function sendMessageStream(
     rejectPromise = reject;
   });
 
-  // First, set up the subscription
-  const subscription = createSubscription<MessageChunk>(
-    ON_MESSAGE_CHUNK_SUBSCRIPTION,
-    { requestId },
-    {
-      onData: (chunk) => {
-        if (chunk.error) {
-          subscriptionError = new AppSyncChatError(chunk.error);
-          subscription.close();
-          rejectPromise?.(subscriptionError);
-          return;
-        }
+  // Variable to hold subscription reference
+  let subscription: { close: () => void } | null = null;
 
-        if (chunk.chunk) {
-          fullContent += chunk.chunk;
-          onChunk(fullContent);
-        }
+  // First, set up the subscription (now async)
+  try {
+    subscription = await createSubscription<MessageChunk>(
+      ON_MESSAGE_CHUNK_SUBSCRIPTION,
+      { requestId },
+      {
+        onData: (chunk) => {
+          if (chunk.error) {
+            subscriptionError = new AppSyncChatError(chunk.error);
+            subscription?.close();
+            rejectPromise?.(subscriptionError);
+            return;
+          }
 
-        if (chunk.done) {
-          subscription.close();
-          resolvePromise?.(fullContent);
-        }
-      },
-      onError: (error) => {
-        subscriptionError = error;
-        subscription.close();
-        rejectPromise?.(error);
-      },
-      onComplete: () => {
-        if (!subscriptionError && fullContent) {
-          resolvePromise?.(fullContent);
-        }
-      },
-    }
-  );
+          if (chunk.chunk) {
+            fullContent += chunk.chunk;
+            onChunk(fullContent);
+          }
+
+          if (chunk.done) {
+            subscription?.close();
+            resolvePromise?.(fullContent);
+          }
+        },
+        onError: (error) => {
+          subscriptionError = error;
+          subscription?.close();
+          rejectPromise?.(error);
+        },
+        onComplete: () => {
+          if (!subscriptionError && fullContent) {
+            resolvePromise?.(fullContent);
+          }
+        },
+      }
+    );
+  } catch (error) {
+    throw error instanceof Error ? error : new AppSyncChatError('Failed to create subscription');
+  }
 
   // Give the subscription a moment to connect
   await new Promise((resolve) => setTimeout(resolve, 100));
@@ -138,11 +145,11 @@ export async function sendMessageStream(
     );
 
     if (response.sendMessage.status === 'ERROR') {
-      subscription.close();
+      subscription?.close();
       throw new AppSyncChatError(response.sendMessage.message || 'Unknown error');
     }
   } catch (error) {
-    subscription.close();
+    subscription?.close();
     throw error;
   }
 

@@ -1,30 +1,32 @@
 # Chatbot Infrastructure
 
-This directory contains Terraform configuration for deploying the chatbot backend on AWS.
+This directory contains Terraform configuration for deploying the chatbot backend on AWS with Clerk authentication.
 
 ## Architecture
 
 ```
 ┌─────────────┐      GraphQL       ┌─────────────┐      Lambda       ┌─────────────┐
 │   React     │  ◄──────────────►  │   AppSync   │  ◄──────────────► │   Lambda    │
-│   Frontend  │    (Queries &      │   API       │    (Resolvers)    │   Functions │
-└─────────────┘    Subscriptions)  └─────────────┘                   └──────┬──────┘
-                                                                            │
-                                          ┌─────────────────────────────────┤
-                                          ▼                                 ▼
-                                   ┌─────────────┐                  ┌─────────────┐
-                                   │  Secrets    │                  │  LLM APIs   │
-                                   │  Manager    │                  │  (OpenAI,   │
-                                   │  (API Keys) │                  │  Anthropic, │
-                                   └─────────────┘                  │  Gemini)    │
-                                                                    └─────────────┘
+│   Frontend  │    (OIDC Auth)     │   API       │    (Resolvers)    │   Functions │
+└──────┬──────┘                    └──────┬──────┘                   └──────┬──────┘
+       │                                  │                                 │
+       ▼                                  ▼                                 │
+┌─────────────┐                    ┌─────────────┐     ┌────────────────────┤
+│   Clerk     │                    │   Clerk     │     ▼                    ▼
+│   (Auth)    │ ──────────────────►│   (OIDC)    │  ┌─────────────┐  ┌─────────────┐
+└─────────────┘   JWT Tokens       └─────────────┘  │  Secrets    │  │  LLM APIs   │
+                                                    │  Manager    │  │  (OpenAI,   │
+                                                    │  (API Keys) │  │  Anthropic, │
+                                                    └─────────────┘  │  Gemini)    │
+                                                                     └─────────────┘
 ```
 
 ## Components
 
-- **AWS AppSync**: GraphQL API with real-time WebSocket subscriptions
+- **AWS AppSync**: GraphQL API with OIDC authentication (Clerk) and real-time subscriptions
 - **AWS Lambda**: Node.js functions for chat streaming and judge evaluations
 - **AWS Secrets Manager**: Secure storage for LLM API keys
+- **Clerk**: User authentication via OIDC
 - **IAM Roles**: Least-privilege access policies
 
 ## Prerequisites
@@ -32,6 +34,18 @@ This directory contains Terraform configuration for deploying the chatbot backen
 1. [Terraform](https://www.terraform.io/downloads.html) >= 1.0
 2. [AWS CLI](https://aws.amazon.com/cli/) configured with appropriate credentials
 3. [Node.js](https://nodejs.org/) >= 20.x (for Lambda builds)
+4. [Clerk account](https://clerk.com/) with an application configured
+
+## Clerk Setup
+
+Before deploying, set up Clerk:
+
+1. Create a Clerk application at https://dashboard.clerk.com
+2. Configure sign-in methods (email, phone, Google, Facebook, Apple)
+3. Note down:
+   - **Publishable Key**: `pk_test_...` or `pk_live_...`
+   - **Issuer URL**: Found in Clerk Dashboard > JWT Templates, typically `https://your-app.clerk.accounts.dev`
+   - **Client ID**: Your Clerk application ID
 
 ## Deployment
 
@@ -42,32 +56,38 @@ cd infrastructure
 terraform init
 ```
 
-### 2. Review the plan
+### 2. Create a terraform.tfvars file
+
+```bash
+cat > terraform.tfvars << EOF
+clerk_issuer_url = "https://your-app.clerk.accounts.dev"
+clerk_client_id  = "your-clerk-client-id"
+EOF
+```
+
+### 3. Review the plan
 
 ```bash
 terraform plan
 ```
 
-### 3. Deploy
+### 4. Deploy
 
 ```bash
 terraform apply
 ```
 
-### 4. Get outputs
+### 5. Get outputs
 
 ```bash
 # Get all outputs
 terraform output
 
-# Get specific values for frontend configuration
+# Get AppSync URL for frontend
 terraform output -raw appsync_api_url
-terraform output -raw appsync_api_key
 ```
 
-### 5. Add LLM API Keys to Secrets Manager
-
-After deployment, add your API keys to Secrets Manager:
+### 6. Add LLM API Keys to Secrets Manager
 
 ```bash
 # Get the secret name
@@ -83,15 +103,15 @@ aws secretsmanager put-secret-value \
   }'
 ```
 
-### 6. Configure Frontend
+### 7. Configure Frontend
 
 Create/update the frontend `.env` file:
 
 ```bash
 # From the infrastructure directory
 cat > ../.env << EOF
+VITE_CLERK_PUBLISHABLE_KEY=pk_test_your-clerk-key
 VITE_APPSYNC_URL=$(terraform output -raw appsync_api_url)
-VITE_APPSYNC_API_KEY=$(terraform output -raw appsync_api_key)
 VITE_AWS_REGION=us-east-1
 EOF
 ```
@@ -101,13 +121,13 @@ EOF
 | File | Description |
 |------|-------------|
 | `main.tf` | Terraform providers and backend configuration |
-| `variables.tf` | Input variables |
+| `variables.tf` | Input variables including Clerk OIDC settings |
 | `outputs.tf` | Output values |
-| `appsync.tf` | AppSync API and resolvers |
+| `appsync.tf` | AppSync API with OIDC auth and resolvers |
 | `lambda.tf` | Lambda functions and build process |
 | `iam.tf` | IAM roles and policies |
 | `secrets.tf` | Secrets Manager configuration |
-| `schema.graphql` | GraphQL schema |
+| `schema.graphql` | GraphQL schema with auth directives |
 | `lambda/` | Lambda function source code |
 
 ## Lambda Functions
@@ -115,10 +135,12 @@ EOF
 ### Chat Function
 - Handles streaming chat completions from OpenAI, Anthropic, and Gemini
 - Publishes chunks via AppSync subscriptions for real-time updates
+- Receives authenticated user identity from OIDC token
 
 ### Judge Function
 - Evaluates response quality using LLM providers
 - Returns score, explanation, and identified problems
+- Receives authenticated user identity from OIDC token
 
 ## Customization
 
@@ -131,12 +153,8 @@ EOF
 | `project_name` | `chatbot` | Project name for resource naming |
 | `lambda_timeout` | `300` | Lambda timeout in seconds |
 | `lambda_memory` | `512` | Lambda memory in MB |
-
-Override variables:
-
-```bash
-terraform apply -var="environment=dev" -var="lambda_memory=1024"
-```
+| `clerk_issuer_url` | (required) | Clerk OIDC issuer URL |
+| `clerk_client_id` | (required) | Clerk application client ID |
 
 ### Migrating to S3 Backend
 

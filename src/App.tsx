@@ -4,6 +4,7 @@ import SmartToyIcon from '@mui/icons-material/SmartToy'
 import LightModeIcon from '@mui/icons-material/LightMode'
 import DarkModeIcon from '@mui/icons-material/DarkMode'
 import { useTheme } from './contexts/ThemeContext'
+import { AuthLayout, UserButton } from './components/AuthLayout'
 import { ChatMessage } from './components/ChatMessage'
 import { ChatInput } from './components/ChatInput'
 import { ChatHistorySidebar } from './components/ChatHistorySidebar'
@@ -279,14 +280,15 @@ function App() {
   }
 
   return (
-    <Box
-      sx={{
-        height: '100vh',
-        display: 'flex',
-        bgcolor: 'background.default',
-      }}
-    >
-      <ChatHistorySidebar
+    <AuthLayout>
+      <Box
+        sx={{
+          height: '100vh',
+          display: 'flex',
+          bgcolor: 'background.default',
+        }}
+      >
+        <ChatHistorySidebar
         chats={chats}
         activeChatId={activeChatId}
         onSelectChat={handleSelectChat}
@@ -328,6 +330,7 @@ function App() {
                 {resolvedMode === 'light' ? <DarkModeIcon /> : <LightModeIcon />}
               </IconButton>
             </Tooltip>
+            <UserButton afterSignOutUrl="/" />
             {!providerConfigured && (
               <Typography
                 variant="caption"
@@ -390,12 +393,13 @@ function App() {
         <ChatInput onSend={handleSend} disabled={isTyping} />
       </Box>
 
-      <Snackbar open={!!error} autoHideDuration={6000} onClose={handleCloseError}>
-        <Alert onClose={handleCloseError} severity="error" sx={{ width: '100%' }}>
-          {error}
-        </Alert>
-      </Snackbar>
-    </Box>
+        <Snackbar open={!!error} autoHideDuration={6000} onClose={handleCloseError}>
+          <Alert onClose={handleCloseError} severity="error" sx={{ width: '100%' }}>
+            {error}
+          </Alert>
+        </Snackbar>
+      </Box>
+    </AuthLayout>
   )
 }
 

@@ -1,7 +1,17 @@
-# AppSync GraphQL API
+# AppSync GraphQL API with Clerk OIDC authentication
 resource "aws_appsync_graphql_api" "chatbot" {
   name                = "${var.project_name}-${var.environment}-api"
-  authentication_type = "API_KEY"
+  authentication_type = "OPENID_CONNECT"
+
+  openid_connect_config {
+    issuer    = var.clerk_issuer_url
+    client_id = var.clerk_client_id
+  }
+
+  # Additional auth for Lambda to call publishChunk mutation
+  additional_authentication_provider {
+    authentication_type = "AWS_IAM"
+  }
 
   schema = file("${path.module}/schema.graphql")
 
@@ -12,16 +22,6 @@ resource "aws_appsync_graphql_api" "chatbot" {
 
   tags = {
     Name = "${var.project_name}-api"
-  }
-}
-
-# API Key for AppSync (valid for 365 days)
-resource "aws_appsync_api_key" "chatbot" {
-  api_id  = aws_appsync_graphql_api.chatbot.id
-  expires = timeadd(timestamp(), "8760h") # 365 days
-
-  lifecycle {
-    ignore_changes = [expires]
   }
 }
 
@@ -109,7 +109,14 @@ resource "aws_appsync_resolver" "send_message" {
 {
   "version": "2017-02-28",
   "operation": "Invoke",
-  "payload": $util.toJson($context.arguments)
+  "payload": {
+    "arguments": $util.toJson($context.arguments),
+    "identity": {
+      "sub": "$context.identity.sub",
+      "issuer": "$context.identity.issuer",
+      "claims": $util.toJson($context.identity.claims)
+    }
+  }
 }
 EOF
 
@@ -158,7 +165,14 @@ resource "aws_appsync_resolver" "judge_response" {
 {
   "version": "2017-02-28",
   "operation": "Invoke",
-  "payload": $util.toJson($context.arguments)
+  "payload": {
+    "arguments": $util.toJson($context.arguments),
+    "identity": {
+      "sub": "$context.identity.sub",
+      "issuer": "$context.identity.issuer",
+      "claims": $util.toJson($context.identity.claims)
+    }
+  }
 }
 EOF
 

@@ -8,17 +8,18 @@ import { getSecrets } from './secrets';
 import { publishChunk } from './appsync';
 import { streamOpenAI, streamAnthropic, streamGemini } from './providers';
 
-interface ChatEvent {
+interface ChatEventArgs {
   input: SendMessageInput;
 }
 
 export async function handler(
-  event: AppSyncEvent<ChatEvent>
+  event: AppSyncEvent<ChatEventArgs>
 ): Promise<SendMessageResponse> {
   const { input } = event.arguments;
   const { requestId, provider, messages, model } = input;
+  const identity = event.identity;
 
-  console.log(`Processing chat request: ${requestId} for provider: ${provider}`);
+  console.log(`Processing chat request: ${requestId} for provider: ${provider}, user: ${identity.sub}`);
 
   try {
     // Get API keys from Secrets Manager

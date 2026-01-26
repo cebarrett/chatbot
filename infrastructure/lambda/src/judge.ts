@@ -6,7 +6,7 @@ import {
 import { getSecrets } from './secrets';
 import { judgeOpenAI, judgeAnthropic, judgeGemini } from './providers';
 
-interface JudgeEvent {
+interface JudgeEventArgs {
   input: JudgeInput;
 }
 
@@ -39,12 +39,13 @@ If there are no problems, use an empty array: "problems": []
 Respond ONLY with the JSON object, no additional text.`;
 
 export async function handler(
-  event: AppSyncEvent<JudgeEvent>
+  event: AppSyncEvent<JudgeEventArgs>
 ): Promise<JudgeResponse> {
   const { input } = event.arguments;
   const { judgeProvider, originalPrompt, responseToJudge, respondingProvider, model } = input;
+  const identity = event.identity;
 
-  console.log(`Processing judge request with provider: ${judgeProvider}`);
+  console.log(`Processing judge request with provider: ${judgeProvider}, user: ${identity.sub}`);
 
   try {
     // Get API keys from Secrets Manager

@@ -36,9 +36,9 @@ resource "aws_lambda_function" "chat" {
 
   environment {
     variables = {
-      SECRETS_NAME    = aws_secretsmanager_secret.llm_api_keys.name
-      APPSYNC_URL     = aws_appsync_graphql_api.chatbot.uris["GRAPHQL"]
-      APPSYNC_API_KEY = aws_appsync_api_key.chatbot.key
+      SECRETS_NAME = aws_secretsmanager_secret.llm_api_keys.name
+      APPSYNC_URL  = aws_appsync_graphql_api.chatbot.uris["GRAPHQL"]
+      AWS_REGION   = var.aws_region
     }
   }
 

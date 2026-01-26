@@ -13,11 +13,7 @@ output "appsync_realtime_url" {
   value       = aws_appsync_graphql_api.chatbot.uris["REALTIME"]
 }
 
-output "appsync_api_key" {
-  description = "AppSync API Key (use for frontend configuration)"
-  value       = aws_appsync_api_key.chatbot.key
-  sensitive   = true
-}
+# Note: API key removed - using Clerk OIDC authentication
 
 output "secrets_manager_secret_arn" {
   description = "Secrets Manager ARN for LLM API keys"

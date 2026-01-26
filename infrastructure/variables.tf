@@ -27,3 +27,14 @@ variable "lambda_memory" {
   type        = number
   default     = 512
 }
+
+# Clerk OIDC Configuration
+variable "clerk_issuer_url" {
+  description = "Clerk OIDC issuer URL (e.g., https://clerk.your-domain.com or https://your-instance.clerk.accounts.dev)"
+  type        = string
+}
+
+variable "clerk_client_id" {
+  description = "Clerk application client ID"
+  type        = string
+}
