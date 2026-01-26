@@ -211,10 +211,11 @@ function App() {
       }
 
       // Fetch quality ratings from enabled judges in parallel (async, non-blocking)
+      // Pass full conversation history for context-aware evaluation
       if (enabledJudges.length > 0) {
         fetchRatingsFromJudges(
           enabledJudges,
-          content,
+          messagesForApi,
           finalResponse,
           (judgeId, rating) => {
             updateMessageRating(chatIdForStream, botMessageId, judgeId, rating)

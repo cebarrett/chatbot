@@ -1,4 +1,4 @@
-import type { QualityRating } from '../types'
+import type { QualityRating, Message } from '../types'
 import { getQualityRating as getClaudeRating } from './claudeJudge'
 import { getGeminiQualityRating as getGeminiRating } from './geminiJudge'
 
@@ -9,7 +9,7 @@ export interface JudgeConfig {
   color: string // For UI badge coloring
   getApiKeyEnvVar: string
   isConfigured: () => boolean
-  getRating: (userMessage: string, assistantResponse: string) => Promise<QualityRating>
+  getRating: (conversationHistory: Message[], latestResponse: string) => Promise<QualityRating>
 }
 
 // Registry of all available judges
@@ -73,15 +73,15 @@ export function saveEnabledJudges(judgeIds: string[]): void {
 // Fetch ratings from multiple judges in parallel
 export async function fetchRatingsFromJudges(
   enabledJudgeIds: string[],
-  userMessage: string,
-  assistantResponse: string,
+  conversationHistory: Message[],
+  latestResponse: string,
   onRating: (judgeId: string, rating: QualityRating) => void
 ): Promise<void> {
   const promises = enabledJudgeIds.map(async (judgeId) => {
     const judge = getJudgeById(judgeId)
     if (judge) {
       try {
-        const rating = await judge.getRating(userMessage, assistantResponse)
+        const rating = await judge.getRating(conversationHistory, latestResponse)
         onRating(judgeId, rating)
       } catch (error) {
         console.error(`Error fetching rating from ${judge.name}:`, error)

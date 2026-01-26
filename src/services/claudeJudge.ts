@@ -1,15 +1,18 @@
-import type { QualityRating } from '../types'
+import type { QualityRating, Message } from '../types'
 
 const CLAUDE_API_URL = 'https://api.anthropic.com/v1/messages'
 
-const JUDGE_SYSTEM_PROMPT = `You are an expert AI response quality evaluator. Your task is to assess the quality of an AI assistant's response to a user's message.
+const JUDGE_SYSTEM_PROMPT = `You are an expert AI response quality evaluator. Your task is to assess the quality of an AI assistant's LATEST response in a conversation.
+
+You will be given the full conversation history for context, then asked to evaluate only the most recent assistant response.
 
 Evaluate the response on these criteria:
 1. **Accuracy**: Is the information factually correct? Are there any errors or misleading statements?
-2. **Completeness**: Does the response fully address the user's question or request?
+2. **Completeness**: Does the response fully address the user's question or request, considering the conversation context?
 3. **Clarity**: Is the response well-organized, easy to understand, and appropriately concise?
 4. **Helpfulness**: Does the response provide practical, actionable information?
 5. **Tone**: Is the tone appropriate for the context (professional yet friendly)?
+6. **Context Awareness**: Does the response appropriately reference and build upon earlier parts of the conversation when relevant?
 
 Provide your evaluation as a JSON object with exactly this structure:
 {
@@ -122,10 +125,22 @@ const dummyRatings: QualityRating[] = [
   },
 ]
 
-function getDummyRating(userMessage: string, assistantResponse: string): QualityRating {
+function getDummyRating(conversationHistory: Message[], latestResponse: string): QualityRating {
   // Use a hash of the inputs to get a consistent rating for the same messages
-  const hash = (userMessage + assistantResponse).length
+  const lastUserMessage = conversationHistory.filter((m) => m.role === 'user').pop()?.content || ''
+  const hash = (lastUserMessage + latestResponse).length
   return dummyRatings[hash % dummyRatings.length]
+}
+
+function formatConversationHistory(messages: Message[]): string {
+  if (messages.length === 0) return 'No prior conversation.'
+
+  return messages
+    .map((msg, index) => {
+      const role = msg.role === 'user' ? 'User' : 'Assistant'
+      return `[${index + 1}] ${role}:\n${msg.content}`
+    })
+    .join('\n\n')
 }
 
 interface ClaudeMessage {
@@ -174,27 +189,29 @@ function parseRatingResponse(text: string): QualityRating {
 }
 
 export async function getQualityRating(
-  userMessage: string,
-  assistantResponse: string
+  conversationHistory: Message[],
+  latestResponse: string
 ): Promise<QualityRating> {
   const apiKey = getApiKey()
 
   // Fall back to dummy ratings if API is not configured
   if (!apiKey) {
     await new Promise((resolve) => setTimeout(resolve, 500 + Math.random() * 1000))
-    return getDummyRating(userMessage, assistantResponse)
+    return getDummyRating(conversationHistory, latestResponse)
   }
+
+  const formattedHistory = formatConversationHistory(conversationHistory)
 
   const messages: ClaudeMessage[] = [
     {
       role: 'user',
-      content: `Please evaluate the following AI assistant response.
+      content: `Please evaluate the AI assistant's LATEST response in this conversation.
 
-**User's Message:**
-${userMessage}
+## Conversation History:
+${formattedHistory}
 
-**Assistant's Response:**
-${assistantResponse}
+## Latest Response to Evaluate:
+${latestResponse}
 
 Provide your quality rating as a JSON object.`,
     },
@@ -240,6 +257,6 @@ Provide your quality rating as a JSON object.`,
     }
 
     // Return dummy rating as fallback
-    return getDummyRating(userMessage, assistantResponse)
+    return getDummyRating(conversationHistory, latestResponse)
   }
 }
