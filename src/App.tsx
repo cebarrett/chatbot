@@ -1,6 +1,9 @@
 import { useState, useRef, useEffect, useCallback, useMemo } from 'react'
-import { Box, Typography, Paper, Alert, Snackbar } from '@mui/material'
+import { Box, Typography, Paper, Alert, Snackbar, IconButton, Tooltip } from '@mui/material'
 import SmartToyIcon from '@mui/icons-material/SmartToy'
+import LightModeIcon from '@mui/icons-material/LightMode'
+import DarkModeIcon from '@mui/icons-material/DarkMode'
+import { useTheme } from './contexts/ThemeContext'
 import { ChatMessage } from './components/ChatMessage'
 import { ChatInput } from './components/ChatInput'
 import { ChatHistorySidebar } from './components/ChatHistorySidebar'
@@ -29,6 +32,7 @@ function App() {
   const [error, setError] = useState<string | null>(null)
   const [enabledJudges, setEnabledJudges] = useState<string[]>(() => loadEnabledJudges())
   const messagesEndRef = useRef<HTMLDivElement>(null)
+  const { resolvedMode, toggleMode } = useTheme()
 
   const activeChat = chats.find((c) => c.id === activeChatId) || null
   const activeProviderId = activeChat?.providerId || DEFAULT_PROVIDER_ID
@@ -277,7 +281,7 @@ function App() {
       sx={{
         height: '100vh',
         display: 'flex',
-        bgcolor: 'grey.50',
+        bgcolor: 'background.default',
       }}
     >
       <ChatHistorySidebar
@@ -317,6 +321,11 @@ function App() {
               disabled={isTyping || !activeChatId}
             />
             <JudgeSelector enabledJudges={enabledJudges} onToggleJudge={handleToggleJudge} />
+            <Tooltip title={resolvedMode === 'light' ? 'Switch to dark mode' : 'Switch to light mode'}>
+              <IconButton onClick={toggleMode} size="small">
+                {resolvedMode === 'light' ? <DarkModeIcon /> : <LightModeIcon />}
+              </IconButton>
+            </Tooltip>
             {!providerConfigured && (
               <Typography
                 variant="caption"
