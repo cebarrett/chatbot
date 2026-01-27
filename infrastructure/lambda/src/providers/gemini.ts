@@ -2,7 +2,7 @@ import { ChatMessageInput, GeminiContent } from '../types';
 import { publishChunk } from '../appsync';
 
 const GEMINI_API_BASE = 'https://generativelanguage.googleapis.com/v1beta/models';
-const DEFAULT_MODEL = 'gemini-2.0-flash';
+const DEFAULT_MODEL = 'gemini-2.5-pro';
 
 export async function streamGemini(
   apiKey: string,
