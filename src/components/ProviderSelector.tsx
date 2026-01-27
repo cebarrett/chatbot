@@ -125,7 +125,7 @@ export function ProviderSelector({
                 {isConfigured ? (
                   <CheckCircleIcon fontSize="small" sx={{ color: 'success.main' }} />
                 ) : (
-                  <Tooltip title={`Set ${provider.getApiKeyEnvVar} to enable`}>
+                  <Tooltip title="Configure AppSync backend to enable">
                     <ErrorOutlineIcon fontSize="small" sx={{ color: 'warning.main' }} />
                   </Tooltip>
                 )}

@@ -1,0 +1,99 @@
+# GraphQL Schema for Chatbot AppSync API
+# Authentication: OIDC (Clerk) for users, IAM for Lambda internal calls
+
+# Input types
+input SendMessageInput {
+  requestId: String!
+  provider: ChatProvider!
+  messages: [ChatMessageInput!]!
+  model: String
+}
+
+input ChatMessageInput {
+  role: MessageRole!
+  content: String!
+}
+
+input JudgeInput {
+  judgeProvider: ChatProvider!
+  originalPrompt: String!
+  responseToJudge: String!
+  respondingProvider: String!
+  model: String
+}
+
+# Enums
+enum ChatProvider {
+  OPENAI
+  ANTHROPIC
+  GEMINI
+}
+
+enum MessageRole {
+  user
+  assistant
+  system
+}
+
+# Output types
+type SendMessageResponse {
+  requestId: String!
+  status: String!
+  message: String
+}
+
+type MessageChunk {
+  requestId: String!
+  chunk: String!
+  done: Boolean!
+  error: String
+}
+
+type JudgeResponse {
+  score: Float!
+  explanation: String!
+  problems: [String!]!
+  judgeProvider: String!
+}
+
+# Queries
+type Query {
+  # Health check endpoint
+  health: String!
+    @aws_oidc
+}
+
+# Mutations
+type Mutation {
+  # Send a message to an LLM provider - triggers streaming via subscription
+  sendMessage(input: SendMessageInput!): SendMessageResponse!
+    @aws_oidc
+
+  # Internal mutation called by Lambda to publish chunks to subscribers
+  # Uses IAM auth so only the Lambda function can call this
+  publishChunk(
+    requestId: String!
+    chunk: String!
+    done: Boolean!
+    error: String
+  ): MessageChunk!
+    @aws_iam
+
+  # Judge a response quality
+  judgeResponse(input: JudgeInput!): JudgeResponse!
+    @aws_oidc
+}
+
+# Subscriptions
+type Subscription {
+  # Subscribe to message chunks for a specific request
+  onMessageChunk(requestId: String!): MessageChunk
+    @aws_subscribe(mutations: ["publishChunk"])
+    @aws_oidc
+}
+
+schema {
+  query: Query
+  mutation: Mutation
+  subscription: Subscription
+}

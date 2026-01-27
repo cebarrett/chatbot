@@ -4,6 +4,7 @@ import SmartToyIcon from '@mui/icons-material/SmartToy'
 import LightModeIcon from '@mui/icons-material/LightMode'
 import DarkModeIcon from '@mui/icons-material/DarkMode'
 import { useTheme } from './contexts/ThemeContext'
+import { AuthLayout, UserButton } from './components/AuthLayout'
 import { ChatMessage } from './components/ChatMessage'
 import { ChatInput } from './components/ChatInput'
 import { ChatHistorySidebar } from './components/ChatHistorySidebar'
@@ -243,10 +244,12 @@ function App() {
       // Fetch quality ratings from enabled judges in parallel (async, non-blocking)
       // Pass full conversation history for context-aware evaluation
       if (enabledJudges.length > 0) {
+        const respondingProviderId = currentChat?.providerId || DEFAULT_PROVIDER_ID
         fetchRatingsFromJudges(
           enabledJudges,
           messagesForApi,
           finalResponse,
+          respondingProviderId,
           (judgeId, rating) => {
             updateMessageRating(chatIdForStream, botMessageId, judgeId, rating)
           }
@@ -277,14 +280,15 @@ function App() {
   }
 
   return (
-    <Box
-      sx={{
-        height: '100vh',
-        display: 'flex',
-        bgcolor: 'background.default',
-      }}
-    >
-      <ChatHistorySidebar
+    <AuthLayout>
+      <Box
+        sx={{
+          height: '100vh',
+          display: 'flex',
+          bgcolor: 'background.default',
+        }}
+      >
+        <ChatHistorySidebar
         chats={chats}
         activeChatId={activeChatId}
         onSelectChat={handleSelectChat}
@@ -326,6 +330,7 @@ function App() {
                 {resolvedMode === 'light' ? <DarkModeIcon /> : <LightModeIcon />}
               </IconButton>
             </Tooltip>
+            <UserButton afterSignOutUrl="/" />
             {!providerConfigured && (
               <Typography
                 variant="caption"
@@ -366,7 +371,7 @@ function App() {
               <Typography variant="body2">
                 {providerConfigured
                   ? 'Send a message to start the conversation'
-                  : `Running in demo mode. Set ${activeProvider?.getApiKeyEnvVar || 'API key'} to enable AI responses.`}
+                  : 'Running in demo mode. Configure AppSync backend to enable AI responses.'}
               </Typography>
             </Box>
           ) : (
@@ -388,12 +393,13 @@ function App() {
         <ChatInput onSend={handleSend} disabled={isTyping} />
       </Box>
 
-      <Snackbar open={!!error} autoHideDuration={6000} onClose={handleCloseError}>
-        <Alert onClose={handleCloseError} severity="error" sx={{ width: '100%' }}>
-          {error}
-        </Alert>
-      </Snackbar>
-    </Box>
+        <Snackbar open={!!error} autoHideDuration={6000} onClose={handleCloseError}>
+          <Alert onClose={handleCloseError} severity="error" sx={{ width: '100%' }}>
+            {error}
+          </Alert>
+        </Snackbar>
+      </Box>
+    </AuthLayout>
   )
 }
 
