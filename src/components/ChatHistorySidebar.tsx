@@ -42,7 +42,8 @@ export function ChatHistorySidebar({
       sx={{
         width: 280,
         height: '100%',
-        bgcolor: 'grey.100',
+        bgcolor: (theme) =>
+          theme.palette.mode === 'dark' ? 'grey.900' : 'grey.100',
         borderRight: 1,
         borderColor: 'divider',
         display: 'flex',

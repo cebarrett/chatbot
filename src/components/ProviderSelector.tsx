@@ -59,9 +59,11 @@ export function ProviderSelector({
             sx={{
               textTransform: 'none',
               color: 'text.primary',
-              bgcolor: 'grey.100',
+              bgcolor: (theme) =>
+                theme.palette.mode === 'dark' ? 'grey.800' : 'grey.100',
               '&:hover': {
-                bgcolor: 'grey.200',
+                bgcolor: (theme) =>
+                  theme.palette.mode === 'dark' ? 'grey.700' : 'grey.200',
               },
               px: 1.5,
               py: 0.5,

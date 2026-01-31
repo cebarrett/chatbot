@@ -64,8 +64,10 @@ export function ChatInput({ onSend, disabled = false }: ChatInputProps) {
             bgcolor: 'primary.dark',
           },
           '&.Mui-disabled': {
-            bgcolor: 'grey.300',
-            color: 'grey.500',
+            bgcolor: (theme) =>
+              theme.palette.mode === 'dark' ? 'grey.700' : 'grey.300',
+            color: (theme) =>
+              theme.palette.mode === 'dark' ? 'grey.500' : 'grey.500',
           },
         }}
       >

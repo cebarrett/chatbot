@@ -49,7 +49,9 @@ export function ChatMessage({ message, enabledJudges }: ChatMessageProps) {
           elevation={1}
           sx={{
             p: 2,
-            bgcolor: isUser ? 'primary.main' : 'grey.100',
+            bgcolor: isUser
+              ? 'primary.main'
+              : (theme) => (theme.palette.mode === 'dark' ? 'grey.800' : 'grey.100'),
             color: isUser ? 'white' : 'text.primary',
             borderRadius: 2,
             borderTopRightRadius: isUser ? 0 : 2,
@@ -68,7 +70,10 @@ export function ChatMessage({ message, enabledJudges }: ChatMessageProps) {
                 '& ul, & ol': { m: 0, pl: 2.5, mb: 1 },
                 '& li': { mb: 0.5 },
                 '& code': {
-                  bgcolor: 'rgba(0, 0, 0, 0.08)',
+                  bgcolor: (theme) =>
+                    theme.palette.mode === 'dark'
+                      ? 'rgba(255, 255, 255, 0.08)'
+                      : 'rgba(0, 0, 0, 0.08)',
                   px: 0.5,
                   py: 0.25,
                   borderRadius: 0.5,
@@ -76,7 +81,10 @@ export function ChatMessage({ message, enabledJudges }: ChatMessageProps) {
                   fontSize: '0.875em',
                 },
                 '& pre': {
-                  bgcolor: 'rgba(0, 0, 0, 0.08)',
+                  bgcolor: (theme) =>
+                    theme.palette.mode === 'dark'
+                      ? 'rgba(255, 255, 255, 0.08)'
+                      : 'rgba(0, 0, 0, 0.08)',
                   p: 1.5,
                   borderRadius: 1,
                   overflow: 'auto',
@@ -94,7 +102,12 @@ export function ChatMessage({ message, enabledJudges }: ChatMessageProps) {
                 '& a': { color: 'primary.main' },
                 '& table': { borderCollapse: 'collapse', width: '100%', mb: 1 },
                 '& th, & td': { border: '1px solid', borderColor: 'grey.300', p: 1 },
-                '& th': { bgcolor: 'rgba(0, 0, 0, 0.04)' },
+                '& th': {
+                  bgcolor: (theme) =>
+                    theme.palette.mode === 'dark'
+                      ? 'rgba(255, 255, 255, 0.04)'
+                      : 'rgba(0, 0, 0, 0.04)',
+                },
               }}
             >
               <ReactMarkdown>{message.content}</ReactMarkdown>
