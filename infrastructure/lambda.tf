@@ -18,7 +18,7 @@ resource "null_resource" "lambda_build" {
   }
 
   provisioner "local-exec" {
-    command     = "npm ci && npm run build"
+    command     = "npm ci && npm run build && cp -r node_modules dist/"
     working_dir = "${path.module}/lambda"
   }
 }
@@ -38,7 +38,6 @@ resource "aws_lambda_function" "chat" {
     variables = {
       SECRETS_NAME = aws_secretsmanager_secret.llm_api_keys.name
       APPSYNC_URL  = aws_appsync_graphql_api.chatbot.uris["GRAPHQL"]
-      AWS_REGION   = var.aws_region
     }
   }
 

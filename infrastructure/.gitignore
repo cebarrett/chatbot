@@ -11,6 +11,7 @@ override.tf.json
 *_override.tf.json
 .terraformrc
 terraform.rc
+terraform.tfvars
 
 # Lambda build artifacts
 lambda/node_modules/

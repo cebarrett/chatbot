@@ -1,4 +1,4 @@
-import { SignatureV4 } from '@aws-sdk/signature-v4';
+import { SignatureV4 } from '@smithy/signature-v4';
 import { Sha256 } from '@aws-crypto/sha256-js';
 import { defaultProvider } from '@aws-sdk/credential-provider-node';
 import { HttpRequest } from '@smithy/protocol-http';
@@ -74,7 +74,7 @@ export async function publishChunk(
     throw new Error(`AppSync request failed: ${response.status} ${text}`);
   }
 
-  const result = await response.json();
+  const result: any = await response.json();
 
   if (result.errors) {
     throw new Error(`GraphQL errors: ${JSON.stringify(result.errors)}`);

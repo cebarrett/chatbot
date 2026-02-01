@@ -25,14 +25,13 @@ export async function handler(
     // Get API keys from Secrets Manager
     const secrets = await getSecrets();
 
-    // Start streaming in background and return immediately
-    // The streaming will publish chunks via AppSync subscriptions
-    streamInBackground(secrets, provider, messages, requestId, model);
+    // Stream the response — publishes chunks via AppSync subscriptions
+    await streamInBackground(secrets, provider, messages, requestId, model);
 
     return {
       requestId,
-      status: 'STREAMING',
-      message: 'Message streaming started. Subscribe to onMessageChunk for updates.',
+      status: 'COMPLETE',
+      message: 'Message streaming complete.',
     };
   } catch (error) {
     console.error('Error processing chat request:', error);

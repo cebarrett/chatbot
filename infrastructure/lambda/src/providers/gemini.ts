@@ -131,6 +131,6 @@ export async function judgeGemini(
     throw new Error(`Gemini API error: ${response.status} ${error}`);
   }
 
-  const data = await response.json();
+  const data: any = await response.json();
   return data.candidates?.[0]?.content?.parts?.[0]?.text || '';
 }

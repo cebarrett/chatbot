@@ -42,7 +42,7 @@ type SendMessageResponse {
   message: String
 }
 
-type MessageChunk {
+type MessageChunk @aws_iam @aws_oidc {
   requestId: String!
   chunk: String!
   done: Boolean!
