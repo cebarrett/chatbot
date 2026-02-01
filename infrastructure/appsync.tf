@@ -4,8 +4,7 @@ resource "aws_appsync_graphql_api" "chatbot" {
   authentication_type = "OPENID_CONNECT"
 
   openid_connect_config {
-    issuer    = var.clerk_issuer_url
-    client_id = var.clerk_client_id
+    issuer = var.clerk_issuer_url
   }
 
   # Additional auth for Lambda to call publishChunk mutation

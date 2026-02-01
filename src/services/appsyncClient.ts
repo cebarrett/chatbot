@@ -89,7 +89,7 @@ export async function createSubscription<T>(
   // Convert HTTPS endpoint to WSS for real-time
   const realtimeEndpoint = config.endpoint
     .replace('https://', 'wss://')
-    .replace('/graphql', '/graphql/realtime');
+    .replace('appsync-api', 'appsync-realtime-api');
 
   // Encode the header for AppSync real-time with OIDC auth
   const header = btoa(
@@ -156,7 +156,8 @@ export async function createSubscription<T>(
         break;
 
       case 'ka':
-        // Keep-alive, ignore
+      case 'start_ack':
+        // Keep-alive and subscription acknowledgment, ignore
         break;
 
       default:

@@ -106,6 +106,6 @@ export async function judgeOpenAI(
     throw new Error(`OpenAI API error: ${response.status} ${error}`);
   }
 
-  const data = await response.json();
+  const data: any = await response.json();
   return data.choices?.[0]?.message?.content || '';
 }

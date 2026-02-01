@@ -12,8 +12,11 @@
     "@aws-crypto/sha256-js": "^5.0.0",
     "@aws-sdk/client-secrets-manager": "^3.400.0",
     "@aws-sdk/credential-provider-node": "^3.400.0",
-    "@aws-sdk/signature-v4": "^3.400.0",
-    "@smithy/protocol-http": "^3.0.0"
+    "@smithy/protocol-http": "^3.0.0",
+    "@smithy/signature-v4": "^3.0.0"
+  },
+  "overrides": {
+    "fast-xml-parser": "^5.3.4"
   },
   "devDependencies": {
     "@types/aws-lambda": "^8.10.119",

@@ -127,6 +127,6 @@ export async function judgeAnthropic(
     throw new Error(`Anthropic API error: ${response.status} ${error}`);
   }
 
-  const data = await response.json();
+  const data: any = await response.json();
   return data.content?.[0]?.text || '';
 }
