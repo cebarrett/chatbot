@@ -1,5 +1,5 @@
 import { ChatMessageInput, GeminiContent } from '../types';
-import { publishChunk } from '../appsync';
+import { ChunkBatcher } from '../chunkBatcher';
 
 const GEMINI_API_BASE = 'https://generativelanguage.googleapis.com/v1beta/models';
 const DEFAULT_MODEL = 'gemini-2.5-pro';
@@ -61,7 +61,7 @@ export async function streamGemini(
   const reader = response.body.getReader();
   const decoder = new TextDecoder();
   let buffer = '';
-  let sequence = 0;
+  const batcher = new ChunkBatcher(requestId);
 
   try {
     while (true) {
@@ -85,7 +85,7 @@ export async function streamGemini(
           const parsed = JSON.parse(data);
           const text = parsed.candidates?.[0]?.content?.parts?.[0]?.text;
           if (text) {
-            await publishChunk(requestId, text, false, sequence++);
+            batcher.add(text);
           }
         } catch {
           // Skip malformed JSON
@@ -103,7 +103,7 @@ export async function streamGemini(
           const parsed = JSON.parse(data);
           const text = parsed.candidates?.[0]?.content?.parts?.[0]?.text;
           if (text) {
-            await publishChunk(requestId, text, false, sequence++);
+            batcher.add(text);
           }
         } catch {
           // Skip malformed JSON
@@ -112,7 +112,7 @@ export async function streamGemini(
     }
 
     // Send final done signal
-    await publishChunk(requestId, '', true, sequence++);
+    await batcher.done();
   } finally {
     reader.releaseLock();
   }

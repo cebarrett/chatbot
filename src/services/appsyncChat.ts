@@ -76,6 +76,7 @@ export async function sendMessageStream(
   const graphqlMessages = convertMessages(messages, systemPrompt);
 
   let fullContent = '';
+  let streamDone = false;
   let subscriptionError: Error | null = null;
   let resolvePromise: ((value: string) => void) | null = null;
   let rejectPromise: ((error: Error) => void) | null = null;
@@ -88,9 +89,29 @@ export async function sendMessageStream(
   // Reordering state: buffer out-of-order chunks and emit in sequence
   let nextExpectedSeq = 0;
   const pendingChunks = new Map<number, MessageChunk>();
+  let stallTimer: ReturnType<typeof setTimeout> | null = null;
+  const STALL_TIMEOUT_MS = 2000;
+
+  function clearStallTimer() {
+    if (stallTimer !== null) {
+      clearTimeout(stallTimer);
+      stallTimer = null;
+    }
+  }
+
+  function skipToNextAvailable() {
+    if (pendingChunks.size === 0) return;
+    const nextAvailable = Math.min(...pendingChunks.keys());
+    console.warn(
+      `Sequence stall: skipping missing chunk(s) ${nextExpectedSeq}–${nextAvailable - 1}`
+    );
+    nextExpectedSeq = nextAvailable;
+    processInOrder();
+  }
 
   function processInOrder() {
     while (pendingChunks.has(nextExpectedSeq)) {
+      clearStallTimer();
       const chunk = pendingChunks.get(nextExpectedSeq)!;
       pendingChunks.delete(nextExpectedSeq);
       nextExpectedSeq++;
@@ -101,10 +122,17 @@ export async function sendMessageStream(
       }
 
       if (chunk.done) {
+        streamDone = true;
         subscription?.close();
         resolvePromise?.(fullContent);
         return;
       }
+    }
+
+    // If chunks are buffered beyond the expected sequence, a gap exists.
+    // Start a timer to skip missing sequence(s) if the gap isn't filled.
+    if (pendingChunks.size > 0 && stallTimer === null) {
+      stallTimer = setTimeout(skipToNextAvailable, STALL_TIMEOUT_MS);
     }
   }
 
@@ -119,6 +147,7 @@ export async function sendMessageStream(
       {
         onData: (chunk) => {
           if (chunk.error) {
+            clearStallTimer();
             subscriptionError = new AppSyncChatError(chunk.error);
             subscription?.close();
             rejectPromise?.(subscriptionError);
@@ -130,12 +159,21 @@ export async function sendMessageStream(
           processInOrder();
         },
         onError: (error) => {
+          clearStallTimer();
           subscriptionError = error;
           subscription?.close();
           rejectPromise?.(error);
         },
         onComplete: () => {
+          clearStallTimer();
+          if (streamDone) {
+            // Normal close after done chunk — already resolved by processInOrder
+            return;
+          }
+          // WebSocket closed before stream finished. Resolve with what we have
+          // rather than hanging forever.
           if (!subscriptionError && fullContent) {
+            console.warn('WebSocket closed before done chunk received. Resolving with partial content.');
             resolvePromise?.(fullContent);
           }
         },
@@ -163,14 +201,15 @@ export async function sendMessageStream(
       subscription?.close();
       throw new AppSyncChatError(response.sendMessage.message || 'Unknown error');
     }
+    // Status 'STREAMING' means Lambda returned immediately and is streaming
+    // in the background. The subscription will receive the chunks.
   } catch (error) {
-    // Don't close the subscription on mutation error — the Lambda may still be
-    // streaming. AppSync can timeout the resolver before the Lambda finishes,
-    // but the Lambda continues running and publishing chunks.
     if (error instanceof AppSyncChatError) {
       subscription?.close();
       throw error;
     }
+    // Non-fatal mutation errors (e.g., network issues) — keep subscription
+    // open since Lambda may still be streaming.
     console.warn('sendMessage mutation error (streaming may continue):', error);
   }
 

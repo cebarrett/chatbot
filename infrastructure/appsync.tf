@@ -134,24 +134,12 @@ resource "aws_appsync_resolver" "publish_chunk" {
   request_template = <<EOF
 {
   "version": "2017-02-28",
-  "payload": {
-    "requestId": "$context.arguments.requestId",
-    "chunk": "$util.escapeJavaScript($context.arguments.chunk)",
-    "done": $context.arguments.done,
-    "sequence": $context.arguments.sequence,
-    "error": $util.toJson($context.arguments.error)
-  }
+  "payload": $util.toJson($context.arguments)
 }
 EOF
 
   response_template = <<EOF
-{
-  "requestId": "$context.arguments.requestId",
-  "chunk": "$util.escapeJavaScript($context.arguments.chunk)",
-  "done": $context.arguments.done,
-  "sequence": $context.arguments.sequence,
-  "error": $util.toJson($context.arguments.error)
-}
+$util.toJson($context.result)
 EOF
 }
 

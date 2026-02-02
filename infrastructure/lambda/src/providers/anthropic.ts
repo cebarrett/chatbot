@@ -1,5 +1,5 @@
 import { ChatMessageInput, AnthropicMessage } from '../types';
-import { publishChunk } from '../appsync';
+import { ChunkBatcher } from '../chunkBatcher';
 
 const ANTHROPIC_API_URL = 'https://api.anthropic.com/v1/messages';
 const DEFAULT_MODEL = 'claude-sonnet-4-20250514';
@@ -59,7 +59,7 @@ export async function streamAnthropic(
   const reader = response.body.getReader();
   const decoder = new TextDecoder();
   let buffer = '';
-  let sequence = 0;
+  const batcher = new ChunkBatcher(requestId);
 
   try {
     while (true) {
@@ -85,10 +85,10 @@ export async function streamAnthropic(
           if (parsed.type === 'content_block_delta') {
             const text = parsed.delta?.text;
             if (text) {
-              await publishChunk(requestId, text, false, sequence++);
+              batcher.add(text);
             }
           } else if (parsed.type === 'message_stop') {
-            await publishChunk(requestId, '', true, sequence++);
+            await batcher.done();
             return;
           }
         } catch {
@@ -108,7 +108,7 @@ export async function streamAnthropic(
           if (parsed.type === 'content_block_delta') {
             const text = parsed.delta?.text;
             if (text) {
-              await publishChunk(requestId, text, false, sequence++);
+              batcher.add(text);
             }
           }
         } catch {
@@ -117,8 +117,8 @@ export async function streamAnthropic(
       }
     }
 
-    // Send final done signal if not already sent
-    await publishChunk(requestId, '', true, sequence++);
+    // Send final done signal
+    await batcher.done();
   } finally {
     reader.releaseLock();
   }
