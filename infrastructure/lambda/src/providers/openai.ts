@@ -76,6 +76,26 @@ export async function streamOpenAI(
       }
     }
 
+    // Flush any remaining bytes from the decoder and process leftover buffer
+    buffer += decoder.decode();
+    if (buffer.trim()) {
+      const trimmed = buffer.trim();
+      if (trimmed.startsWith('data: ')) {
+        const data = trimmed.slice(6);
+        if (data !== '[DONE]') {
+          try {
+            const parsed = JSON.parse(data);
+            const content = parsed.choices?.[0]?.delta?.content;
+            if (content) {
+              await publishChunk(requestId, content, false);
+            }
+          } catch {
+            // Skip malformed JSON
+          }
+        }
+      }
+    }
+
     // Send final done signal if not already sent
     await publishChunk(requestId, '', true);
   } finally {
