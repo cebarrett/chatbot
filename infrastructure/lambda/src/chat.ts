@@ -12,45 +12,53 @@ interface ChatEventArgs {
   input: SendMessageInput;
 }
 
-export async function handler(
-  event: AppSyncEvent<ChatEventArgs>
-): Promise<SendMessageResponse> {
+// Use callback-based handler so we can return a response to AppSync immediately
+// while keeping the Lambda alive for background streaming.
+// With callbackWaitsForEmptyEventLoop = true (default), the Lambda stays running
+// until all pending promises complete, even after callback() returns the response.
+export function handler(
+  event: AppSyncEvent<ChatEventArgs>,
+  context: { callbackWaitsForEmptyEventLoop: boolean },
+  callback: (error: Error | null, result?: SendMessageResponse) => void
+): void {
   const { input } = event.arguments;
   const { requestId, provider, messages, model } = input;
   const identity = event.identity;
 
   console.log(`Processing chat request: ${requestId} for provider: ${provider}, user: ${identity.sub}`);
 
-  try {
-    // Get API keys from Secrets Manager
-    const secrets = await getSecrets();
+  // Start the async work
+  getSecrets()
+    .then((secrets) => {
+      // Return response to AppSync immediately — don't wait for streaming to finish.
+      // This avoids the ~30s AppSync resolver timeout for long responses.
+      callback(null, {
+        requestId,
+        status: 'STREAMING',
+        message: 'Stream started',
+      });
 
-    // Stream the response — publishes chunks via AppSync subscriptions
-    await streamInBackground(secrets, provider, messages, requestId, model);
+      // Stream in the background — Lambda stays alive until this completes
+      return streamInBackground(secrets, provider, messages, requestId, model);
+    })
+    .catch((error) => {
+      console.error('Error processing chat request:', error);
 
-    return {
-      requestId,
-      status: 'COMPLETE',
-      message: 'Message streaming complete.',
-    };
-  } catch (error) {
-    console.error('Error processing chat request:', error);
-
-    // Publish error to subscribers (sequence 0 since no prior chunks were sent)
-    await publishChunk(
-      requestId,
-      '',
-      true,
-      0,
-      error instanceof Error ? error.message : 'Unknown error'
-    );
-
-    return {
-      requestId,
-      status: 'ERROR',
-      message: error instanceof Error ? error.message : 'Unknown error',
-    };
-  }
+      // Publish error to subscribers
+      publishChunk(
+        requestId,
+        '',
+        true,
+        0,
+        error instanceof Error ? error.message : 'Unknown error'
+      ).finally(() => {
+        callback(null, {
+          requestId,
+          status: 'ERROR',
+          message: error instanceof Error ? error.message : 'Unknown error',
+        });
+      });
+    });
 }
 
 async function streamInBackground(
