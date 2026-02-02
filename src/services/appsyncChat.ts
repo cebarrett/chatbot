@@ -164,8 +164,14 @@ export async function sendMessageStream(
       throw new AppSyncChatError(response.sendMessage.message || 'Unknown error');
     }
   } catch (error) {
-    subscription?.close();
-    throw error;
+    // Don't close the subscription on mutation error — the Lambda may still be
+    // streaming. AppSync can timeout the resolver before the Lambda finishes,
+    // but the Lambda continues running and publishing chunks.
+    if (error instanceof AppSyncChatError) {
+      subscription?.close();
+      throw error;
+    }
+    console.warn('sendMessage mutation error (streaming may continue):', error);
   }
 
   return resultPromise;
