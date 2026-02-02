@@ -16,6 +16,7 @@ export interface JudgeInput {
   originalPrompt: string;
   responseToJudge: string;
   respondingProvider: string;
+  conversationHistory?: ChatMessageInput[];
   model?: string;
 }
 

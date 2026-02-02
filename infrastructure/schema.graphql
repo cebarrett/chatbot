@@ -19,6 +19,7 @@ input JudgeInput {
   originalPrompt: String!
   responseToJudge: String!
   respondingProvider: String!
+  conversationHistory: [ChatMessageInput!]
   model: String
 }
 

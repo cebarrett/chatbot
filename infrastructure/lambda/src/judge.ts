@@ -11,8 +11,8 @@ interface JudgeEventArgs {
 }
 
 const JUDGE_PROMPT_TEMPLATE = `You are an expert AI response evaluator. Your task is to evaluate the quality of an AI assistant's response to a user's prompt.
-
-## User's Original Prompt:
+{conversationHistory}
+## User's Latest Prompt:
 {originalPrompt}
 
 ## AI Assistant's Response (from {respondingProvider}):
@@ -42,7 +42,7 @@ export async function handler(
   event: AppSyncEvent<JudgeEventArgs>
 ): Promise<JudgeResponse> {
   const { input } = event.arguments;
-  const { judgeProvider, originalPrompt, responseToJudge, respondingProvider, model } = input;
+  const { judgeProvider, originalPrompt, responseToJudge, respondingProvider, conversationHistory, model } = input;
   const identity = event.identity;
 
   console.log(`Processing judge request with provider: ${judgeProvider}, user: ${identity.sub}`);
@@ -51,8 +51,18 @@ export async function handler(
     // Get API keys from Secrets Manager
     const secrets = await getSecrets();
 
+    // Format conversation history if provided
+    let historySection = '';
+    if (conversationHistory && conversationHistory.length > 0) {
+      const formatted = conversationHistory
+        .map((m) => `**${m.role}**: ${m.content}`)
+        .join('\n\n');
+      historySection = `\n## Previous Conversation:\n${formatted}\n`;
+    }
+
     // Build the judge prompt
     const prompt = JUDGE_PROMPT_TEMPLATE
+      .replace('{conversationHistory}', historySection)
       .replace('{originalPrompt}', originalPrompt)
       .replace('{respondingProvider}', respondingProvider)
       .replace('{responseToJudge}', responseToJudge);
