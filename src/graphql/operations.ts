@@ -11,11 +11,12 @@ export const SEND_MESSAGE_MUTATION = `
 `;
 
 export const PUBLISH_CHUNK_MUTATION = `
-  mutation PublishChunk($requestId: String!, $chunk: String!, $done: Boolean!, $error: String) {
-    publishChunk(requestId: $requestId, chunk: $chunk, done: $done, error: $error) {
+  mutation PublishChunk($requestId: String!, $chunk: String!, $done: Boolean!, $sequence: Int!, $error: String) {
+    publishChunk(requestId: $requestId, chunk: $chunk, done: $done, sequence: $sequence, error: $error) {
       requestId
       chunk
       done
+      sequence
       error
     }
   }
@@ -38,6 +39,7 @@ export const ON_MESSAGE_CHUNK_SUBSCRIPTION = `
       requestId
       chunk
       done
+      sequence
       error
     }
   }
@@ -74,6 +76,7 @@ export interface MessageChunk {
   requestId: string;
   chunk: string;
   done: boolean;
+  sequence: number;
   error?: string;
 }
 

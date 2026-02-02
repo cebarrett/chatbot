@@ -33,6 +33,7 @@ export interface MessageChunk {
   requestId: string;
   chunk: string;
   done: boolean;
+  sequence: number;
   error?: string;
 }
 
