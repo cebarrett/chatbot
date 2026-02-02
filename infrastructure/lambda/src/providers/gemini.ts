@@ -61,6 +61,7 @@ export async function streamGemini(
   const reader = response.body.getReader();
   const decoder = new TextDecoder();
   let buffer = '';
+  let sequence = 0;
 
   try {
     while (true) {
@@ -84,7 +85,7 @@ export async function streamGemini(
           const parsed = JSON.parse(data);
           const text = parsed.candidates?.[0]?.content?.parts?.[0]?.text;
           if (text) {
-            await publishChunk(requestId, text, false);
+            await publishChunk(requestId, text, false, sequence++);
           }
         } catch {
           // Skip malformed JSON
@@ -102,7 +103,7 @@ export async function streamGemini(
           const parsed = JSON.parse(data);
           const text = parsed.candidates?.[0]?.content?.parts?.[0]?.text;
           if (text) {
-            await publishChunk(requestId, text, false);
+            await publishChunk(requestId, text, false, sequence++);
           }
         } catch {
           // Skip malformed JSON
@@ -111,7 +112,7 @@ export async function streamGemini(
     }
 
     // Send final done signal
-    await publishChunk(requestId, '', true);
+    await publishChunk(requestId, '', true, sequence++);
   } finally {
     reader.releaseLock();
   }

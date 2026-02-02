@@ -8,11 +8,12 @@ const APPSYNC_URL = process.env.APPSYNC_URL;
 const AWS_REGION = process.env.AWS_REGION || 'us-east-1';
 
 const PUBLISH_CHUNK_MUTATION = `
-  mutation PublishChunk($requestId: String!, $chunk: String!, $done: Boolean!, $error: String) {
-    publishChunk(requestId: $requestId, chunk: $chunk, done: $done, error: $error) {
+  mutation PublishChunk($requestId: String!, $chunk: String!, $done: Boolean!, $sequence: Int!, $error: String) {
+    publishChunk(requestId: $requestId, chunk: $chunk, done: $done, sequence: $sequence, error: $error) {
       requestId
       chunk
       done
+      sequence
       error
     }
   }
@@ -30,6 +31,7 @@ export async function publishChunk(
   requestId: string,
   chunk: string,
   done: boolean,
+  sequence: number,
   error?: string
 ): Promise<MessageChunk> {
   if (!APPSYNC_URL) {
@@ -43,6 +45,7 @@ export async function publishChunk(
       requestId,
       chunk,
       done,
+      sequence,
       error: error || null,
     },
   });

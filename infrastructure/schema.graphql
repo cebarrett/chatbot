@@ -47,6 +47,7 @@ type MessageChunk @aws_iam @aws_oidc {
   requestId: String!
   chunk: String!
   done: Boolean!
+  sequence: Int!
   error: String
 }
 
@@ -76,6 +77,7 @@ type Mutation {
     requestId: String!
     chunk: String!
     done: Boolean!
+    sequence: Int!
     error: String
   ): MessageChunk!
     @aws_iam

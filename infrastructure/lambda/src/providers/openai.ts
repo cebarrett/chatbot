@@ -41,6 +41,7 @@ export async function streamOpenAI(
   const reader = response.body.getReader();
   const decoder = new TextDecoder();
   let buffer = '';
+  let sequence = 0;
 
   try {
     while (true) {
@@ -60,7 +61,7 @@ export async function streamOpenAI(
 
         const data = trimmed.slice(6);
         if (data === '[DONE]') {
-          await publishChunk(requestId, '', true);
+          await publishChunk(requestId, '', true, sequence++);
           return;
         }
 
@@ -68,7 +69,7 @@ export async function streamOpenAI(
           const parsed = JSON.parse(data);
           const content = parsed.choices?.[0]?.delta?.content;
           if (content) {
-            await publishChunk(requestId, content, false);
+            await publishChunk(requestId, content, false, sequence++);
           }
         } catch {
           // Skip malformed JSON
@@ -87,7 +88,7 @@ export async function streamOpenAI(
             const parsed = JSON.parse(data);
             const content = parsed.choices?.[0]?.delta?.content;
             if (content) {
-              await publishChunk(requestId, content, false);
+              await publishChunk(requestId, content, false, sequence++);
             }
           } catch {
             // Skip malformed JSON
@@ -97,7 +98,7 @@ export async function streamOpenAI(
     }
 
     // Send final done signal if not already sent
-    await publishChunk(requestId, '', true);
+    await publishChunk(requestId, '', true, sequence++);
   } finally {
     reader.releaseLock();
   }
