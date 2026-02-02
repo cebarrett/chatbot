@@ -42,17 +42,24 @@ export async function getQualityRating(
     );
   }
 
-  // Build the original prompt from conversation history
+  // Extract the latest user message as the original prompt
   const userMessages = conversationHistory.filter((m) => m.role === 'user');
   const originalPrompt = userMessages.length > 0
     ? userMessages[userMessages.length - 1].content
     : '';
+
+  // Pass prior conversation history (everything except the last user message)
+  const priorMessages = conversationHistory.slice(0, -1);
+  const history = priorMessages.length > 0
+    ? priorMessages.map((m) => ({ role: m.role as 'user' | 'assistant', content: m.content }))
+    : undefined;
 
   const input: JudgeInput = {
     judgeProvider: mapJudgeToEnum(judgeId),
     originalPrompt,
     responseToJudge: latestResponse,
     respondingProvider,
+    conversationHistory: history,
   };
 
   const response = await executeGraphQL<{ judgeResponse: JudgeResponse }>(
