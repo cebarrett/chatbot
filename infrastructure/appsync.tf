@@ -138,6 +138,7 @@ resource "aws_appsync_resolver" "publish_chunk" {
     "requestId": "$context.arguments.requestId",
     "chunk": "$util.escapeJavaScript($context.arguments.chunk)",
     "done": $context.arguments.done,
+    "sequence": $context.arguments.sequence,
     "error": $util.toJson($context.arguments.error)
   }
 }
@@ -148,6 +149,7 @@ EOF
   "requestId": "$context.arguments.requestId",
   "chunk": "$util.escapeJavaScript($context.arguments.chunk)",
   "done": $context.arguments.done,
+  "sequence": $context.arguments.sequence,
   "error": $util.toJson($context.arguments.error)
 }
 EOF
