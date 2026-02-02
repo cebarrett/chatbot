@@ -59,6 +59,7 @@ export async function streamAnthropic(
   const reader = response.body.getReader();
   const decoder = new TextDecoder();
   let buffer = '';
+  let sequence = 0;
 
   try {
     while (true) {
@@ -84,10 +85,10 @@ export async function streamAnthropic(
           if (parsed.type === 'content_block_delta') {
             const text = parsed.delta?.text;
             if (text) {
-              await publishChunk(requestId, text, false);
+              await publishChunk(requestId, text, false, sequence++);
             }
           } else if (parsed.type === 'message_stop') {
-            await publishChunk(requestId, '', true);
+            await publishChunk(requestId, '', true, sequence++);
             return;
           }
         } catch {
@@ -107,7 +108,7 @@ export async function streamAnthropic(
           if (parsed.type === 'content_block_delta') {
             const text = parsed.delta?.text;
             if (text) {
-              await publishChunk(requestId, text, false);
+              await publishChunk(requestId, text, false, sequence++);
             }
           }
         } catch {
@@ -117,7 +118,7 @@ export async function streamAnthropic(
     }
 
     // Send final done signal if not already sent
-    await publishChunk(requestId, '', true);
+    await publishChunk(requestId, '', true, sequence++);
   } finally {
     reader.releaseLock();
   }

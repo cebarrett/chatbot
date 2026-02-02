@@ -85,6 +85,29 @@ export async function sendMessageStream(
     rejectPromise = reject;
   });
 
+  // Reordering state: buffer out-of-order chunks and emit in sequence
+  let nextExpectedSeq = 0;
+  const pendingChunks = new Map<number, MessageChunk>();
+
+  function processInOrder() {
+    while (pendingChunks.has(nextExpectedSeq)) {
+      const chunk = pendingChunks.get(nextExpectedSeq)!;
+      pendingChunks.delete(nextExpectedSeq);
+      nextExpectedSeq++;
+
+      if (chunk.chunk) {
+        fullContent += chunk.chunk;
+        onChunk(fullContent);
+      }
+
+      if (chunk.done) {
+        subscription?.close();
+        resolvePromise?.(fullContent);
+        return;
+      }
+    }
+  }
+
   // Variable to hold subscription reference
   let subscription: { close: () => void } | null = null;
 
@@ -102,15 +125,9 @@ export async function sendMessageStream(
             return;
           }
 
-          if (chunk.chunk) {
-            fullContent += chunk.chunk;
-            onChunk(fullContent);
-          }
-
-          if (chunk.done) {
-            subscription?.close();
-            resolvePromise?.(fullContent);
-          }
+          // Buffer the chunk and emit in sequence order
+          pendingChunks.set(chunk.sequence, chunk);
+          processInOrder();
         },
         onError: (error) => {
           subscriptionError = error;

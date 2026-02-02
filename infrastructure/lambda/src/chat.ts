@@ -36,11 +36,12 @@ export async function handler(
   } catch (error) {
     console.error('Error processing chat request:', error);
 
-    // Publish error to subscribers
+    // Publish error to subscribers (sequence 0 since no prior chunks were sent)
     await publishChunk(
       requestId,
       '',
       true,
+      0,
       error instanceof Error ? error.message : 'Unknown error'
     );
 
@@ -79,6 +80,7 @@ async function streamInBackground(
       requestId,
       '',
       true,
+      0,
       error instanceof Error ? error.message : 'Streaming error'
     );
   }
