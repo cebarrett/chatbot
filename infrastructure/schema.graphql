@@ -23,6 +23,34 @@ input JudgeInput {
   model: String
 }
 
+input CreateChatInput {
+  chatId: String!
+  title: String!
+  providerId: String
+}
+
+input SaveMessageInput {
+  chatId: String!
+  messageId: String!
+  role: MessageRole!
+  content: String!
+  timestamp: String!
+}
+
+input UpdateMessageInput {
+  chatId: String!
+  messageId: String!
+  content: String
+  judgeRatings: AWSJSON
+  timestamp: String!
+}
+
+input UpdateChatInput {
+  chatId: String!
+  title: String
+  providerId: String
+}
+
 # Enums
 enum ChatProvider {
   OPENAI
@@ -58,10 +86,55 @@ type JudgeResponse {
   judgeProvider: String!
 }
 
+type ChatSummary @aws_oidc {
+  chatId: String!
+  title: String!
+  providerId: String
+  createdAt: String!
+  updatedAt: String!
+  messageCount: Int
+}
+
+type ChatDetail @aws_oidc {
+  chatId: String!
+  title: String!
+  providerId: String
+  createdAt: String!
+  updatedAt: String!
+  messages: [StoredMessage!]!
+  nextToken: String
+}
+
+type StoredMessage @aws_oidc {
+  messageId: String!
+  role: MessageRole!
+  content: String!
+  timestamp: String!
+  judgeRatings: AWSJSON
+}
+
+type ChatListResult @aws_oidc {
+  chats: [ChatSummary!]!
+  nextToken: String
+}
+
+type DeleteChatResult @aws_oidc {
+  chatId: String!
+  success: Boolean!
+}
+
 # Queries
 type Query {
   # Health check endpoint
   health: String!
+    @aws_oidc
+
+  # List user's chats sorted by most recently updated
+  listChats(limit: Int, nextToken: String): ChatListResult!
+    @aws_oidc
+
+  # Get a single chat with its messages
+  getChat(chatId: String!, messageLimit: Int, messageNextToken: String): ChatDetail
     @aws_oidc
 }
 
@@ -84,6 +157,26 @@ type Mutation {
 
   # Judge a response quality
   judgeResponse(input: JudgeInput!): JudgeResponse!
+    @aws_oidc
+
+  # Create a new chat
+  createChat(input: CreateChatInput!): ChatSummary!
+    @aws_oidc
+
+  # Update chat metadata (title, provider)
+  updateChat(input: UpdateChatInput!): ChatSummary!
+    @aws_oidc
+
+  # Delete a chat and all its messages
+  deleteChat(chatId: String!): DeleteChatResult!
+    @aws_oidc
+
+  # Save a message to a chat
+  saveMessage(input: SaveMessageInput!): StoredMessage!
+    @aws_oidc
+
+  # Update an existing message (content or judge ratings)
+  updateMessage(input: UpdateMessageInput!): StoredMessage!
     @aws_oidc
 }
 

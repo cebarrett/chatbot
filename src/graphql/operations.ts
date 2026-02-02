@@ -51,6 +51,103 @@ export const HEALTH_QUERY = `
   }
 `;
 
+// Chat History operations
+
+export const LIST_CHATS_QUERY = `
+  query ListChats($limit: Int, $nextToken: String) {
+    listChats(limit: $limit, nextToken: $nextToken) {
+      chats {
+        chatId
+        title
+        providerId
+        createdAt
+        updatedAt
+        messageCount
+      }
+      nextToken
+    }
+  }
+`;
+
+export const GET_CHAT_QUERY = `
+  query GetChat($chatId: String!, $messageLimit: Int, $messageNextToken: String) {
+    getChat(chatId: $chatId, messageLimit: $messageLimit, messageNextToken: $messageNextToken) {
+      chatId
+      title
+      providerId
+      createdAt
+      updatedAt
+      messages {
+        messageId
+        role
+        content
+        timestamp
+        judgeRatings
+      }
+      nextToken
+    }
+  }
+`;
+
+export const CREATE_CHAT_MUTATION = `
+  mutation CreateChat($input: CreateChatInput!) {
+    createChat(input: $input) {
+      chatId
+      title
+      providerId
+      createdAt
+      updatedAt
+      messageCount
+    }
+  }
+`;
+
+export const UPDATE_CHAT_MUTATION = `
+  mutation UpdateChat($input: UpdateChatInput!) {
+    updateChat(input: $input) {
+      chatId
+      title
+      providerId
+      createdAt
+      updatedAt
+      messageCount
+    }
+  }
+`;
+
+export const DELETE_CHAT_MUTATION = `
+  mutation DeleteChat($chatId: String!) {
+    deleteChat(chatId: $chatId) {
+      chatId
+      success
+    }
+  }
+`;
+
+export const SAVE_MESSAGE_MUTATION = `
+  mutation SaveMessage($input: SaveMessageInput!) {
+    saveMessage(input: $input) {
+      messageId
+      role
+      content
+      timestamp
+      judgeRatings
+    }
+  }
+`;
+
+export const UPDATE_MESSAGE_MUTATION = `
+  mutation UpdateMessage($input: UpdateMessageInput!) {
+    updateMessage(input: $input) {
+      messageId
+      role
+      content
+      timestamp
+      judgeRatings
+    }
+  }
+`;
+
 // Types matching the GraphQL schema
 export type ChatProvider = 'OPENAI' | 'ANTHROPIC' | 'GEMINI';
 
@@ -94,4 +191,71 @@ export interface JudgeResponse {
   explanation: string;
   problems: string[];
   judgeProvider: string;
+}
+
+// Chat History types
+
+export interface ChatSummary {
+  chatId: string;
+  title: string;
+  providerId: string | null;
+  createdAt: string;
+  updatedAt: string;
+  messageCount: number | null;
+}
+
+export interface StoredMessage {
+  messageId: string;
+  role: 'user' | 'assistant';
+  content: string;
+  timestamp: string;
+  judgeRatings: string | null; // AWSJSON - serialized JSON string
+}
+
+export interface ChatDetail {
+  chatId: string;
+  title: string;
+  providerId: string | null;
+  createdAt: string;
+  updatedAt: string;
+  messages: StoredMessage[];
+  nextToken: string | null;
+}
+
+export interface ChatListResult {
+  chats: ChatSummary[];
+  nextToken: string | null;
+}
+
+export interface DeleteChatResult {
+  chatId: string;
+  success: boolean;
+}
+
+export interface CreateChatInput {
+  chatId: string;
+  title: string;
+  providerId?: string;
+}
+
+export interface SaveMessageInput {
+  chatId: string;
+  messageId: string;
+  role: 'user' | 'assistant';
+  content: string;
+  timestamp: string;
+}
+
+export interface UpdateMessageInput {
+  chatId: string;
+  messageId: string;
+  content?: string;
+  judgeRatings?: string; // AWSJSON
+  timestamp: string;
+}
+
+export interface UpdateChatInput {
+  chatId: string;
+  title?: string;
+  providerId?: string;
 }

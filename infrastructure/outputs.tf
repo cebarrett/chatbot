@@ -34,3 +34,18 @@ output "judge_lambda_function_name" {
   description = "Judge Lambda function name"
   value       = aws_lambda_function.judge.function_name
 }
+
+output "delete_chat_lambda_function_name" {
+  description = "Delete Chat Lambda function name"
+  value       = aws_lambda_function.delete_chat.function_name
+}
+
+output "dynamodb_table_name" {
+  description = "DynamoDB table name for chat history"
+  value       = aws_dynamodb_table.chats.name
+}
+
+output "dynamodb_table_arn" {
+  description = "DynamoDB table ARN for chat history"
+  value       = aws_dynamodb_table.chats.arn
+}

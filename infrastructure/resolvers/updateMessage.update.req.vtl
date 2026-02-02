@@ -1,0 +1,37 @@
+#set($chatId = $ctx.args.input.chatId)
+#set($messageId = $ctx.args.input.messageId)
+#set($timestamp = $ctx.args.input.timestamp)
+
+#set($expNames = {})
+#set($expValues = {})
+#set($expSet = [])
+
+#if($ctx.args.input.content)
+  $util.qr($expNames.put("#content", "content"))
+  $util.qr($expValues.put(":content", $util.dynamodb.toDynamoDB($ctx.args.input.content)))
+  $util.qr($expSet.add("#content = :content"))
+#end
+
+#if($ctx.args.input.judgeRatings)
+  $util.qr($expNames.put("#judgeRatings", "judgeRatings"))
+  $util.qr($expValues.put(":judgeRatings", $util.dynamodb.toDynamoDB($ctx.args.input.judgeRatings)))
+  $util.qr($expSet.add("#judgeRatings = :judgeRatings"))
+#end
+
+#if($expSet.size() == 0)
+  $util.error("No fields to update", "BAD_REQUEST")
+#end
+
+{
+  "version": "2017-02-28",
+  "operation": "UpdateItem",
+  "key": {
+    "PK": $util.dynamodb.toDynamoDBJson("CHAT#${chatId}"),
+    "SK": $util.dynamodb.toDynamoDBJson("MSG#${timestamp}#${messageId}")
+  },
+  "update": {
+    "expression": "SET $util.join(', ', $expSet)",
+    "expressionNames": $util.toJson($expNames),
+    "expressionValues": $util.toJson($expValues)
+  }
+}

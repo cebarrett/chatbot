@@ -1,0 +1,16 @@
+#set($chats = [])
+#foreach($item in $ctx.result.items)
+  #set($chat = {
+    "chatId": $item.chatId,
+    "title": $item.title,
+    "providerId": $item.providerId,
+    "createdAt": $item.createdAt,
+    "updatedAt": $item.updatedAt,
+    "messageCount": $item.messageCount
+  })
+  $util.qr($chats.add($chat))
+#end
+{
+  "chats": $util.toJson($chats),
+  "nextToken": $util.toJson($util.defaultIfNull($ctx.result.nextToken, null))
+}

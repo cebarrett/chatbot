@@ -1,0 +1,34 @@
+#set($now = $util.time.nowISO8601())
+#set($expNames = {})
+#set($expValues = {})
+#set($expSet = [])
+
+$util.qr($expNames.put("#updatedAt", "updatedAt"))
+$util.qr($expValues.put(":updatedAt", $util.dynamodb.toDynamoDB($now)))
+$util.qr($expSet.add("#updatedAt = :updatedAt"))
+
+#if($ctx.args.input.title)
+  $util.qr($expNames.put("#title", "title"))
+  $util.qr($expValues.put(":title", $util.dynamodb.toDynamoDB($ctx.args.input.title)))
+  $util.qr($expSet.add("#title = :title"))
+#end
+
+#if($ctx.args.input.providerId)
+  $util.qr($expNames.put("#providerId", "providerId"))
+  $util.qr($expValues.put(":providerId", $util.dynamodb.toDynamoDB($ctx.args.input.providerId)))
+  $util.qr($expSet.add("#providerId = :providerId"))
+#end
+
+{
+  "version": "2017-02-28",
+  "operation": "UpdateItem",
+  "key": {
+    "PK": $util.dynamodb.toDynamoDBJson("CHAT#${ctx.args.input.chatId}"),
+    "SK": $util.dynamodb.toDynamoDBJson("META")
+  },
+  "update": {
+    "expression": "SET $util.join(', ', $expSet)",
+    "expressionNames": $util.toJson($expNames),
+    "expressionValues": $util.toJson($expValues)
+  }
+}

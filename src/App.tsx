@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, useCallback, useMemo } from 'react'
-import { Box, Typography, Paper, Alert, Snackbar, IconButton, Tooltip } from '@mui/material'
+import { Box, Typography, Paper, Alert, Snackbar, IconButton, Tooltip, CircularProgress } from '@mui/material'
 import SmartToyIcon from '@mui/icons-material/SmartToy'
 import LightModeIcon from '@mui/icons-material/LightMode'
 import DarkModeIcon from '@mui/icons-material/DarkMode'
@@ -11,7 +11,16 @@ import { ChatHistorySidebar } from './components/ChatHistorySidebar'
 import { ProviderSelector } from './components/ProviderSelector'
 import type { Message, Chat } from './types'
 import { getDummyResponse, generateId } from './utils/dummyResponses'
-import { loadChats, saveChats, generateChatTitle } from './utils/chatStorage'
+import {
+  listChats as fetchChatList,
+  getChat as fetchChat,
+  createChat as createChatRemote,
+  updateChat as updateChatRemote,
+  deleteChat as deleteChatRemote,
+  saveMessage as saveMessageRemote,
+  updateMessage as updateMessageRemote,
+  generateChatTitle,
+} from './services/chatHistoryService'
 import {
   getProviderById,
   DEFAULT_PROVIDER_ID,
@@ -30,6 +39,7 @@ function App() {
   const [chats, setChats] = useState<Chat[]>([])
   const [activeChatId, setActiveChatId] = useState<string | null>(null)
   const [isTyping, setIsTyping] = useState(false)
+  const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [enabledJudges, setEnabledJudges] = useState<string[]>(() => loadEnabledJudges())
   const messagesEndRef = useRef<HTMLDivElement>(null)
@@ -41,19 +51,63 @@ function App() {
   const providerConfigured = activeProvider?.isConfigured() ?? false
   const messages = useMemo(() => activeChat?.messages || [], [activeChat?.messages])
 
+  // Load chat list on mount
   useEffect(() => {
-    const savedChats = loadChats()
-    setChats(savedChats)
-    if (savedChats.length > 0) {
-      setActiveChatId(savedChats[0].id)
+    let cancelled = false
+
+    async function loadChatList() {
+      try {
+        const result = await fetchChatList()
+        if (cancelled) return
+        setChats(result.chats)
+        if (result.chats.length > 0) {
+          setActiveChatId(result.chats[0].id)
+        }
+      } catch (err) {
+        if (cancelled) return
+        console.error('Failed to load chat list:', err)
+      } finally {
+        if (!cancelled) {
+          setIsLoading(false)
+        }
+      }
     }
+
+    loadChatList()
+    return () => { cancelled = true }
   }, [])
 
+  // Load messages when active chat changes
   useEffect(() => {
-    if (chats.length > 0) {
-      saveChats(chats)
+    if (!activeChatId) return
+
+    // If the active chat already has messages loaded, skip fetching
+    const chat = chats.find((c) => c.id === activeChatId)
+    if (chat && chat.messages.length > 0) return
+
+    let cancelled = false
+
+    async function loadChatMessages() {
+      try {
+        const fullChat = await fetchChat(activeChatId!)
+        if (cancelled || !fullChat) return
+
+        setChats((prev) =>
+          prev.map((c) =>
+            c.id === activeChatId
+              ? { ...c, messages: fullChat.messages }
+              : c
+          )
+        )
+      } catch (err) {
+        if (cancelled) return
+        console.error('Failed to load chat messages:', err)
+      }
     }
-  }, [chats])
+
+    loadChatMessages()
+    return () => { cancelled = true }
+  }, [activeChatId]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
@@ -64,35 +118,47 @@ function App() {
   }, [messages])
 
   const createNewChat = useCallback(() => {
+    const chatId = generateId()
+    const now = new Date()
     const newChat: Chat = {
-      id: generateId(),
+      id: chatId,
       title: 'New Chat',
       messages: [],
-      createdAt: new Date(),
-      updatedAt: new Date(),
+      createdAt: now,
+      updatedAt: now,
       providerId: DEFAULT_PROVIDER_ID,
     }
     setChats((prev) => [newChat, ...prev])
-    setActiveChatId(newChat.id)
-    return newChat.id
+    setActiveChatId(chatId)
+
+    // Persist to DynamoDB (non-blocking)
+    createChatRemote({
+      chatId,
+      title: 'New Chat',
+      providerId: DEFAULT_PROVIDER_ID,
+    }).catch((err) => console.error('Failed to create chat:', err))
+
+    return chatId
   }, [])
 
   const handleSelectChat = (chatId: string) => {
     setActiveChatId(chatId)
   }
 
-  const handleDeleteChat = (chatId: string) => {
+  const handleDeleteChat = useCallback((chatId: string) => {
     setChats((prev) => {
       const filtered = prev.filter((c) => c.id !== chatId)
       if (chatId === activeChatId) {
         setActiveChatId(filtered.length > 0 ? filtered[0].id : null)
       }
-      if (filtered.length === 0) {
-        localStorage.removeItem('chatbot_history')
-      }
       return filtered
     })
-  }
+
+    // Persist to DynamoDB (non-blocking)
+    deleteChatRemote(chatId).catch((err) =>
+      console.error('Failed to delete chat:', err)
+    )
+  }, [activeChatId])
 
   const updateBotMessage = useCallback((chatId: string, messageId: string, content: string) => {
     setChats((prev) =>
@@ -112,7 +178,7 @@ function App() {
   }, [])
 
   const updateMessageRating = useCallback(
-    (chatId: string, messageId: string, judgeId: string, rating: QualityRating) => {
+    (chatId: string, messageId: string, messageTimestamp: Date, judgeId: string, rating: QualityRating) => {
       setChats((prev) =>
         prev.map((chat) => {
           if (chat.id === chatId) {
@@ -120,12 +186,24 @@ function App() {
               ...chat,
               messages: chat.messages.map((msg) => {
                 if (msg.id === messageId) {
+                  const updatedRatings = {
+                    ...msg.judgeRatings,
+                    [judgeId]: rating,
+                  }
+
+                  // Persist judge rating to DynamoDB (non-blocking)
+                  updateMessageRemote({
+                    chatId,
+                    messageId,
+                    timestamp: messageTimestamp.toISOString(),
+                    judgeRatings: JSON.stringify(updatedRatings),
+                  }).catch((err) =>
+                    console.error('Failed to persist judge rating:', err)
+                  )
+
                   return {
                     ...msg,
-                    judgeRatings: {
-                      ...msg.judgeRatings,
-                      [judgeId]: rating,
-                    },
+                    judgeRatings: updatedRatings,
                   }
                 }
                 return msg
@@ -164,6 +242,12 @@ function App() {
           return chat
         })
       )
+
+      // Persist to DynamoDB (non-blocking)
+      updateChatRemote({
+        chatId: activeChatId,
+        providerId,
+      }).catch((err) => console.error('Failed to update chat provider:', err))
     },
     [activeChatId]
   )
@@ -204,14 +288,19 @@ function App() {
       timestamp: new Date(),
     }
 
+    // Determine if this is the first message (for title generation)
+    const currentChat = chats.find((c) => c.id === currentChatId)
+    const isFirstMessage = !currentChat || currentChat.messages.length === 0
+
     setChats((prev) =>
       prev.map((chat) => {
         if (chat.id === currentChatId) {
           const updatedMessages = [...chat.messages, userMessage, botMessage]
+          const newTitle = isFirstMessage ? generateChatTitle(updatedMessages) : chat.title
           return {
             ...chat,
             messages: updatedMessages,
-            title: chat.messages.length === 0 ? generateChatTitle(updatedMessages) : chat.title,
+            title: newTitle,
             updatedAt: new Date(),
           }
         }
@@ -219,13 +308,30 @@ function App() {
       })
     )
 
+    // Save user message to DynamoDB (non-blocking)
+    saveMessageRemote({
+      chatId: currentChatId,
+      messageId: userMessage.id,
+      role: 'user',
+      content: userMessage.content,
+      timestamp: userMessage.timestamp.toISOString(),
+    }).catch((err) => console.error('Failed to save user message:', err))
+
+    // Update chat title if this is the first message
+    if (isFirstMessage) {
+      const newTitle = generateChatTitle([userMessage])
+      updateChatRemote({
+        chatId: currentChatId,
+        title: newTitle,
+      }).catch((err) => console.error('Failed to update chat title:', err))
+    }
+
     setIsTyping(true)
     setError(null)
 
     const chatIdForStream = currentChatId
 
     try {
-      const currentChat = chats.find((c) => c.id === currentChatId)
       const messagesForApi = [...(currentChat?.messages || []), userMessage]
       const provider = getProviderById(currentChat?.providerId || DEFAULT_PROVIDER_ID)
 
@@ -241,8 +347,16 @@ function App() {
         await streamDummyResponse(chatIdForStream, botMessageId, finalResponse)
       }
 
+      // Save completed assistant message to DynamoDB (non-blocking)
+      saveMessageRemote({
+        chatId: chatIdForStream,
+        messageId: botMessageId,
+        role: 'assistant',
+        content: finalResponse,
+        timestamp: botMessage.timestamp.toISOString(),
+      }).catch((err) => console.error('Failed to save assistant message:', err))
+
       // Fetch quality ratings from enabled judges in parallel (async, non-blocking)
-      // Pass full conversation history for context-aware evaluation
       if (enabledJudges.length > 0) {
         const respondingProviderId = currentChat?.providerId || DEFAULT_PROVIDER_ID
         fetchRatingsFromJudges(
@@ -251,7 +365,7 @@ function App() {
           finalResponse,
           respondingProviderId,
           (judgeId, rating) => {
-            updateMessageRating(chatIdForStream, botMessageId, judgeId, rating)
+            updateMessageRating(chatIdForStream, botMessageId, botMessage.timestamp, judgeId, rating)
           }
         )
       }
@@ -355,7 +469,18 @@ function App() {
             p: 2,
           }}
         >
-          {messages.length === 0 ? (
+          {isLoading ? (
+            <Box
+              sx={{
+                height: '100%',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+              }}
+            >
+              <CircularProgress />
+            </Box>
+          ) : messages.length === 0 ? (
             <Box
               sx={{
                 height: '100%',

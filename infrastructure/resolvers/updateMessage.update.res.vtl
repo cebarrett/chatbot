@@ -1,0 +1,10 @@
+#if($ctx.error)
+  $util.error($ctx.error.message, $ctx.error.type)
+#end
+{
+  "messageId": "$ctx.result.messageId",
+  "role": "$ctx.result.role",
+  "content": "$ctx.result.content",
+  "timestamp": "$ctx.result.timestamp",
+  "judgeRatings": $util.toJson($ctx.result.judgeRatings)
+}
