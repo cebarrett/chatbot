@@ -78,6 +78,8 @@ interface SubscriptionCallbacks<T> {
 }
 
 // Create a WebSocket subscription to AppSync with OIDC auth
+// Returns a Promise that resolves only after the subscription is fully registered
+// (i.e., after receiving start_ack), so no messages are missed.
 export async function createSubscription<T>(
   subscription: string,
   variables: Record<string, unknown>,
@@ -107,6 +109,14 @@ export async function createSubscription<T>(
 
   let isConnected = false;
   let subscriptionId: string | null = null;
+
+  // Promise that resolves once the subscription is fully active (start_ack received)
+  let resolveReady: () => void;
+  let rejectReady: (error: Error) => void;
+  const readyPromise = new Promise<void>((resolve, reject) => {
+    resolveReady = resolve;
+    rejectReady = reject;
+  });
 
   ws.onopen = () => {
     // Send connection init
@@ -138,6 +148,11 @@ export async function createSubscription<T>(
         );
         break;
 
+      case 'start_ack':
+        // Subscription is fully registered and ready to receive data
+        resolveReady();
+        break;
+
       case 'data':
         if (message.payload?.data) {
           // Extract the subscription field data
@@ -149,6 +164,7 @@ export async function createSubscription<T>(
       case 'error':
         console.error('Subscription error:', message.payload);
         callbacks.onError?.(new Error(JSON.stringify(message.payload)));
+        rejectReady(new Error(JSON.stringify(message.payload)));
         break;
 
       case 'complete':
@@ -156,8 +172,7 @@ export async function createSubscription<T>(
         break;
 
       case 'ka':
-      case 'start_ack':
-        // Keep-alive and subscription acknowledgment, ignore
+        // Keep-alive, ignore
         break;
 
       default:
@@ -167,7 +182,9 @@ export async function createSubscription<T>(
 
   ws.onerror = (error) => {
     console.error('WebSocket error:', error);
-    callbacks.onError?.(new Error('WebSocket connection error'));
+    const wsError = new Error('WebSocket connection error');
+    callbacks.onError?.(wsError);
+    rejectReady(wsError);
   };
 
   ws.onclose = () => {
@@ -176,7 +193,7 @@ export async function createSubscription<T>(
     }
   };
 
-  return {
+  const connection: SubscriptionConnection = {
     close: () => {
       if (subscriptionId && ws.readyState === WebSocket.OPEN) {
         ws.send(JSON.stringify({ id: subscriptionId, type: 'stop' }));
@@ -184,6 +201,11 @@ export async function createSubscription<T>(
       ws.close();
     },
   };
+
+  // Wait until the subscription is fully registered before returning
+  await readyPromise;
+
+  return connection;
 }
 
 // Check if AppSync is configured

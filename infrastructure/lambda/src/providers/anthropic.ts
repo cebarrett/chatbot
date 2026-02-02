@@ -96,6 +96,26 @@ export async function streamAnthropic(
       }
     }
 
+    // Flush any remaining bytes from the decoder and process leftover buffer
+    buffer += decoder.decode();
+    if (buffer.trim()) {
+      const trimmed = buffer.trim();
+      if (trimmed.startsWith('data: ')) {
+        const data = trimmed.slice(6);
+        try {
+          const parsed = JSON.parse(data);
+          if (parsed.type === 'content_block_delta') {
+            const text = parsed.delta?.text;
+            if (text) {
+              await publishChunk(requestId, text, false);
+            }
+          }
+        } catch {
+          // Skip malformed JSON
+        }
+      }
+    }
+
     // Send final done signal if not already sent
     await publishChunk(requestId, '', true);
   } finally {

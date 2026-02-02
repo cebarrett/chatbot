@@ -128,10 +128,8 @@ export async function sendMessageStream(
     throw error instanceof Error ? error : new AppSyncChatError('Failed to create subscription');
   }
 
-  // Give the subscription a moment to connect
-  await new Promise((resolve) => setTimeout(resolve, 100));
-
-  // Then send the mutation to start streaming
+  // Send the mutation to start streaming
+  // (createSubscription now waits for start_ack, so the subscription is fully ready)
   try {
     const input: SendMessageInput = {
       requestId,

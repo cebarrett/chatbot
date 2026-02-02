@@ -92,6 +92,24 @@ export async function streamGemini(
       }
     }
 
+    // Flush any remaining bytes from the decoder and process leftover buffer
+    buffer += decoder.decode();
+    if (buffer.trim()) {
+      const trimmed = buffer.trim();
+      if (trimmed.startsWith('data: ')) {
+        const data = trimmed.slice(6);
+        try {
+          const parsed = JSON.parse(data);
+          const text = parsed.candidates?.[0]?.content?.parts?.[0]?.text;
+          if (text) {
+            await publishChunk(requestId, text, false);
+          }
+        } catch {
+          // Skip malformed JSON
+        }
+      }
+    }
+
     // Send final done signal
     await publishChunk(requestId, '', true);
   } finally {
