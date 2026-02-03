@@ -31,6 +31,7 @@ export interface SendMessageResponse {
 
 export interface MessageChunk {
   requestId: string;
+  userId: string;
   chunk: string;
   done: boolean;
   sequence: number;

@@ -25,7 +25,8 @@ export function handler(
   const { requestId, provider, messages, model } = input;
   const identity = event.identity;
 
-  console.log(`Processing chat request: ${requestId} for provider: ${provider}, user: ${identity.sub}`);
+  const userId = identity.sub;
+  console.log(`Processing chat request: ${requestId} for provider: ${provider}, user: ${userId}`);
 
   // Start the async work
   getSecrets()
@@ -39,7 +40,7 @@ export function handler(
       });
 
       // Stream in the background — Lambda stays alive until this completes
-      return streamInBackground(secrets, provider, messages, requestId, model);
+      return streamInBackground(secrets, provider, messages, requestId, userId, model);
     })
     .catch((error) => {
       console.error('Error processing chat request:', error);
@@ -47,6 +48,7 @@ export function handler(
       // Publish error to subscribers
       publishChunk(
         requestId,
+        userId,
         '',
         true,
         0,
@@ -66,18 +68,19 @@ async function streamInBackground(
   provider: ChatProvider,
   messages: { role: 'user' | 'assistant' | 'system'; content: string }[],
   requestId: string,
+  userId: string,
   model?: string
 ): Promise<void> {
   try {
     switch (provider) {
       case 'OPENAI':
-        await streamOpenAI(secrets.OPENAI_API_KEY, messages, requestId, model);
+        await streamOpenAI(secrets.OPENAI_API_KEY, messages, requestId, userId, model);
         break;
       case 'ANTHROPIC':
-        await streamAnthropic(secrets.ANTHROPIC_API_KEY, messages, requestId, model);
+        await streamAnthropic(secrets.ANTHROPIC_API_KEY, messages, requestId, userId, model);
         break;
       case 'GEMINI':
-        await streamGemini(secrets.GEMINI_API_KEY, messages, requestId, model);
+        await streamGemini(secrets.GEMINI_API_KEY, messages, requestId, userId, model);
         break;
       default:
         throw new Error(`Unknown provider: ${provider}`);
@@ -86,6 +89,7 @@ async function streamInBackground(
     console.error(`Streaming error for ${provider}:`, error);
     await publishChunk(
       requestId,
+      userId,
       '',
       true,
       0,

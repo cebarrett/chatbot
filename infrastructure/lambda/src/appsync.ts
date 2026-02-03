@@ -8,9 +8,10 @@ const APPSYNC_URL = process.env.APPSYNC_URL;
 const AWS_REGION = process.env.AWS_REGION || 'us-east-1';
 
 const PUBLISH_CHUNK_MUTATION = `
-  mutation PublishChunk($requestId: String!, $chunk: String!, $done: Boolean!, $sequence: Int!, $error: String) {
-    publishChunk(requestId: $requestId, chunk: $chunk, done: $done, sequence: $sequence, error: $error) {
+  mutation PublishChunk($requestId: String!, $userId: String!, $chunk: String!, $done: Boolean!, $sequence: Int!, $error: String) {
+    publishChunk(requestId: $requestId, userId: $userId, chunk: $chunk, done: $done, sequence: $sequence, error: $error) {
       requestId
+      userId
       chunk
       done
       sequence
@@ -29,6 +30,7 @@ const signer = new SignatureV4({
 
 export async function publishChunk(
   requestId: string,
+  userId: string,
   chunk: string,
   done: boolean,
   sequence: number,
@@ -43,6 +45,7 @@ export async function publishChunk(
     query: PUBLISH_CHUNK_MUTATION,
     variables: {
       requestId,
+      userId,
       chunk,
       done,
       sequence,

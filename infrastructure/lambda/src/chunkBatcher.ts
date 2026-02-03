@@ -13,6 +13,7 @@ export class ChunkBatcher {
 
   constructor(
     private requestId: string,
+    private userId: string,
     private intervalMs = 100
   ) {}
 
@@ -33,7 +34,7 @@ export class ChunkBatcher {
     const seq = this.sequence++;
     this.buffer = '';
     this.publishQueue = this.publishQueue.then(() =>
-      publishChunk(this.requestId, text, false, seq).then(() => {})
+      publishChunk(this.requestId, this.userId, text, false, seq).then(() => {})
     );
   }
 
@@ -46,7 +47,7 @@ export class ChunkBatcher {
     this.flushBuffer();
     const seq = this.sequence++;
     this.publishQueue = this.publishQueue.then(() =>
-      publishChunk(this.requestId, '', true, seq, error).then(() => {})
+      publishChunk(this.requestId, this.userId, '', true, seq, error).then(() => {})
     );
     await this.publishQueue;
   }

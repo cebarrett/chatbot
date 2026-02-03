@@ -31,6 +31,31 @@ async function getAuthToken(): Promise<string> {
   return token;
 }
 
+// Extract the user ID (sub claim) from a JWT token
+function extractUserIdFromToken(token: string): string {
+  try {
+    // JWT format: header.payload.signature
+    const parts = token.split('.');
+    if (parts.length !== 3) {
+      throw new Error('Invalid JWT format');
+    }
+    // Decode the payload (base64url encoded)
+    const payload = JSON.parse(atob(parts[1].replace(/-/g, '+').replace(/_/g, '/')));
+    if (!payload.sub) {
+      throw new Error('No sub claim in JWT');
+    }
+    return payload.sub;
+  } catch (error) {
+    throw new Error(`Failed to extract user ID from token: ${error instanceof Error ? error.message : 'Unknown error'}`);
+  }
+}
+
+// Get the current user ID from the auth token
+export async function getCurrentUserId(): Promise<string> {
+  const token = await getAuthToken();
+  return extractUserIdFromToken(token);
+}
+
 // Execute a GraphQL mutation or query
 export async function executeGraphQL<T>(
   query: string,
