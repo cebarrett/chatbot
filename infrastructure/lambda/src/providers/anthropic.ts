@@ -127,7 +127,8 @@ export async function streamAnthropic(
 
 export async function judgeAnthropic(
   apiKey: string,
-  prompt: string,
+  systemPrompt: string,
+  userPrompt: string,
   model?: string
 ): Promise<string> {
   const response = await fetch(ANTHROPIC_API_URL, {
@@ -139,7 +140,8 @@ export async function judgeAnthropic(
     },
     body: JSON.stringify({
       model: model || DEFAULT_MODEL,
-      messages: [{ role: 'user', content: prompt }],
+      system: systemPrompt,
+      messages: [{ role: 'user', content: userPrompt }],
       max_tokens: 4096,
     }),
   });

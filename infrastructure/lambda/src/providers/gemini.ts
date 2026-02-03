@@ -121,7 +121,8 @@ export async function streamGemini(
 
 export async function judgeGemini(
   apiKey: string,
-  prompt: string,
+  systemPrompt: string,
+  userPrompt: string,
   model?: string
 ): Promise<string> {
   const modelName = model || DEFAULT_MODEL;
@@ -133,10 +134,11 @@ export async function judgeGemini(
       'Content-Type': 'application/json',
     },
     body: JSON.stringify({
+      systemInstruction: { parts: [{ text: systemPrompt }] },
       contents: [
         {
           role: 'user',
-          parts: [{ text: prompt }],
+          parts: [{ text: userPrompt }],
         },
       ],
       generationConfig: {
