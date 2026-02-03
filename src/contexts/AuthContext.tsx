@@ -1,4 +1,3 @@
-import { useEffect } from 'react';
 import { useAuth } from '@clerk/clerk-react';
 import { setTokenProvider } from '../services/appsyncClient';
 
@@ -10,15 +9,12 @@ interface AuthProviderProps {
 export function AuthProvider({ children }: AuthProviderProps) {
   const { getToken } = useAuth();
 
-  useEffect(() => {
-    // Set up the token provider for AppSync client
-    // This will be called whenever the client needs an auth token
-    setTokenProvider(async () => {
-      // Get a token for AppSync - Clerk will handle token refresh automatically
-      const token = await getToken();
-      return token;
-    });
-  }, [getToken]);
+  // Set up the token provider synchronously during render so it's
+  // available before any child useEffect hooks fire
+  setTokenProvider(async () => {
+    const token = await getToken();
+    return token;
+  });
 
   return <>{children}</>;
 }

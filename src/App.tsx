@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect, useCallback, useMemo } from 'react'
+import { useAuth } from '@clerk/clerk-react'
 import { Box, Typography, Paper, Alert, Snackbar, IconButton, Tooltip, CircularProgress } from '@mui/material'
 import SmartToyIcon from '@mui/icons-material/SmartToy'
 import LightModeIcon from '@mui/icons-material/LightMode'
@@ -36,6 +37,7 @@ import type { QualityRating } from './types'
 const SYSTEM_PROMPT = `You are a helpful, friendly assistant. Be concise and clear in your responses.`
 
 function App() {
+  const { isLoaded, isSignedIn } = useAuth()
   const [chats, setChats] = useState<Chat[]>([])
   const [activeChatId, setActiveChatId] = useState<string | null>(null)
   const [isTyping, setIsTyping] = useState(false)
@@ -51,8 +53,10 @@ function App() {
   const providerConfigured = activeProvider?.isConfigured() ?? false
   const messages = useMemo(() => activeChat?.messages || [], [activeChat?.messages])
 
-  // Load chat list on mount
+  // Load chat list once auth is ready
   useEffect(() => {
+    if (!isLoaded || !isSignedIn) return
+
     let cancelled = false
 
     async function loadChatList() {
@@ -75,7 +79,7 @@ function App() {
 
     loadChatList()
     return () => { cancelled = true }
-  }, [])
+  }, [isLoaded, isSignedIn])
 
   // Load messages when active chat changes
   useEffect(() => {
