@@ -5,7 +5,7 @@
 #set($meta = $items[0])
 {
   "chatId": "$meta.chatId",
-  "title": "$meta.title",
+  "title": $util.toJson($meta.title),
   "providerId": $util.toJson($meta.providerId),
   "createdAt": "$meta.createdAt",
   "updatedAt": "$meta.updatedAt",

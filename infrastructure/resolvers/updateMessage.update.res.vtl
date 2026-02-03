@@ -4,7 +4,7 @@
 {
   "messageId": "$ctx.result.messageId",
   "role": "$ctx.result.role",
-  "content": "$ctx.result.content",
+  "content": $util.toJson($ctx.result.content),
   "timestamp": "$ctx.result.timestamp",
   "judgeRatings": $util.toJson($ctx.result.judgeRatings)
 }

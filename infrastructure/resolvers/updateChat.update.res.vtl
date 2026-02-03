@@ -3,7 +3,7 @@
 #end
 {
   "chatId": "$ctx.result.chatId",
-  "title": "$ctx.result.title",
+  "title": $util.toJson($ctx.result.title),
   "providerId": $util.toJson($ctx.result.providerId),
   "createdAt": "$ctx.result.createdAt",
   "updatedAt": "$ctx.result.updatedAt",

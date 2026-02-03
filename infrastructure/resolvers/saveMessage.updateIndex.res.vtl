@@ -7,7 +7,7 @@
 {
   "messageId": "$msg.messageId",
   "role": "$msg.role",
-  "content": "$msg.content",
+  "content": $util.toJson($msg.content),
   "timestamp": "$msg.timestamp",
   "judgeRatings": $util.toJson($msg.judgeRatings)
 }
