@@ -8,6 +8,7 @@ export async function streamOpenAI(
   apiKey: string,
   messages: ChatMessageInput[],
   requestId: string,
+  userId: string,
   model?: string
 ): Promise<void> {
   const openaiMessages: OpenAIMessage[] = messages.map((msg) => ({
@@ -41,7 +42,7 @@ export async function streamOpenAI(
   const reader = response.body.getReader();
   const decoder = new TextDecoder();
   let buffer = '';
-  const batcher = new ChunkBatcher(requestId);
+  const batcher = new ChunkBatcher(requestId, userId);
 
   try {
     while (true) {

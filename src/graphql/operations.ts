@@ -11,9 +11,10 @@ export const SEND_MESSAGE_MUTATION = `
 `;
 
 export const PUBLISH_CHUNK_MUTATION = `
-  mutation PublishChunk($requestId: String!, $chunk: String!, $done: Boolean!, $sequence: Int!, $error: String) {
-    publishChunk(requestId: $requestId, chunk: $chunk, done: $done, sequence: $sequence, error: $error) {
+  mutation PublishChunk($requestId: String!, $userId: String!, $chunk: String!, $done: Boolean!, $sequence: Int!, $error: String) {
+    publishChunk(requestId: $requestId, userId: $userId, chunk: $chunk, done: $done, sequence: $sequence, error: $error) {
       requestId
+      userId
       chunk
       done
       sequence
@@ -34,9 +35,10 @@ export const JUDGE_RESPONSE_MUTATION = `
 `;
 
 export const ON_MESSAGE_CHUNK_SUBSCRIPTION = `
-  subscription OnMessageChunk($requestId: String!) {
-    onMessageChunk(requestId: $requestId) {
+  subscription OnMessageChunk($requestId: String!, $userId: String!) {
+    onMessageChunk(requestId: $requestId, userId: $userId) {
       requestId
+      userId
       chunk
       done
       sequence
@@ -171,6 +173,7 @@ export interface SendMessageResponse {
 
 export interface MessageChunk {
   requestId: string;
+  userId: string;
   chunk: string;
   done: boolean;
   sequence: number;

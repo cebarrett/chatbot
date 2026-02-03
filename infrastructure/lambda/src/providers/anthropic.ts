@@ -9,6 +9,7 @@ export async function streamAnthropic(
   apiKey: string,
   messages: ChatMessageInput[],
   requestId: string,
+  userId: string,
   model?: string
 ): Promise<void> {
   // Extract system message if present
@@ -59,7 +60,7 @@ export async function streamAnthropic(
   const reader = response.body.getReader();
   const decoder = new TextDecoder();
   let buffer = '';
-  const batcher = new ChunkBatcher(requestId);
+  const batcher = new ChunkBatcher(requestId, userId);
 
   try {
     while (true) {

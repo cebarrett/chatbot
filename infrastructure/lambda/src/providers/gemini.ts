@@ -8,6 +8,7 @@ export async function streamGemini(
   apiKey: string,
   messages: ChatMessageInput[],
   requestId: string,
+  userId: string,
   model?: string
 ): Promise<void> {
   const modelName = model || DEFAULT_MODEL;
@@ -61,7 +62,7 @@ export async function streamGemini(
   const reader = response.body.getReader();
   const decoder = new TextDecoder();
   let buffer = '';
-  const batcher = new ChunkBatcher(requestId);
+  const batcher = new ChunkBatcher(requestId, userId);
 
   try {
     while (true) {

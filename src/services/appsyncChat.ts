@@ -1,6 +1,6 @@
 // AppSync-based chat service with real-time streaming via subscriptions
 import type { Message } from '../types';
-import { executeGraphQL, createSubscription, isAppSyncConfigured } from './appsyncClient';
+import { executeGraphQL, createSubscription, isAppSyncConfigured, getCurrentUserId } from './appsyncClient';
 import {
   SEND_MESSAGE_MUTATION,
   ON_MESSAGE_CHUNK_SUBSCRIPTION,
@@ -72,6 +72,7 @@ export async function sendMessageStream(
   }
 
   const requestId = crypto.randomUUID();
+  const userId = await getCurrentUserId();
   const provider = mapProviderToEnum(providerId);
   const graphqlMessages = convertMessages(messages, systemPrompt);
 
@@ -140,10 +141,11 @@ export async function sendMessageStream(
   let subscription: { close: () => void } | null = null;
 
   // First, set up the subscription (now async)
+  // Pass userId to filter subscription - prevents eavesdropping on other users' streams
   try {
     subscription = await createSubscription<MessageChunk>(
       ON_MESSAGE_CHUNK_SUBSCRIPTION,
-      { requestId },
+      { requestId, userId },
       {
         onData: (chunk) => {
           if (chunk.error) {

@@ -73,6 +73,7 @@ type SendMessageResponse {
 
 type MessageChunk @aws_iam @aws_oidc {
   requestId: String!
+  userId: String!
   chunk: String!
   done: Boolean!
   sequence: Int!
@@ -148,6 +149,7 @@ type Mutation {
   # Uses IAM auth so only the Lambda function can call this
   publishChunk(
     requestId: String!
+    userId: String!
     chunk: String!
     done: Boolean!
     sequence: Int!
@@ -183,7 +185,8 @@ type Mutation {
 # Subscriptions
 type Subscription {
   # Subscribe to message chunks for a specific request
-  onMessageChunk(requestId: String!): MessageChunk
+  # userId filter prevents eavesdropping - only the requesting user receives chunks
+  onMessageChunk(requestId: String!, userId: String!): MessageChunk
     @aws_subscribe(mutations: ["publishChunk"])
     @aws_oidc
 }
