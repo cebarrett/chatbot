@@ -7,6 +7,7 @@ import {
 import { getSecrets } from './secrets';
 import { publishChunk } from './appsync';
 import { streamOpenAI, streamAnthropic, streamGemini } from './providers';
+import { validateSendMessageInput, ValidationError } from './validation';
 
 interface ChatEventArgs {
   input: SendMessageInput;
@@ -22,10 +23,27 @@ export function handler(
   callback: (error: Error | null, result?: SendMessageResponse) => void
 ): void {
   const { input } = event.arguments;
-  const { requestId, provider, messages, model } = input;
   const identity = event.identity;
 
+  // Validate input before processing
+  try {
+    validateSendMessageInput(input);
+  } catch (error) {
+    const errorMessage = error instanceof ValidationError
+      ? error.message
+      : 'Input validation failed';
+    console.error('Validation error:', errorMessage);
+    callback(null, {
+      requestId: input?.requestId || 'unknown',
+      status: 'ERROR',
+      message: errorMessage,
+    });
+    return;
+  }
+
+  const { requestId, provider, messages, model } = input;
   const userId = identity.sub;
+
   console.log(`Processing chat request: ${requestId} for provider: ${provider}, user: ${userId}`);
 
   // Start the async work
