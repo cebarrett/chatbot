@@ -4,21 +4,25 @@
 
 #set($expNames = {})
 #set($expValues = {})
-#set($expSet = [])
+#set($setClauses = "")
 
 #if($ctx.args.input.content)
   $util.qr($expNames.put("#content", "content"))
   $util.qr($expValues.put(":content", $util.dynamodb.toDynamoDB($ctx.args.input.content)))
-  $util.qr($expSet.add("#content = :content"))
+  #set($setClauses = "#content = :content")
 #end
 
 #if($ctx.args.input.judgeRatings)
   $util.qr($expNames.put("#judgeRatings", "judgeRatings"))
   $util.qr($expValues.put(":judgeRatings", $util.dynamodb.toDynamoDB($ctx.args.input.judgeRatings)))
-  $util.qr($expSet.add("#judgeRatings = :judgeRatings"))
+  #if($setClauses == "")
+    #set($setClauses = "#judgeRatings = :judgeRatings")
+  #else
+    #set($setClauses = "${setClauses}, #judgeRatings = :judgeRatings")
+  #end
 #end
 
-#if($expSet.size() == 0)
+#if($setClauses == "")
   $util.error("No fields to update", "BAD_REQUEST")
 #end
 
@@ -30,7 +34,7 @@
     "SK": $util.dynamodb.toDynamoDBJson("MSG#${timestamp}#${messageId}")
   },
   "update": {
-    "expression": "SET $util.join(', ', $expSet)",
+    "expression": "SET ${setClauses}",
     "expressionNames": $util.toJson($expNames),
     "expressionValues": $util.toJson($expValues)
   }

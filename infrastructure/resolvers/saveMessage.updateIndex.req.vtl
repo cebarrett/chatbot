@@ -1,5 +1,4 @@
-## Delete old user-chat index entry and write new one with updated timestamp
-## We need to find the old SK first, then delete and rewrite
+## Atomically delete old user-chat index entry and write new one with updated timestamp
 #set($meta = $ctx.stash.chatMeta)
 #set($updatedMeta = $ctx.stash.updatedMeta)
 #set($userId = $meta.userId)
@@ -8,12 +7,24 @@
 #set($oldUpdatedAt = $meta.updatedAt)
 {
   "version": "2018-05-29",
-  "operation": "BatchPutItem",
-  "tables": {
-    "${tableName}": [
-      $util.dynamodb.toMapValuesJson({
-        "PK": "USER#${userId}",
-        "SK": "CHAT#${newUpdatedAt}#${chatId}",
+  "operation": "TransactWriteItems",
+  "transactItems": [
+    {
+      "table": "${tableName}",
+      "operation": "DeleteItem",
+      "key": {
+        "PK": $util.dynamodb.toDynamoDBJson("USER#${userId}"),
+        "SK": $util.dynamodb.toDynamoDBJson("CHAT#${oldUpdatedAt}#${chatId}")
+      }
+    },
+    {
+      "table": "${tableName}",
+      "operation": "PutItem",
+      "key": {
+        "PK": $util.dynamodb.toDynamoDBJson("USER#${userId}"),
+        "SK": $util.dynamodb.toDynamoDBJson("CHAT#${newUpdatedAt}#${chatId}")
+      },
+      "attributeValues": $util.dynamodb.toMapValuesJson({
         "chatId": "${chatId}",
         "title": "$updatedMeta.title",
         "providerId": $util.defaultIfNull($updatedMeta.providerId, "claude"),
@@ -21,6 +32,6 @@
         "updatedAt": "${newUpdatedAt}",
         "messageCount": $updatedMeta.messageCount
       })
-    ]
-  }
+    }
+  ]
 }

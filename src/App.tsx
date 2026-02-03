@@ -121,6 +121,9 @@ function App() {
     scrollToBottom()
   }, [messages])
 
+  // Track pending createChat promises so saveMessage can await them
+  const pendingCreates = useRef<Map<string, Promise<unknown>>>(new Map())
+
   const createNewChat = useCallback(() => {
     const chatId = generateId()
     const now = new Date()
@@ -135,12 +138,15 @@ function App() {
     setChats((prev) => [newChat, ...prev])
     setActiveChatId(chatId)
 
-    // Persist to DynamoDB (non-blocking)
-    createChatRemote({
+    // Persist to DynamoDB — store the promise so saveMessage can await it
+    const createPromise = createChatRemote({
       chatId,
       title: 'New Chat',
       providerId: DEFAULT_PROVIDER_ID,
     }).catch((err) => console.error('Failed to create chat:', err))
+
+    pendingCreates.current.set(chatId, createPromise)
+    createPromise.finally(() => pendingCreates.current.delete(chatId))
 
     return chatId
   }, [])
@@ -311,6 +317,12 @@ function App() {
         return chat
       })
     )
+
+    // Ensure the chat exists in DynamoDB before saving messages
+    const pendingCreate = pendingCreates.current.get(currentChatId)
+    if (pendingCreate) {
+      await pendingCreate
+    }
 
     // Save user message to DynamoDB (non-blocking)
     saveMessageRemote({

@@ -1,22 +1,21 @@
 #set($now = $util.time.nowISO8601())
 #set($expNames = {})
 #set($expValues = {})
-#set($expSet = [])
+#set($setClauses = "#updatedAt = :updatedAt")
 
 $util.qr($expNames.put("#updatedAt", "updatedAt"))
 $util.qr($expValues.put(":updatedAt", $util.dynamodb.toDynamoDB($now)))
-$util.qr($expSet.add("#updatedAt = :updatedAt"))
 
 #if($ctx.args.input.title)
   $util.qr($expNames.put("#title", "title"))
   $util.qr($expValues.put(":title", $util.dynamodb.toDynamoDB($ctx.args.input.title)))
-  $util.qr($expSet.add("#title = :title"))
+  #set($setClauses = "${setClauses}, #title = :title")
 #end
 
 #if($ctx.args.input.providerId)
   $util.qr($expNames.put("#providerId", "providerId"))
   $util.qr($expValues.put(":providerId", $util.dynamodb.toDynamoDB($ctx.args.input.providerId)))
-  $util.qr($expSet.add("#providerId = :providerId"))
+  #set($setClauses = "${setClauses}, #providerId = :providerId")
 #end
 
 {
@@ -27,7 +26,7 @@ $util.qr($expSet.add("#updatedAt = :updatedAt"))
     "SK": $util.dynamodb.toDynamoDBJson("META")
   },
   "update": {
-    "expression": "SET $util.join(', ', $expSet)",
+    "expression": "SET ${setClauses}",
     "expressionNames": $util.toJson($expNames),
     "expressionValues": $util.toJson($expValues)
   }
