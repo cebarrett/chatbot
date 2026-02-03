@@ -106,7 +106,8 @@ export async function streamOpenAI(
 
 export async function judgeOpenAI(
   apiKey: string,
-  prompt: string,
+  systemPrompt: string,
+  userPrompt: string,
   model?: string
 ): Promise<string> {
   const response = await fetch(OPENAI_API_URL, {
@@ -117,7 +118,10 @@ export async function judgeOpenAI(
     },
     body: JSON.stringify({
       model: model || DEFAULT_MODEL,
-      messages: [{ role: 'user', content: prompt }],
+      messages: [
+        { role: 'system', content: systemPrompt },
+        { role: 'user', content: userPrompt }
+      ],
       temperature: 0.3,
     }),
   });
