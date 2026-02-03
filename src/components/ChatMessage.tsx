@@ -30,13 +30,13 @@ export function ChatMessage({ message, enabledJudges }: ChatMessageProps) {
           display: 'flex',
           flexDirection: isUser ? 'row-reverse' : 'row',
           alignItems: 'flex-start',
-          maxWidth: '80%',
+          maxWidth: { xs: '95%', sm: '85%', md: '80%' },
         }}
       >
         <Box
           sx={{
-            width: 36,
-            height: 36,
+            width: { xs: 28, sm: 36 },
+            height: { xs: 28, sm: 36 },
             borderRadius: '50%',
             display: 'flex',
             alignItems: 'center',
@@ -44,7 +44,7 @@ export function ChatMessage({ message, enabledJudges }: ChatMessageProps) {
             bgcolor: isUser ? 'primary.main' : 'secondary.main',
             color: 'white',
             flexShrink: 0,
-            mx: 1,
+            mx: { xs: 0.5, sm: 1 },
           }}
         >
           {isUser ? <PersonIcon fontSize="small" /> : <SmartToyIcon fontSize="small" />}
@@ -52,7 +52,7 @@ export function ChatMessage({ message, enabledJudges }: ChatMessageProps) {
         <Paper
           elevation={1}
           sx={{
-            p: 2,
+            p: { xs: 1.5, sm: 2 },
             bgcolor: isUser
               ? 'primary.main'
               : (theme) => (theme.palette.mode === 'dark' ? 'grey.800' : 'grey.100'),

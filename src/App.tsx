@@ -497,7 +497,7 @@ function App() {
           sx={{
             flex: 1,
             overflow: 'auto',
-            p: 2,
+            p: { xs: 1, sm: 2 },
           }}
         >
           {isLoading ? (
