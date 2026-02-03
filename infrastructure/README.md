@@ -33,7 +33,7 @@ This directory contains Terraform configuration for deploying the chatbot backen
 
 1. [Terraform](https://www.terraform.io/downloads.html) >= 1.0
 2. [AWS CLI](https://aws.amazon.com/cli/) configured with appropriate credentials
-3. [Node.js](https://nodejs.org/) >= 20.x (for Lambda builds)
+3. [Node.js](https://nodejs.org/) >= 22.x (for Lambda builds)
 4. [Clerk account](https://clerk.com/) with an application configured
 
 ## Clerk Setup
