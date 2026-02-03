@@ -1,21 +1,25 @@
-#set($now = $util.time.nowISO8601())
 #set($expNames = {})
 #set($expValues = {})
-#set($setClauses = "#updatedAt = :updatedAt")
-
-$util.qr($expNames.put("#updatedAt", "updatedAt"))
-$util.qr($expValues.put(":updatedAt", $util.dynamodb.toDynamoDB($now)))
+#set($setClauses = "")
 
 #if($ctx.args.input.title)
   $util.qr($expNames.put("#title", "title"))
   $util.qr($expValues.put(":title", $util.dynamodb.toDynamoDB($ctx.args.input.title)))
-  #set($setClauses = "${setClauses}, #title = :title")
+  #set($setClauses = "#title = :title")
 #end
 
 #if($ctx.args.input.providerId)
   $util.qr($expNames.put("#providerId", "providerId"))
   $util.qr($expValues.put(":providerId", $util.dynamodb.toDynamoDB($ctx.args.input.providerId)))
-  #set($setClauses = "${setClauses}, #providerId = :providerId")
+  #if($setClauses == "")
+    #set($setClauses = "#providerId = :providerId")
+  #else
+    #set($setClauses = "${setClauses}, #providerId = :providerId")
+  #end
+#end
+
+#if($setClauses == "")
+  $util.error("No fields to update", "BAD_REQUEST")
 #end
 
 {
