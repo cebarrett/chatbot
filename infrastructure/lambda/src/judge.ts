@@ -5,6 +5,7 @@ import {
 } from './types';
 import { getSecrets } from './secrets';
 import { judgeOpenAI, judgeAnthropic, judgeGemini } from './providers';
+import { validateJudgeInput, ValidationError } from './validation';
 
 interface JudgeEventArgs {
   input: JudgeInput;
@@ -85,8 +86,25 @@ export async function handler(
   event: AppSyncEvent<JudgeEventArgs>
 ): Promise<JudgeResponse> {
   const { input } = event.arguments;
-  const { judgeProvider, originalPrompt, responseToJudge, respondingProvider, conversationHistory, model } = input;
   const identity = event.identity;
+
+  // Validate input before processing
+  try {
+    validateJudgeInput(input);
+  } catch (error) {
+    const errorMessage = error instanceof ValidationError
+      ? error.message
+      : 'Input validation failed';
+    console.error('Validation error:', errorMessage);
+    return {
+      score: 0,
+      explanation: errorMessage,
+      problems: ['Input validation failed'],
+      judgeProvider: input?.judgeProvider || 'unknown',
+    };
+  }
+
+  const { judgeProvider, originalPrompt, responseToJudge, respondingProvider, conversationHistory, model } = input;
 
   console.log(`Processing judge request with provider: ${judgeProvider}, user: ${identity.sub}`);
 
