@@ -1,0 +1,13 @@
+#if($ctx.error)
+  $util.error($ctx.error.message, $ctx.error.type)
+#end
+
+## Return the saved message
+#set($msg = $ctx.stash.savedMessage)
+{
+  "messageId": "$msg.messageId",
+  "role": "$msg.role",
+  "content": $util.toJson($msg.content),
+  "timestamp": "$msg.timestamp",
+  "judgeRatings": $util.toJson($msg.judgeRatings)
+}

@@ -1,0 +1,13 @@
+#if($ctx.error)
+  $util.error($ctx.error.message, $ctx.error.type)
+#end
+#set($items = $ctx.result.data.${tableName})
+#set($meta = $items[0])
+{
+  "chatId": "$meta.chatId",
+  "title": $util.toJson($meta.title),
+  "providerId": $util.toJson($meta.providerId),
+  "createdAt": "$meta.createdAt",
+  "updatedAt": "$meta.updatedAt",
+  "messageCount": 0
+}

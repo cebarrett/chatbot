@@ -1,0 +1,10 @@
+#if($util.isNull($ctx.result))
+  $util.error("Chat not found", "NOT_FOUND")
+#end
+
+#if($ctx.result.userId != $context.identity.sub)
+  $util.unauthorized()
+#end
+
+$util.qr($ctx.stash.put("chatMeta", $ctx.result))
+{}

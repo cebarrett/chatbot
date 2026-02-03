@@ -1,0 +1,14 @@
+{
+  "version": "2017-02-28",
+  "operation": "Query",
+  "query": {
+    "expression": "PK = :pk AND begins_with(SK, :sk)",
+    "expressionValues": {
+      ":pk": $util.dynamodb.toDynamoDBJson("USER#${context.identity.sub}"),
+      ":sk": $util.dynamodb.toDynamoDBJson("CHAT#")
+    }
+  },
+  "scanIndexForward": false,
+  "limit": $util.defaultIfNull($ctx.args.limit, 50),
+  "nextToken": $util.toJson($util.defaultIfNull($ctx.args.nextToken, null))
+}

@@ -93,9 +93,69 @@ resource "aws_iam_role_policy" "appsync_lambda_invoke" {
         ]
         Resource = [
           aws_lambda_function.chat.arn,
-          aws_lambda_function.judge.arn
+          aws_lambda_function.judge.arn,
+          aws_lambda_function.delete_chat.arn
         ]
       }
     ]
+  })
+}
+
+# IAM role for AppSync DynamoDB data source
+resource "aws_iam_role" "appsync_dynamodb" {
+  name = "${var.project_name}-${var.environment}-appsync-dynamodb"
+
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [{
+      Action    = "sts:AssumeRole"
+      Effect    = "Allow"
+      Principal = { Service = "appsync.amazonaws.com" }
+    }]
+  })
+}
+
+resource "aws_iam_role_policy" "appsync_dynamodb_access" {
+  name = "${var.project_name}-${var.environment}-appsync-dynamodb-access"
+  role = aws_iam_role.appsync_dynamodb.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [{
+      Effect = "Allow"
+      Action = [
+        "dynamodb:GetItem",
+        "dynamodb:PutItem",
+        "dynamodb:UpdateItem",
+        "dynamodb:DeleteItem",
+        "dynamodb:Query",
+        "dynamodb:BatchWriteItem"
+      ]
+      Resource = [
+        aws_dynamodb_table.chats.arn
+      ]
+    }]
+  })
+}
+
+# Policy for Lambda DynamoDB access (used by deleteChat Lambda)
+resource "aws_iam_role_policy" "lambda_dynamodb_access" {
+  name = "${var.project_name}-${var.environment}-lambda-dynamodb-access"
+  role = aws_iam_role.lambda_execution.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [{
+      Effect = "Allow"
+      Action = [
+        "dynamodb:GetItem",
+        "dynamodb:DeleteItem",
+        "dynamodb:Query",
+        "dynamodb:BatchWriteItem"
+      ]
+      Resource = [
+        aws_dynamodb_table.chats.arn
+      ]
+    }]
   })
 }

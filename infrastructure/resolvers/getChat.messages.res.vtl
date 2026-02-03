@@ -1,0 +1,21 @@
+#set($meta = $ctx.stash.chatMeta)
+#set($messages = [])
+#foreach($item in $ctx.result.items)
+  #set($msg = {
+    "messageId": $item.messageId,
+    "role": $item.role,
+    "content": $item.content,
+    "timestamp": $item.timestamp,
+    "judgeRatings": $item.judgeRatings
+  })
+  $util.qr($messages.add($msg))
+#end
+{
+  "chatId": "$meta.chatId",
+  "title": "$meta.title",
+  "providerId": $util.toJson($meta.providerId),
+  "createdAt": "$meta.createdAt",
+  "updatedAt": "$meta.updatedAt",
+  "messages": $util.toJson($messages),
+  "nextToken": $util.toJson($util.defaultIfNull($ctx.result.nextToken, null))
+}

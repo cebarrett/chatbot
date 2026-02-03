@@ -1,0 +1,34 @@
+#set($now = $util.time.nowISO8601())
+#set($chatId = $ctx.args.input.chatId)
+#set($userId = $context.identity.sub)
+{
+  "version": "2018-05-29",
+  "operation": "BatchPutItem",
+  "tables": {
+    "${tableName}": [
+      ## Chat metadata item
+      $util.dynamodb.toMapValuesJson({
+        "PK": "CHAT#${chatId}",
+        "SK": "META",
+        "userId": "${userId}",
+        "chatId": "${chatId}",
+        "title": $ctx.args.input.title,
+        "providerId": $util.defaultIfNull($ctx.args.input.providerId, "claude"),
+        "createdAt": "${now}",
+        "updatedAt": "${now}",
+        "messageCount": 0
+      }),
+      ## User-chat index item
+      $util.dynamodb.toMapValuesJson({
+        "PK": "USER#${userId}",
+        "SK": "CHAT#${now}#${chatId}",
+        "chatId": "${chatId}",
+        "title": $ctx.args.input.title,
+        "providerId": $util.defaultIfNull($ctx.args.input.providerId, "claude"),
+        "createdAt": "${now}",
+        "updatedAt": "${now}",
+        "messageCount": 0
+      })
+    ]
+  }
+}

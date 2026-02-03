@@ -97,3 +97,39 @@ resource "aws_cloudwatch_log_group" "judge" {
     Name = "${var.project_name}-judge-logs"
   }
 }
+
+# Delete Chat Lambda function
+resource "aws_lambda_function" "delete_chat" {
+  filename         = data.archive_file.lambda_package.output_path
+  function_name    = "${var.project_name}-${var.environment}-delete-chat"
+  role             = aws_iam_role.lambda_execution.arn
+  handler          = "deleteChat.handler"
+  source_code_hash = data.archive_file.lambda_package.output_base64sha256
+  runtime          = "nodejs20.x"
+  timeout          = 30
+  memory_size      = 256
+
+  environment {
+    variables = {
+      DYNAMODB_TABLE_NAME = aws_dynamodb_table.chats.name
+    }
+  }
+
+  depends_on = [
+    aws_iam_role_policy_attachment.lambda_basic_execution,
+    aws_iam_role_policy.lambda_dynamodb_access,
+  ]
+
+  tags = {
+    Name = "${var.project_name}-delete-chat"
+  }
+}
+
+resource "aws_cloudwatch_log_group" "delete_chat" {
+  name              = "/aws/lambda/${aws_lambda_function.delete_chat.function_name}"
+  retention_in_days = 14
+
+  tags = {
+    Name = "${var.project_name}-delete-chat-logs"
+  }
+}
