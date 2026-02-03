@@ -1,7 +1,9 @@
-import { Box, Paper, Typography } from '@mui/material'
+import { Box, Paper, Typography, useTheme } from '@mui/material'
 import SmartToyIcon from '@mui/icons-material/SmartToy'
 import PersonIcon from '@mui/icons-material/Person'
 import ReactMarkdown from 'react-markdown'
+import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter'
+import { oneDark, oneLight } from 'react-syntax-highlighter/dist/esm/styles/prism'
 import type { Message } from '../types'
 import { ResponseQualityRating } from './ResponseQualityRating'
 
@@ -12,6 +14,8 @@ interface ChatMessageProps {
 
 export function ChatMessage({ message, enabledJudges }: ChatMessageProps) {
   const isUser = message.role === 'user'
+  const theme = useTheme()
+  const isDark = theme.palette.mode === 'dark'
 
   return (
     <Box
@@ -110,7 +114,37 @@ export function ChatMessage({ message, enabledJudges }: ChatMessageProps) {
                 },
               }}
             >
-              <ReactMarkdown>{message.content}</ReactMarkdown>
+              <ReactMarkdown
+                components={{
+                  code({ className, children, ...rest }) {
+                    const match = /language-(\w+)/.exec(className || '')
+                    const codeString = String(children).replace(/\n$/, '')
+                    if (match) {
+                      return (
+                        <SyntaxHighlighter
+                          style={isDark ? oneDark : oneLight}
+                          language={match[1]}
+                          PreTag="div"
+                          customStyle={{
+                            margin: 0,
+                            borderRadius: '4px',
+                            fontSize: '0.875em',
+                          }}
+                        >
+                          {codeString}
+                        </SyntaxHighlighter>
+                      )
+                    }
+                    return (
+                      <code className={className} {...rest}>
+                        {children}
+                      </code>
+                    )
+                  },
+                }}
+              >
+                {message.content}
+              </ReactMarkdown>
             </Box>
           )}
           <Typography
