@@ -1,9 +1,10 @@
 import { useState, useRef, useEffect, useCallback, useMemo } from 'react'
 import { useAuth } from '@clerk/clerk-react'
-import { Box, Typography, Paper, Alert, Snackbar, IconButton, Tooltip, CircularProgress } from '@mui/material'
+import { Box, Typography, Paper, Alert, Snackbar, IconButton, Tooltip, CircularProgress, useMediaQuery, useTheme as useMuiTheme } from '@mui/material'
 import SmartToyIcon from '@mui/icons-material/SmartToy'
 import LightModeIcon from '@mui/icons-material/LightMode'
 import DarkModeIcon from '@mui/icons-material/DarkMode'
+import MenuIcon from '@mui/icons-material/Menu'
 import { useTheme } from './contexts/ThemeContext'
 import { AuthLayout, UserButton } from './components/AuthLayout'
 import { ChatMessage } from './components/ChatMessage'
@@ -46,6 +47,9 @@ function App() {
   const [enabledJudges, setEnabledJudges] = useState<string[]>(() => loadEnabledJudges())
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const { resolvedMode, toggleMode } = useTheme()
+  const muiTheme = useMuiTheme()
+  const isMobile = useMediaQuery(muiTheme.breakpoints.down('md'))
+  const [sidebarOpen, setSidebarOpen] = useState(false)
 
   const activeChat = chats.find((c) => c.id === activeChatId) || null
   const activeProviderId = activeChat?.providerId || DEFAULT_PROVIDER_ID
@@ -419,12 +423,14 @@ function App() {
         }}
       >
         <ChatHistorySidebar
-        chats={chats}
-        activeChatId={activeChatId}
-        onSelectChat={handleSelectChat}
-        onNewChat={createNewChat}
-        onDeleteChat={handleDeleteChat}
-      />
+          chats={chats}
+          activeChatId={activeChatId}
+          onSelectChat={handleSelectChat}
+          onNewChat={createNewChat}
+          onDeleteChat={handleDeleteChat}
+          open={sidebarOpen}
+          onClose={() => setSidebarOpen(false)}
+        />
 
       <Box
         sx={{
@@ -444,6 +450,15 @@ function App() {
             borderRadius: 0,
           }}
         >
+          {isMobile && (
+            <IconButton
+              onClick={() => setSidebarOpen(true)}
+              edge="start"
+              sx={{ mr: 0.5 }}
+            >
+              <MenuIcon />
+            </IconButton>
+          )}
           <SmartToyIcon color="primary" />
           <Typography variant="h6" component="h1">
             Chatbot

@@ -6,11 +6,16 @@ import {
   Typography,
   IconButton,
   Divider,
+  Drawer,
+  useMediaQuery,
+  useTheme,
 } from '@mui/material'
 import AddIcon from '@mui/icons-material/Add'
 import DeleteIcon from '@mui/icons-material/Delete'
 import ChatIcon from '@mui/icons-material/Chat'
 import type { Chat } from '../types'
+
+const SIDEBAR_WIDTH = 280
 
 interface ChatHistorySidebarProps {
   chats: Chat[]
@@ -18,6 +23,8 @@ interface ChatHistorySidebarProps {
   onSelectChat: (chatId: string) => void
   onNewChat: () => void
   onDeleteChat: (chatId: string) => void
+  open: boolean
+  onClose: () => void
 }
 
 export function ChatHistorySidebar({
@@ -26,7 +33,11 @@ export function ChatHistorySidebar({
   onSelectChat,
   onNewChat,
   onDeleteChat,
+  open,
+  onClose,
 }: ChatHistorySidebarProps) {
+  const muiTheme = useTheme()
+  const isMobile = useMediaQuery(muiTheme.breakpoints.down('md'))
   const formatDate = (date: Date) => {
     const now = new Date()
     const diffDays = Math.floor((now.getTime() - date.getTime()) / (1000 * 60 * 60 * 24))
@@ -37,14 +48,24 @@ export function ChatHistorySidebar({
     return date.toLocaleDateString()
   }
 
-  return (
+  const handleSelectChat = (chatId: string) => {
+    onSelectChat(chatId)
+    if (isMobile) onClose()
+  }
+
+  const handleNewChat = () => {
+    onNewChat()
+    if (isMobile) onClose()
+  }
+
+  const sidebarContent = (
     <Box
       sx={{
-        width: 280,
+        width: SIDEBAR_WIDTH,
         height: '100%',
         bgcolor: (theme) =>
           theme.palette.mode === 'dark' ? 'grey.900' : 'grey.100',
-        borderRight: 1,
+        borderRight: isMobile ? 0 : 1,
         borderColor: 'divider',
         display: 'flex',
         flexDirection: 'column',
@@ -63,7 +84,7 @@ export function ChatHistorySidebar({
         </Typography>
         <IconButton
           size="small"
-          onClick={onNewChat}
+          onClick={handleNewChat}
           sx={{
             bgcolor: 'primary.main',
             color: 'white',
@@ -93,7 +114,7 @@ export function ChatHistorySidebar({
               <ListItemButton
                 key={chat.id}
                 selected={chat.id === activeChatId}
-                onClick={() => onSelectChat(chat.id)}
+                onClick={() => handleSelectChat(chat.id)}
                 sx={{
                   py: 1.5,
                   px: 2,
@@ -135,4 +156,25 @@ export function ChatHistorySidebar({
       </Box>
     </Box>
   )
+
+  if (isMobile) {
+    return (
+      <Drawer
+        variant="temporary"
+        open={open}
+        onClose={onClose}
+        ModalProps={{ keepMounted: true }}
+        sx={{
+          '& .MuiDrawer-paper': {
+            width: SIDEBAR_WIDTH,
+            boxSizing: 'border-box',
+          },
+        }}
+      >
+        {sidebarContent}
+      </Drawer>
+    )
+  }
+
+  return sidebarContent
 }
