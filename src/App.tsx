@@ -295,7 +295,7 @@ function App() {
       id: botMessageId,
       content: '',
       role: 'assistant',
-      timestamp: new Date(),
+      timestamp: new Date(userMessage.timestamp.getTime() + 1),
     }
 
     // Determine if this is the first message (for title generation)
