@@ -11,7 +11,6 @@ import {
   Divider,
 } from '@mui/material'
 import KeyboardArrowDownIcon from '@mui/icons-material/KeyboardArrowDown'
-import CheckCircleIcon from '@mui/icons-material/CheckCircle'
 import ErrorOutlineIcon from '@mui/icons-material/ErrorOutline'
 import CheckIcon from '@mui/icons-material/Check'
 import { chatProviderRegistry, getProviderById } from '../services/chatProviderRegistry'
@@ -123,15 +122,13 @@ export function ProviderSelector({
               selected={isSelected}
               sx={{ py: 1 }}
             >
-              <ListItemIcon sx={{ minWidth: 32 }}>
-                {isConfigured ? (
-                  <CheckCircleIcon fontSize="small" sx={{ color: 'success.main' }} />
-                ) : (
+              {!isConfigured && (
+                <ListItemIcon sx={{ minWidth: 32 }}>
                   <Tooltip title="Configure AppSync backend to enable">
                     <ErrorOutlineIcon fontSize="small" sx={{ color: 'warning.main' }} />
                   </Tooltip>
-                )}
-              </ListItemIcon>
+                </ListItemIcon>
+              )}
               <ListItemText
                 primary={
                   <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
