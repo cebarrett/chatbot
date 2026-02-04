@@ -177,14 +177,21 @@ function RatingDetails({ judgeName, judgeColor, rating }: RatingDetailsProps) {
 export function ResponseQualityRating({ ratings, enabledJudges }: ResponseQualityRatingProps) {
   const [expanded, setExpanded] = useState(false)
 
-  // Filter to only show enabled judges
-  const judgesWithRatings = enabledJudges
+  // Show all judges that have ratings (even if disabled), plus enabled judges that are loading
+  const judgeIdsToShow = new Set<string>([
+    ...Object.keys(ratings), // All judges with existing ratings
+    ...enabledJudges, // Enabled judges (may be loading)
+  ])
+
+  const judgesWithRatings = Array.from(judgeIdsToShow)
     .map((judgeId) => ({
       judgeId,
       judge: getJudgeById(judgeId),
       rating: ratings[judgeId],
     }))
     .filter((item) => item.judge !== undefined)
+    // Only show enabled judges if they don't have a rating yet (loading state)
+    .filter((item) => item.rating !== undefined || enabledJudges.includes(item.judgeId))
 
   if (judgesWithRatings.length === 0) {
     return null
