@@ -68,9 +68,7 @@ function App() {
         const result = await fetchChatList()
         if (cancelled) return
         setChats(result.chats)
-        if (result.chats.length > 0) {
-          setActiveChatId(result.chats[0].id)
-        }
+        // Don't auto-select a chat - show new chat window on startup
       } catch (err) {
         if (cancelled) return
         console.error('Failed to load chat list:', err)
@@ -158,6 +156,12 @@ function App() {
   const handleSelectChat = (chatId: string) => {
     setActiveChatId(chatId)
   }
+
+  const handleNewChat = useCallback(() => {
+    // Just clear the active chat to show new chat window
+    // The chat will be created and persisted when user sends first message
+    setActiveChatId(null)
+  }, [])
 
   const handleDeleteChat = useCallback((chatId: string) => {
     setChats((prev) => {
@@ -426,7 +430,7 @@ function App() {
           chats={chats}
           activeChatId={activeChatId}
           onSelectChat={handleSelectChat}
-          onNewChat={createNewChat}
+          onNewChat={handleNewChat}
           onDeleteChat={handleDeleteChat}
           open={sidebarOpen}
           onClose={() => setSidebarOpen(false)}
