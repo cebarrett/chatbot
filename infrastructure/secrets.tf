@@ -12,9 +12,10 @@ resource "aws_secretsmanager_secret" "llm_api_keys" {
 resource "aws_secretsmanager_secret_version" "llm_api_keys" {
   secret_id = aws_secretsmanager_secret.llm_api_keys.id
   secret_string = jsonencode({
-    OPENAI_API_KEY    = "placeholder-add-your-key"
-    ANTHROPIC_API_KEY = "placeholder-add-your-key"
-    GEMINI_API_KEY    = "placeholder-add-your-key"
+    OPENAI_API_KEY      = "placeholder-add-your-key"
+    ANTHROPIC_API_KEY   = "placeholder-add-your-key"
+    GEMINI_API_KEY      = "placeholder-add-your-key"
+    PERPLEXITY_API_KEY  = "placeholder-add-your-key"
   })
 
   lifecycle {

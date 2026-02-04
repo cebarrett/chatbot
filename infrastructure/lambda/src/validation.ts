@@ -33,6 +33,12 @@ export const ALLOWED_MODELS: Record<ChatProvider, string[]> = {
     'gemini-1.5-pro',
     'gemini-1.5-flash',
   ],
+  PERPLEXITY: [
+    'sonar-reasoning-pro',
+    'sonar-reasoning',
+    'sonar-pro',
+    'sonar',
+  ],
 };
 
 export class ValidationError extends Error {
@@ -46,7 +52,7 @@ export class ValidationError extends Error {
  * Validates that the provider is one of the allowed values
  */
 export function validateProvider(provider: string): asserts provider is ChatProvider {
-  const validProviders: ChatProvider[] = ['OPENAI', 'ANTHROPIC', 'GEMINI'];
+  const validProviders: ChatProvider[] = ['OPENAI', 'ANTHROPIC', 'GEMINI', 'PERPLEXITY'];
   if (!validProviders.includes(provider as ChatProvider)) {
     throw new ValidationError(`Invalid provider: ${provider}. Must be one of: ${validProviders.join(', ')}`);
   }
