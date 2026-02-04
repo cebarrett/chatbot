@@ -80,8 +80,8 @@ export function loadEnabledJudges(): string[] {
   } catch {
     // Ignore parse errors
   }
-  // Default: all judges enabled
-  return getAllJudgeIds()
+  // Default: OpenAI and Claude judges enabled
+  return ['openai', 'claude']
 }
 
 // Save enabled judges to localStorage
