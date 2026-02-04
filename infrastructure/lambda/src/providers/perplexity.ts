@@ -5,6 +5,69 @@ const PERPLEXITY_API_URL = 'https://api.perplexity.ai/chat/completions';
 const DEFAULT_MODEL = 'sonar-reasoning-pro';
 
 /**
+ * Filters out source reference markers like [1], [2], etc. from streaming content.
+ * These are Perplexity's citation markers that aren't useful without the source list.
+ */
+class SourceReferenceFilter {
+  private buffer = '';
+
+  /**
+   * Process incoming content and return content with source references removed.
+   * Buffers potential partial references to handle them correctly when split across chunks.
+   */
+  filter(content: string): string {
+    this.buffer += content;
+    let output = '';
+
+    while (this.buffer.length > 0) {
+      const bracketIndex = this.buffer.indexOf('[');
+
+      if (bracketIndex === -1) {
+        // No '[' in buffer, output everything
+        output += this.buffer;
+        this.buffer = '';
+        break;
+      }
+
+      // Output everything before the '['
+      output += this.buffer.slice(0, bracketIndex);
+      this.buffer = this.buffer.slice(bracketIndex);
+
+      // Now buffer starts with '['
+      // Look for closing ']'
+      const closeIndex = this.buffer.indexOf(']');
+
+      if (closeIndex === -1) {
+        // No closing bracket yet - might be incomplete, keep buffered
+        break;
+      }
+
+      // Check if content between brackets is only digits
+      const inner = this.buffer.slice(1, closeIndex);
+      if (inner.length > 0 && /^\d+$/.test(inner)) {
+        // It's a source reference - skip it
+        this.buffer = this.buffer.slice(closeIndex + 1);
+      } else {
+        // Not a source reference - output the '[' and continue
+        output += '[';
+        this.buffer = this.buffer.slice(1);
+      }
+    }
+
+    return output;
+  }
+
+  /**
+   * Flush any remaining buffered content.
+   */
+  flush(): string {
+    const remaining = this.buffer;
+    this.buffer = '';
+    return remaining;
+  }
+}
+
+/**
  * Filters out <think>...</think> blocks from streaming content.
  * Handles the case where tags may be split across multiple chunks.
  */
@@ -141,6 +204,7 @@ export async function streamPerplexity(
   let buffer = '';
   const batcher = new ChunkBatcher(requestId, userId);
   const thinkFilter = new ThinkBlockFilter();
+  const sourceFilter = new SourceReferenceFilter();
 
   try {
     while (true) {
@@ -160,10 +224,17 @@ export async function streamPerplexity(
 
         const data = trimmed.slice(6);
         if (data === '[DONE]') {
-          // Flush any remaining content from the think filter
-          const remaining = thinkFilter.flush();
-          if (remaining) {
-            batcher.add(remaining);
+          // Flush any remaining content from the filters
+          const thinkRemaining = thinkFilter.flush();
+          if (thinkRemaining) {
+            const filtered = sourceFilter.filter(thinkRemaining);
+            if (filtered) {
+              batcher.add(filtered);
+            }
+          }
+          const sourceRemaining = sourceFilter.flush();
+          if (sourceRemaining) {
+            batcher.add(sourceRemaining);
           }
           await batcher.done();
           return;
@@ -173,9 +244,12 @@ export async function streamPerplexity(
           const parsed = JSON.parse(data);
           const content = parsed.choices?.[0]?.delta?.content;
           if (content) {
-            const filtered = thinkFilter.filter(content);
-            if (filtered) {
-              batcher.add(filtered);
+            const thinkFiltered = thinkFilter.filter(content);
+            if (thinkFiltered) {
+              const filtered = sourceFilter.filter(thinkFiltered);
+              if (filtered) {
+                batcher.add(filtered);
+              }
             }
           }
         } catch {
@@ -195,9 +269,12 @@ export async function streamPerplexity(
             const parsed = JSON.parse(data);
             const content = parsed.choices?.[0]?.delta?.content;
             if (content) {
-              const filtered = thinkFilter.filter(content);
-              if (filtered) {
-                batcher.add(filtered);
+              const thinkFiltered = thinkFilter.filter(content);
+              if (thinkFiltered) {
+                const filtered = sourceFilter.filter(thinkFiltered);
+                if (filtered) {
+                  batcher.add(filtered);
+                }
               }
             }
           } catch {
@@ -207,10 +284,17 @@ export async function streamPerplexity(
       }
     }
 
-    // Flush any remaining content from the think filter
-    const remaining = thinkFilter.flush();
-    if (remaining) {
-      batcher.add(remaining);
+    // Flush any remaining content from the filters
+    const thinkRemaining = thinkFilter.flush();
+    if (thinkRemaining) {
+      const filtered = sourceFilter.filter(thinkRemaining);
+      if (filtered) {
+        batcher.add(filtered);
+      }
+    }
+    const sourceRemaining = sourceFilter.flush();
+    if (sourceRemaining) {
+      batcher.add(sourceRemaining);
     }
 
     // Send final done signal
@@ -248,6 +332,9 @@ export async function judgePerplexity(
 
   const data: any = await response.json();
   const content = data.choices?.[0]?.message?.content || '';
-  // Remove any <think>...</think> blocks from the response
-  return content.replace(/<think>[\s\S]*?<\/think>/g, '').trim();
+  // Remove any <think>...</think> blocks and source references [1], [2], etc. from the response
+  return content
+    .replace(/<think>[\s\S]*?<\/think>/g, '')
+    .replace(/\[\d+\]/g, '')
+    .trim();
 }
