@@ -64,7 +64,7 @@ export const chatProviderRegistry: ChatProviderConfig[] = [
 ]
 
 // Default provider ID
-export const DEFAULT_PROVIDER_ID = 'gemini'
+export const DEFAULT_PROVIDER_ID = 'perplexity'
 
 // Helper to get a provider by ID
 export function getProviderById(id: string): ChatProviderConfig | undefined {
