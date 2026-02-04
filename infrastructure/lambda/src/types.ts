@@ -20,7 +20,7 @@ export interface JudgeInput {
   model?: string;
 }
 
-export type ChatProvider = 'OPENAI' | 'ANTHROPIC' | 'GEMINI';
+export type ChatProvider = 'OPENAI' | 'ANTHROPIC' | 'GEMINI' | 'PERPLEXITY';
 
 // GraphQL output types
 export interface SendMessageResponse {
@@ -63,6 +63,7 @@ export interface LLMSecrets {
   OPENAI_API_KEY: string;
   ANTHROPIC_API_KEY: string;
   GEMINI_API_KEY: string;
+  PERPLEXITY_API_KEY: string;
 }
 
 // Provider-specific message formats

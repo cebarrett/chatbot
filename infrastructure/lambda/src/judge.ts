@@ -4,7 +4,7 @@ import {
   JudgeResponse,
 } from './types';
 import { getSecrets } from './secrets';
-import { judgeOpenAI, judgeAnthropic, judgeGemini } from './providers';
+import { judgeOpenAI, judgeAnthropic, judgeGemini, judgePerplexity } from './providers';
 import { validateJudgeInput, ValidationError } from './validation';
 
 interface JudgeEventArgs {
@@ -132,6 +132,9 @@ export async function handler(
         break;
       case 'GEMINI':
         responseText = await judgeGemini(secrets.GEMINI_API_KEY, JUDGE_SYSTEM_PROMPT, userPrompt, model);
+        break;
+      case 'PERPLEXITY':
+        responseText = await judgePerplexity(secrets.PERPLEXITY_API_KEY, JUDGE_SYSTEM_PROMPT, userPrompt, model);
         break;
       default:
         throw new Error(`Unknown judge provider: ${judgeProvider}`);

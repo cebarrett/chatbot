@@ -53,6 +53,14 @@ export const chatProviderRegistry: ChatProviderConfig[] = [
     isConfigured: isAppSyncConfigured,
     sendMessageStream: createProviderStream('gemini'),
   },
+  {
+    id: 'perplexity',
+    name: 'Perplexity',
+    description: 'Perplexity Sonar AI',
+    color: '#20808D', // Perplexity teal
+    isConfigured: isAppSyncConfigured,
+    sendMessageStream: createProviderStream('perplexity'),
+  },
 ]
 
 // Default provider ID

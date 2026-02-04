@@ -43,6 +43,14 @@ export const judgeRegistry: JudgeConfig[] = [
     isConfigured: isAppSyncConfigured,
     getRating: createJudgeRating('openai'),
   },
+  {
+    id: 'perplexity',
+    name: 'Perplexity',
+    description: 'Perplexity Sonar AI',
+    color: '#20808D', // Perplexity teal
+    isConfigured: isAppSyncConfigured,
+    getRating: createJudgeRating('perplexity'),
+  },
 ]
 
 // Helper to get a judge by ID
