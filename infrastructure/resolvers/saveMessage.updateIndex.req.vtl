@@ -1,7 +1,8 @@
 ## Atomically delete old user-chat index entry and write new one with updated timestamp
 #set($meta = $ctx.stash.chatMeta)
 #set($updatedMeta = $ctx.stash.updatedMeta)
-#set($userId = $meta.userId)
+## Use internalUserId for the USER# partition key (decoupled from auth provider)
+#set($internalUserId = $meta.internalUserId)
 #set($chatId = $ctx.args.input.chatId)
 #set($newUpdatedAt = $updatedMeta.updatedAt)
 #set($oldUpdatedAt = $meta.updatedAt)
@@ -13,7 +14,7 @@
       "table": "${tableName}",
       "operation": "DeleteItem",
       "key": {
-        "PK": $util.dynamodb.toDynamoDBJson("USER#${userId}"),
+        "PK": $util.dynamodb.toDynamoDBJson("USER#${internalUserId}"),
         "SK": $util.dynamodb.toDynamoDBJson("CHAT#${oldUpdatedAt}#${chatId}")
       }
     },
@@ -21,7 +22,7 @@
       "table": "${tableName}",
       "operation": "PutItem",
       "key": {
-        "PK": $util.dynamodb.toDynamoDBJson("USER#${userId}"),
+        "PK": $util.dynamodb.toDynamoDBJson("USER#${internalUserId}"),
         "SK": $util.dynamodb.toDynamoDBJson("CHAT#${newUpdatedAt}#${chatId}")
       },
       "attributeValues": $util.dynamodb.toMapValuesJson({

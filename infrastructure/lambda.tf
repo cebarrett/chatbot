@@ -133,3 +133,75 @@ resource "aws_cloudwatch_log_group" "delete_chat" {
     Name = "${var.project_name}-delete-chat-logs"
   }
 }
+
+# Create Chat Lambda function
+resource "aws_lambda_function" "create_chat" {
+  filename         = data.archive_file.lambda_package.output_path
+  function_name    = "${var.project_name}-${var.environment}-create-chat"
+  role             = aws_iam_role.lambda_execution.arn
+  handler          = "createChat.handler"
+  source_code_hash = data.archive_file.lambda_package.output_base64sha256
+  runtime          = "nodejs22.x"
+  timeout          = 30
+  memory_size      = 256
+
+  environment {
+    variables = {
+      DYNAMODB_TABLE_NAME = aws_dynamodb_table.chats.name
+    }
+  }
+
+  depends_on = [
+    aws_iam_role_policy_attachment.lambda_basic_execution,
+    aws_iam_role_policy.lambda_dynamodb_access,
+  ]
+
+  tags = {
+    Name = "${var.project_name}-create-chat"
+  }
+}
+
+resource "aws_cloudwatch_log_group" "create_chat" {
+  name              = "/aws/lambda/${aws_lambda_function.create_chat.function_name}"
+  retention_in_days = 14
+
+  tags = {
+    Name = "${var.project_name}-create-chat-logs"
+  }
+}
+
+# List Chats Lambda function
+resource "aws_lambda_function" "list_chats" {
+  filename         = data.archive_file.lambda_package.output_path
+  function_name    = "${var.project_name}-${var.environment}-list-chats"
+  role             = aws_iam_role.lambda_execution.arn
+  handler          = "listChats.handler"
+  source_code_hash = data.archive_file.lambda_package.output_base64sha256
+  runtime          = "nodejs22.x"
+  timeout          = 30
+  memory_size      = 256
+
+  environment {
+    variables = {
+      DYNAMODB_TABLE_NAME = aws_dynamodb_table.chats.name
+    }
+  }
+
+  depends_on = [
+    aws_iam_role_policy_attachment.lambda_basic_execution,
+    aws_iam_role_policy.lambda_dynamodb_access,
+  ]
+
+  tags = {
+    Name = "${var.project_name}-list-chats"
+  }
+}
+
+resource "aws_cloudwatch_log_group" "list_chats" {
+  name              = "/aws/lambda/${aws_lambda_function.list_chats.function_name}"
+  retention_in_days = 14
+
+  tags = {
+    Name = "${var.project_name}-list-chats-logs"
+  }
+}

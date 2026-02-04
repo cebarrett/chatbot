@@ -198,18 +198,59 @@ resource "aws_appsync_datasource" "delete_chat_lambda" {
   }
 }
 
+# Data source for createChat Lambda
+resource "aws_appsync_datasource" "create_chat_lambda" {
+  api_id           = aws_appsync_graphql_api.chatbot.id
+  name             = "CreateChatLambda"
+  type             = "AWS_LAMBDA"
+  service_role_arn = aws_iam_role.appsync_lambda.arn
+
+  lambda_config {
+    function_arn = aws_lambda_function.create_chat.arn
+  }
+}
+
+# Data source for listChats Lambda
+resource "aws_appsync_datasource" "list_chats_lambda" {
+  api_id           = aws_appsync_graphql_api.chatbot.id
+  name             = "ListChatsLambda"
+  type             = "AWS_LAMBDA"
+  service_role_arn = aws_iam_role.appsync_lambda.arn
+
+  lambda_config {
+    function_arn = aws_lambda_function.list_chats.arn
+  }
+}
+
 # ==========================================
-# Chat History - listChats Query Resolver
+# Chat History - listChats Query Resolver (Lambda)
+# Uses Lambda to resolve internal user ID before querying
 # ==========================================
 
 resource "aws_appsync_resolver" "list_chats" {
   api_id      = aws_appsync_graphql_api.chatbot.id
   type        = "Query"
   field       = "listChats"
-  data_source = aws_appsync_datasource.dynamodb_chats.name
+  data_source = aws_appsync_datasource.list_chats_lambda.name
 
-  request_template  = file("${path.module}/resolvers/listChats.req.vtl")
-  response_template = file("${path.module}/resolvers/listChats.res.vtl")
+  request_template = <<-EOF
+{
+  "version": "2017-02-28",
+  "operation": "Invoke",
+  "payload": {
+    "arguments": $util.toJson($context.arguments),
+    "identity": {
+      "sub": "$context.identity.sub",
+      "issuer": "$context.identity.issuer",
+      "claims": $util.toJson($context.identity.claims)
+    }
+  }
+}
+EOF
+
+  response_template = <<-EOF
+$util.toJson($context.result)
+EOF
 }
 
 # ==========================================
@@ -252,17 +293,34 @@ resource "aws_appsync_function" "get_chat_messages" {
 }
 
 # ==========================================
-# Chat History - createChat Mutation Resolver
+# Chat History - createChat Mutation Resolver (Lambda)
+# Uses Lambda to resolve/create internal user ID
 # ==========================================
 
 resource "aws_appsync_resolver" "create_chat" {
   api_id      = aws_appsync_graphql_api.chatbot.id
   type        = "Mutation"
   field       = "createChat"
-  data_source = aws_appsync_datasource.dynamodb_chats.name
+  data_source = aws_appsync_datasource.create_chat_lambda.name
 
-  request_template  = replace(file("${path.module}/resolvers/createChat.req.vtl"), "$${tableName}", aws_dynamodb_table.chats.name)
-  response_template = replace(file("${path.module}/resolvers/createChat.res.vtl"), "$${tableName}", aws_dynamodb_table.chats.name)
+  request_template = <<-EOF
+{
+  "version": "2017-02-28",
+  "operation": "Invoke",
+  "payload": {
+    "arguments": $util.toJson($context.arguments),
+    "identity": {
+      "sub": "$context.identity.sub",
+      "issuer": "$context.identity.issuer",
+      "claims": $util.toJson($context.identity.claims)
+    }
+  }
+}
+EOF
+
+  response_template = <<-EOF
+$util.toJson($context.result)
+EOF
 }
 
 # ==========================================

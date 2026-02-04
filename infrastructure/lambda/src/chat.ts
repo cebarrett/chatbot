@@ -8,6 +8,7 @@ import { getSecrets } from './secrets';
 import { publishChunk } from './appsync';
 import { streamOpenAI, streamAnthropic, streamGemini, streamPerplexity } from './providers';
 import { validateSendMessageInput, ValidationError } from './validation';
+import { resolveInternalUserId } from './userService';
 
 interface ChatEventArgs {
   input: SendMessageInput;
@@ -42,12 +43,17 @@ export function handler(
   }
 
   const { requestId, provider, messages, model } = input;
-  const userId = identity.sub;
+  // External user ID (Clerk) - used for subscription routing (must match frontend filter)
+  const externalUserId = identity.sub;
 
-  console.log(`Processing chat request: ${requestId} for provider: ${provider}, user: ${userId}`);
-
-  // Start the async work
-  getSecrets()
+  // Resolve internal user ID from Clerk ID (creates mapping if first login)
+  // This ensures the user exists in our system and logs the internal ID for tracing.
+  // Note: Subscription routing uses externalUserId for frontend compatibility.
+  resolveInternalUserId(identity)
+    .then((internalUserId) => {
+      console.log(`Processing chat request: ${requestId} for provider: ${provider}, internalUser: ${internalUserId}, externalUser: ${externalUserId}`);
+      return getSecrets();
+    })
     .then((secrets) => {
       // Return response to AppSync immediately — don't wait for streaming to finish.
       // This avoids the ~30s AppSync resolver timeout for long responses.
@@ -58,15 +64,16 @@ export function handler(
       });
 
       // Stream in the background — Lambda stays alive until this completes
-      return streamInBackground(secrets, provider, messages, requestId, userId, model);
+      // Uses externalUserId for subscription routing (matches frontend filter)
+      return streamInBackground(secrets, provider, messages, requestId, externalUserId, model);
     })
     .catch((error) => {
       console.error('Error processing chat request:', error);
 
-      // Publish error to subscribers
+      // Publish error to subscribers using external ID (matches frontend subscription filter)
       publishChunk(
         requestId,
-        userId,
+        externalUserId,
         '',
         true,
         0,

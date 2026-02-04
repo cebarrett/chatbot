@@ -6,6 +6,7 @@ import {
 import { getSecrets } from './secrets';
 import { judgeOpenAI, judgeAnthropic, judgeGemini, judgePerplexity } from './providers';
 import { validateJudgeInput, ValidationError } from './validation';
+import { resolveInternalUserId } from './userService';
 
 interface JudgeEventArgs {
   input: JudgeInput;
@@ -106,7 +107,9 @@ export async function handler(
 
   const { judgeProvider, originalPrompt, responseToJudge, respondingProvider, conversationHistory, model } = input;
 
-  console.log(`Processing judge request with provider: ${judgeProvider}, user: ${identity.sub}`);
+  // Resolve internal user ID from Clerk ID (creates mapping if first login)
+  const internalUserId = await resolveInternalUserId(identity);
+  console.log(`Processing judge request with provider: ${judgeProvider}, internalUser: ${internalUserId}`);
 
   try {
     // Get API keys from Secrets Manager
