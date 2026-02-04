@@ -31,9 +31,16 @@ class ThinkBlockFilter {
         } else {
           // Check if buffer might contain partial closing tag
           // Keep potential partial tag in buffer (up to 7 chars: "</think" without ">")
-          const potentialPartial = this.buffer.slice(-7);
-          if ('</think>'.startsWith(potentialPartial) && potentialPartial.length > 0) {
-            this.buffer = potentialPartial;
+          let partialStart = -1;
+          for (let i = Math.max(0, this.buffer.length - 7); i < this.buffer.length; i++) {
+            const suffix = this.buffer.slice(i);
+            if ('</think>'.startsWith(suffix)) {
+              partialStart = i;
+              break;
+            }
+          }
+          if (partialStart !== -1) {
+            this.buffer = this.buffer.slice(partialStart);
           } else {
             this.buffer = '';
           }
