@@ -35,6 +35,10 @@ export function ChatInput({ onSend, onStop, disabled = false, isTyping = false, 
 
   const handleKeyDown = (e: KeyboardEvent<HTMLDivElement>) => {
     if (e.key === 'Enter' && !e.shiftKey) {
+      // On mobile/touch devices, let Enter insert a line break (user taps send button).
+      // On desktop, Enter sends the message.
+      const isTouchDevice = 'ontouchstart' in window || navigator.maxTouchPoints > 0
+      if (isTouchDevice) return
       e.preventDefault()
       handleSend()
     }
