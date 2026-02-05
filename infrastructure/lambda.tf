@@ -36,8 +36,9 @@ resource "aws_lambda_function" "chat" {
 
   environment {
     variables = {
-      SECRETS_NAME = aws_secretsmanager_secret.llm_api_keys.name
-      APPSYNC_URL  = aws_appsync_graphql_api.chatbot.uris["GRAPHQL"]
+      SECRETS_NAME        = aws_secretsmanager_secret.llm_api_keys.name
+      APPSYNC_URL         = aws_appsync_graphql_api.chatbot.uris["GRAPHQL"]
+      DYNAMODB_TABLE_NAME = aws_dynamodb_table.chats.name
     }
   }
 
@@ -45,6 +46,7 @@ resource "aws_lambda_function" "chat" {
     aws_iam_role_policy_attachment.lambda_basic_execution,
     aws_iam_role_policy.lambda_secrets_access,
     aws_iam_role_policy.lambda_appsync_access,
+    aws_iam_role_policy.lambda_dynamodb_access,
   ]
 
   tags = {
@@ -65,13 +67,15 @@ resource "aws_lambda_function" "judge" {
 
   environment {
     variables = {
-      SECRETS_NAME = aws_secretsmanager_secret.llm_api_keys.name
+      SECRETS_NAME        = aws_secretsmanager_secret.llm_api_keys.name
+      DYNAMODB_TABLE_NAME = aws_dynamodb_table.chats.name
     }
   }
 
   depends_on = [
     aws_iam_role_policy_attachment.lambda_basic_execution,
     aws_iam_role_policy.lambda_secrets_access,
+    aws_iam_role_policy.lambda_dynamodb_access,
   ]
 
   tags = {

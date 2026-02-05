@@ -94,7 +94,9 @@ resource "aws_iam_role_policy" "appsync_lambda_invoke" {
         Resource = [
           aws_lambda_function.chat.arn,
           aws_lambda_function.judge.arn,
-          aws_lambda_function.delete_chat.arn
+          aws_lambda_function.delete_chat.arn,
+          aws_lambda_function.create_chat.arn,
+          aws_lambda_function.list_chats.arn
         ]
       }
     ]
@@ -138,7 +140,7 @@ resource "aws_iam_role_policy" "appsync_dynamodb_access" {
   })
 }
 
-# Policy for Lambda DynamoDB access (used by deleteChat Lambda)
+# Policy for Lambda DynamoDB access (used by deleteChat, chat, judge, createChat, listChats)
 resource "aws_iam_role_policy" "lambda_dynamodb_access" {
   name = "${var.project_name}-${var.environment}-lambda-dynamodb-access"
   role = aws_iam_role.lambda_execution.id
@@ -149,6 +151,7 @@ resource "aws_iam_role_policy" "lambda_dynamodb_access" {
       Effect = "Allow"
       Action = [
         "dynamodb:GetItem",
+        "dynamodb:PutItem",
         "dynamodb:DeleteItem",
         "dynamodb:Query",
         "dynamodb:BatchWriteItem"
