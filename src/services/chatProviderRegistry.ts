@@ -34,6 +34,22 @@ function createProviderStream(providerId: string) {
 // Now all providers use AppSync backend - no direct API calls
 export const chatProviderRegistry: ChatProviderConfig[] = [
   {
+    id: 'perplexity',
+    name: 'Perplexity',
+    description: 'Perplexity Sonar AI',
+    color: '#20808D', // Perplexity teal
+    isConfigured: isAppSyncConfigured,
+    sendMessageStream: createProviderStream('perplexity'),
+  },
+  {
+    id: 'gemini',
+    name: 'Gemini',
+    description: 'Google Gemini AI',
+    color: '#4285F4', // Google blue
+    isConfigured: isAppSyncConfigured,
+    sendMessageStream: createProviderStream('gemini'),
+  },
+  {
     id: 'claude',
     name: 'Claude',
     description: 'Anthropic Claude AI',
@@ -48,22 +64,6 @@ export const chatProviderRegistry: ChatProviderConfig[] = [
     color: '#10A37F', // OpenAI green
     isConfigured: isAppSyncConfigured,
     sendMessageStream: createProviderStream('openai'),
-  },
-  {
-    id: 'gemini',
-    name: 'Gemini',
-    description: 'Google Gemini AI',
-    color: '#4285F4', // Google blue
-    isConfigured: isAppSyncConfigured,
-    sendMessageStream: createProviderStream('gemini'),
-  },
-  {
-    id: 'perplexity',
-    name: 'Perplexity',
-    description: 'Perplexity Sonar AI',
-    color: '#20808D', // Perplexity teal
-    isConfigured: isAppSyncConfigured,
-    sendMessageStream: createProviderStream('perplexity'),
   },
 ]
 
