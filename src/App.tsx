@@ -49,6 +49,8 @@ function App() {
   const [judgingMessageId, setJudgingMessageId] = useState<string | null>(null)
   const [pendingJudges, setPendingJudges] = useState<string[]>([])
   const messagesEndRef = useRef<HTMLDivElement>(null)
+  const messagesContainerRef = useRef<HTMLDivElement>(null)
+  const isNearBottomRef = useRef(true)
   const streamCancelRef = useRef<(() => void) | null>(null)
   const judgeCancelRef = useRef<(() => void) | null>(null)
   const { resolvedMode, toggleMode } = useTheme()
@@ -134,8 +136,18 @@ function App() {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
   }
 
+  const handleScroll = useCallback(() => {
+    const container = messagesContainerRef.current
+    if (!container) return
+    const { scrollTop, scrollHeight, clientHeight } = container
+    // Consider "near bottom" if within 150px of the bottom
+    isNearBottomRef.current = scrollHeight - scrollTop - clientHeight < 150
+  }, [])
+
   useEffect(() => {
-    scrollToBottom()
+    if (isNearBottomRef.current) {
+      scrollToBottom()
+    }
   }, [messages])
 
   // Track pending createChat promises so saveMessage can await them
@@ -621,6 +633,8 @@ function App() {
         </Paper>
 
         <Box
+          ref={messagesContainerRef}
+          onScroll={handleScroll}
           sx={{
             flex: 1,
             overflow: 'auto',
