@@ -10,12 +10,12 @@ import { ResponseQualityRating } from './ResponseQualityRating'
 
 interface ChatMessageProps {
   message: Message
-  enabledJudges: string[]
+  loadingJudges?: string[]  // Judges actively loading for this message
   isLastUserMessage?: boolean
   onEdit?: (content: string) => void
 }
 
-export function ChatMessage({ message, enabledJudges, isLastUserMessage, onEdit }: ChatMessageProps) {
+export function ChatMessage({ message, loadingJudges = [], isLastUserMessage, onEdit }: ChatMessageProps) {
   const isUser = message.role === 'user'
   const theme = useTheme()
   const isDark = theme.palette.mode === 'dark'
@@ -138,9 +138,9 @@ export function ChatMessage({ message, enabledJudges, isLastUserMessage, onEdit 
             {message.content}
           </ReactMarkdown>
         </Box>
-        {message.judgeRatings && (
+        {(message.judgeRatings || loadingJudges.length > 0) && (
           <Box sx={{ pl: { xs: 4.5, sm: 6 }, mt: 1 }}>
-            <ResponseQualityRating ratings={message.judgeRatings} enabledJudges={enabledJudges} />
+            <ResponseQualityRating ratings={message.judgeRatings || {}} loadingJudges={loadingJudges} />
           </Box>
         )}
       </Box>
