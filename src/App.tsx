@@ -583,7 +583,7 @@ function App() {
             <ProviderSelector
               selectedProviderId={activeProviderId}
               onSelectProvider={handleChangeProvider}
-              disabled={isTyping || !activeChatId}
+              disabled={isTyping}
             />
             <JudgeSelector enabledJudges={enabledJudges} onToggleJudge={handleToggleJudge} />
             <Tooltip title={resolvedMode === 'light' ? 'Switch to dark mode' : 'Switch to light mode'}>
