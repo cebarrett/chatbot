@@ -36,7 +36,8 @@ export async function getQualityRating(
   judgeId: string,
   conversationHistory: Message[],
   latestResponse: string,
-  respondingProvider: string
+  respondingProvider: string,
+  signal?: AbortSignal
 ): Promise<QualityRating> {
   if (!isAppSyncConfigured()) {
     throw new AppSyncJudgeError(
@@ -66,7 +67,8 @@ export async function getQualityRating(
 
   const response = await executeGraphQL<{ judgeResponse: JudgeResponse }>(
     JUDGE_RESPONSE_MUTATION,
-    { input }
+    { input },
+    signal
   );
 
   const { score, explanation, problems } = response.judgeResponse;

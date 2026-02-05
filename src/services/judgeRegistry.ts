@@ -7,13 +7,13 @@ export interface JudgeConfig {
   description: string
   color: string // For UI badge coloring
   isConfigured: () => boolean
-  getRating: (conversationHistory: Message[], latestResponse: string, respondingProvider: string) => Promise<QualityRating>
+  getRating: (conversationHistory: Message[], latestResponse: string, respondingProvider: string, signal?: AbortSignal) => Promise<QualityRating>
 }
 
 // Create a wrapper that binds the judge ID
 function createJudgeRating(judgeId: string) {
-  return (conversationHistory: Message[], latestResponse: string, respondingProvider: string) =>
-    getAppSyncRating(judgeId, conversationHistory, latestResponse, respondingProvider)
+  return (conversationHistory: Message[], latestResponse: string, respondingProvider: string, signal?: AbortSignal) =>
+    getAppSyncRating(judgeId, conversationHistory, latestResponse, respondingProvider, signal)
 }
 
 // Registry of all available judges
@@ -89,25 +89,46 @@ export function saveEnabledJudges(judgeIds: string[]): void {
   localStorage.setItem(ENABLED_JUDGES_KEY, JSON.stringify(judgeIds))
 }
 
+// Result type for judge fetching with cancellation support
+export interface JudgeFetchResult {
+  promise: Promise<void>
+  cancel: () => void
+}
+
 // Fetch ratings from multiple judges in parallel
-export async function fetchRatingsFromJudges(
+export function fetchRatingsFromJudges(
   enabledJudgeIds: string[],
   conversationHistory: Message[],
   latestResponse: string,
   respondingProvider: string,
   onRating: (judgeId: string, rating: QualityRating) => void
-): Promise<void> {
-  const promises = enabledJudgeIds.map(async (judgeId) => {
-    const judge = getJudgeById(judgeId)
-    if (judge) {
-      try {
-        const rating = await judge.getRating(conversationHistory, latestResponse, respondingProvider)
-        onRating(judgeId, rating)
-      } catch (error) {
-        console.error(`Error fetching rating from ${judge.name}:`, error)
-      }
-    }
-  })
+): JudgeFetchResult {
+  const abortController = new AbortController()
 
-  await Promise.allSettled(promises)
+  const promise = (async () => {
+    const promises = enabledJudgeIds.map(async (judgeId) => {
+      const judge = getJudgeById(judgeId)
+      if (judge) {
+        try {
+          const rating = await judge.getRating(conversationHistory, latestResponse, respondingProvider, abortController.signal)
+          // Don't call onRating if aborted
+          if (!abortController.signal.aborted) {
+            onRating(judgeId, rating)
+          }
+        } catch (error) {
+          // Ignore abort errors, log other errors
+          if (error instanceof Error && error.name !== 'AbortError') {
+            console.error(`Error fetching rating from ${judge.name}:`, error)
+          }
+        }
+      }
+    })
+
+    await Promise.allSettled(promises)
+  })()
+
+  return {
+    promise,
+    cancel: () => abortController.abort(),
+  }
 }
