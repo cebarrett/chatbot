@@ -1,6 +1,7 @@
-import { Box, Paper, Typography, useTheme } from '@mui/material'
+import { Box, Paper, Typography, IconButton, Tooltip, useTheme } from '@mui/material'
 import SmartToyIcon from '@mui/icons-material/SmartToy'
 import PersonIcon from '@mui/icons-material/Person'
+import EditIcon from '@mui/icons-material/Edit'
 import ReactMarkdown from 'react-markdown'
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter'
 import { oneDark, oneLight } from 'react-syntax-highlighter/dist/esm/styles/prism'
@@ -10,12 +11,15 @@ import { ResponseQualityRating } from './ResponseQualityRating'
 interface ChatMessageProps {
   message: Message
   enabledJudges: string[]
+  isLastUserMessage?: boolean
+  onEdit?: (content: string) => void
 }
 
-export function ChatMessage({ message, enabledJudges }: ChatMessageProps) {
+export function ChatMessage({ message, enabledJudges, isLastUserMessage, onEdit }: ChatMessageProps) {
   const isUser = message.role === 'user'
   const theme = useTheme()
   const isDark = theme.palette.mode === 'dark'
+  const showEditButton = isUser && isLastUserMessage && onEdit
 
   // Assistant messages: full-width, no bubble
   if (!isUser) {
@@ -189,16 +193,43 @@ export function ChatMessage({ message, enabledJudges }: ChatMessageProps) {
           <Typography variant="body1" sx={{ whiteSpace: 'pre-wrap' }}>
             {message.content}
           </Typography>
-          <Typography
-            variant="caption"
+          <Box
             sx={{
-              display: 'block',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
               mt: 0.5,
-              opacity: 0.7,
             }}
           >
-            {message.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-          </Typography>
+            <Typography
+              variant="caption"
+              sx={{
+                opacity: 0.7,
+              }}
+            >
+              {message.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+            </Typography>
+            {showEditButton && (
+              <Tooltip title="Edit message">
+                <IconButton
+                  size="small"
+                  onClick={() => onEdit(message.content)}
+                  sx={{
+                    color: 'white',
+                    opacity: 0.7,
+                    p: 0.25,
+                    ml: 1,
+                    '&:hover': {
+                      opacity: 1,
+                      bgcolor: 'rgba(255, 255, 255, 0.1)',
+                    },
+                  }}
+                >
+                  <EditIcon sx={{ fontSize: 16 }} />
+                </IconButton>
+              </Tooltip>
+            )}
+          </Box>
         </Paper>
       </Box>
     </Box>

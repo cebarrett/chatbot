@@ -45,6 +45,7 @@ function App() {
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [enabledJudges, setEnabledJudges] = useState<string[]>(() => loadEnabledJudges())
+  const [editValue, setEditValue] = useState<string | null>(null)
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const streamCancelRef = useRef<(() => void) | null>(null)
   const judgeCancelRef = useRef<(() => void) | null>(null)
@@ -58,6 +59,16 @@ function App() {
   const activeProvider = getProviderById(activeProviderId)
   const providerConfigured = activeProvider?.isConfigured() ?? false
   const messages = useMemo(() => activeChat?.messages || [], [activeChat?.messages])
+
+  // Find the last user message ID for the edit button
+  const lastUserMessageId = useMemo(() => {
+    for (let i = messages.length - 1; i >= 0; i--) {
+      if (messages[i].role === 'user') {
+        return messages[i].id
+      }
+    }
+    return null
+  }, [messages])
 
   // Load chat list once auth is ready
   useEffect(() => {
@@ -247,6 +258,14 @@ function App() {
     })
   }, [])
 
+  const handleEditMessage = useCallback((content: string) => {
+    setEditValue(content)
+  }, [])
+
+  const handleEditClear = useCallback(() => {
+    setEditValue(null)
+  }, [])
+
   const handleChangeProvider = useCallback(
     (providerId: string) => {
       if (!activeChatId) return
@@ -294,9 +313,44 @@ function App() {
       judgeCancelRef.current = null
     }
 
+    // Cancel any in-progress stream if editing
+    if (streamCancelRef.current) {
+      streamCancelRef.current()
+      streamCancelRef.current = null
+    }
+
     let currentChatId = activeChatId
     if (!currentChatId) {
       currentChatId = createNewChat()
+    }
+
+    // If we're editing, remove the last user message and any following assistant message
+    const isEditing = editValue !== null
+    if (isEditing && currentChatId) {
+      setChats((prev) =>
+        prev.map((chat) => {
+          if (chat.id === currentChatId) {
+            // Find the last user message index
+            let lastUserIdx = -1
+            for (let i = chat.messages.length - 1; i >= 0; i--) {
+              if (chat.messages[i].role === 'user') {
+                lastUserIdx = i
+                break
+              }
+            }
+            if (lastUserIdx >= 0) {
+              // Remove the last user message and everything after it (the assistant response)
+              return {
+                ...chat,
+                messages: chat.messages.slice(0, lastUserIdx),
+                updatedAt: new Date(),
+              }
+            }
+          }
+          return chat
+        })
+      )
+      setEditValue(null)
     }
 
     const userMessage: Message = {
@@ -315,13 +369,29 @@ function App() {
     }
 
     // Determine if this is the first message (for title generation)
+    // Re-fetch the chat after potential edit removal
     const currentChat = chats.find((c) => c.id === currentChatId)
-    const isFirstMessage = !currentChat || currentChat.messages.length === 0
+    // Note: when editing, the messages have already been trimmed in the setChats call above
+    // so we just check if the chat has messages
+    const isFirstMessage = !currentChat || (isEditing
+      ? (() => {
+          // Find the last user message index in the original messages
+          let idx = -1
+          for (let i = (currentChat?.messages || []).length - 1; i >= 0; i--) {
+            if (currentChat?.messages[i].role === 'user') { idx = i; break }
+          }
+          return idx <= 0  // First message if no user messages or only one
+        })()
+      : currentChat.messages.length === 0)
 
     setChats((prev) =>
       prev.map((chat) => {
         if (chat.id === currentChatId) {
-          const updatedMessages = [...chat.messages, userMessage, botMessage]
+          // If editing, we need to use the already-trimmed messages
+          const baseMessages = isEditing
+            ? chat.messages  // Already trimmed in the previous setChats call
+            : chat.messages
+          const updatedMessages = [...baseMessages, userMessage, botMessage]
           const newTitle = isFirstMessage ? generateChatTitle(updatedMessages) : chat.title
           return {
             ...chat,
@@ -364,7 +434,17 @@ function App() {
     const chatIdForStream = currentChatId
 
     try {
-      const messagesForApi = [...(currentChat?.messages || []), userMessage]
+      // When editing, use trimmed messages (without the old user message and response)
+      let baseMessagesForApi = currentChat?.messages || []
+      if (isEditing) {
+        // Find the last user message index
+        let lastUserIdx = -1
+        for (let i = baseMessagesForApi.length - 1; i >= 0; i--) {
+          if (baseMessagesForApi[i].role === 'user') { lastUserIdx = i; break }
+        }
+        baseMessagesForApi = lastUserIdx >= 0 ? baseMessagesForApi.slice(0, lastUserIdx) : []
+      }
+      const messagesForApi = [...baseMessagesForApi, userMessage]
       const provider = getProviderById(currentChat?.providerId || DEFAULT_PROVIDER_ID)
 
       let finalResponse = ''
@@ -569,7 +649,13 @@ function App() {
           ) : (
             <>
               {messages.map((message) => (
-                <ChatMessage key={message.id} message={message} enabledJudges={enabledJudges} />
+                <ChatMessage
+                  key={message.id}
+                  message={message}
+                  enabledJudges={enabledJudges}
+                  isLastUserMessage={message.id === lastUserMessageId && !isTyping}
+                  onEdit={handleEditMessage}
+                />
               ))}
               {isTyping && (
                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, ml: 1, color: 'text.secondary' }}>
@@ -582,7 +668,14 @@ function App() {
           )}
         </Box>
 
-        <ChatInput onSend={handleSend} onStop={handleStop} disabled={isTyping} isTyping={isTyping} />
+        <ChatInput
+          onSend={handleSend}
+          onStop={handleStop}
+          disabled={isTyping}
+          isTyping={isTyping}
+          editValue={editValue}
+          onEditClear={handleEditClear}
+        />
       </Box>
 
         <Snackbar open={!!error} autoHideDuration={6000} onClose={handleCloseError}>
