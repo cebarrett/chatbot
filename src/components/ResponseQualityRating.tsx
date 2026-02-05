@@ -7,7 +7,7 @@ import { getJudgeById } from '../services/judgeRegistry'
 
 interface ResponseQualityRatingProps {
   ratings: JudgeRatings
-  enabledJudges: string[]
+  loadingJudges?: string[]  // Judges actively loading for this message
 }
 
 function getRatingColor(score: number): 'success' | 'warning' | 'error' {
@@ -174,13 +174,13 @@ function RatingDetails({ judgeName, judgeColor, rating }: RatingDetailsProps) {
   )
 }
 
-export function ResponseQualityRating({ ratings, enabledJudges }: ResponseQualityRatingProps) {
+export function ResponseQualityRating({ ratings, loadingJudges = [] }: ResponseQualityRatingProps) {
   const [expanded, setExpanded] = useState(false)
 
-  // Show all judges that have ratings (even if disabled), plus enabled judges that are loading
+  // Show all judges that have ratings (even if disabled), plus judges actively loading for this message
   const judgeIdsToShow = new Set<string>([
     ...Object.keys(ratings), // All judges with existing ratings
-    ...enabledJudges, // Enabled judges (may be loading)
+    ...loadingJudges, // Judges actively loading for this specific message
   ])
 
   const judgesWithRatings = Array.from(judgeIdsToShow)
@@ -190,8 +190,8 @@ export function ResponseQualityRating({ ratings, enabledJudges }: ResponseQualit
       rating: ratings[judgeId],
     }))
     .filter((item) => item.judge !== undefined)
-    // Only show enabled judges if they don't have a rating yet (loading state)
-    .filter((item) => item.rating !== undefined || enabledJudges.includes(item.judgeId))
+    // Only show loading spinners for judges that are actively loading for this message
+    .filter((item) => item.rating !== undefined || loadingJudges.includes(item.judgeId))
 
   if (judgesWithRatings.length === 0) {
     return null

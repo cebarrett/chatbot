@@ -46,6 +46,8 @@ function App() {
   const [error, setError] = useState<string | null>(null)
   const [enabledJudges, setEnabledJudges] = useState<string[]>(() => loadEnabledJudges())
   const [editValue, setEditValue] = useState<string | null>(null)
+  const [judgingMessageId, setJudgingMessageId] = useState<string | null>(null)
+  const [pendingJudges, setPendingJudges] = useState<string[]>([])
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const streamCancelRef = useRef<(() => void) | null>(null)
   const judgeCancelRef = useRef<(() => void) | null>(null)
@@ -311,6 +313,8 @@ function App() {
     if (judgeCancelRef.current) {
       judgeCancelRef.current()
       judgeCancelRef.current = null
+      setJudgingMessageId(null)
+      setPendingJudges([])
     }
 
     // Cancel any in-progress stream if editing
@@ -478,6 +482,9 @@ function App() {
       // Skip judging if the request was cancelled - partial responses shouldn't be judged
       if (enabledJudges.length > 0 && !wasCancelled) {
         const respondingProviderId = currentChat?.providerId || DEFAULT_PROVIDER_ID
+        // Track which message is being judged and which judges are pending
+        setJudgingMessageId(botMessageId)
+        setPendingJudges([...enabledJudges])
         const { cancel: cancelJudges } = fetchRatingsFromJudges(
           enabledJudges,
           messagesForApi,
@@ -485,6 +492,8 @@ function App() {
           respondingProviderId,
           (judgeId, rating) => {
             updateMessageRating(chatIdForStream, botMessageId, botMessage.timestamp, judgeId, rating)
+            // Remove this judge from pending list
+            setPendingJudges((prev) => prev.filter((id) => id !== judgeId))
           }
         )
         judgeCancelRef.current = cancelJudges
@@ -521,6 +530,8 @@ function App() {
     if (judgeCancelRef.current) {
       judgeCancelRef.current()
       judgeCancelRef.current = null
+      setJudgingMessageId(null)
+      setPendingJudges([])
     }
     setIsTyping(false)
   }, [])
@@ -652,7 +663,7 @@ function App() {
                 <ChatMessage
                   key={message.id}
                   message={message}
-                  enabledJudges={enabledJudges}
+                  loadingJudges={message.id === judgingMessageId ? pendingJudges : []}
                   isLastUserMessage={message.id === lastUserMessageId && !isTyping}
                   onEdit={handleEditMessage}
                 />
