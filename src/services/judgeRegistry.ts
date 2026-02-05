@@ -80,8 +80,8 @@ export function loadEnabledJudges(): string[] {
   } catch {
     // Ignore parse errors
   }
-  // Default: OpenAI, Claude, and Gemini judges enabled
-  return ['openai', 'claude', 'gemini']
+  // Default: Claude and Gemini judges enabled
+  return ['claude', 'gemini']
 }
 
 // Save enabled judges to localStorage
