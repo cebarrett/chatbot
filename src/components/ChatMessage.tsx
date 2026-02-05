@@ -1,12 +1,25 @@
-import { Box, Paper, Typography, IconButton, Tooltip, useTheme } from '@mui/material'
+import { useState } from 'react'
+import { Box, Paper, Typography, IconButton, Tooltip, Collapse, useTheme } from '@mui/material'
 import SmartToyIcon from '@mui/icons-material/SmartToy'
 import PersonIcon from '@mui/icons-material/Person'
 import EditIcon from '@mui/icons-material/Edit'
+import PsychologyAltIcon from '@mui/icons-material/PsychologyAlt'
 import ReactMarkdown from 'react-markdown'
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter'
 import { oneDark, oneLight } from 'react-syntax-highlighter/dist/esm/styles/prism'
 import type { Message } from '../types'
 import { ResponseQualityRating } from './ResponseQualityRating'
+
+function parseThinkingBlocks(content: string): { thinking: string | null; visibleContent: string } {
+  const thinkRegex = /<think>([\s\S]*?)<\/think>/
+  const match = content.match(thinkRegex)
+  if (!match) {
+    return { thinking: null, visibleContent: content }
+  }
+  const thinking = match[1].trim()
+  const visibleContent = content.replace(thinkRegex, '').trim()
+  return { thinking: thinking || null, visibleContent }
+}
 
 interface ChatMessageProps {
   message: Message
@@ -20,6 +33,11 @@ export function ChatMessage({ message, loadingJudges = [], isLastUserMessage, on
   const theme = useTheme()
   const isDark = theme.palette.mode === 'dark'
   const showEditButton = isUser && isLastUserMessage && onEdit
+
+  const { thinking, visibleContent } = !isUser
+    ? parseThinkingBlocks(message.content)
+    : { thinking: null, visibleContent: message.content }
+  const [showThinking, setShowThinking] = useState(false)
 
   // Assistant messages: full-width, no bubble
   if (!isUser) {
@@ -106,6 +124,48 @@ export function ChatMessage({ message, loadingJudges = [], isLastUserMessage, on
             },
           }}
         >
+          {thinking && (
+            <Box sx={{ mb: 1.5 }}>
+              <Box
+                onClick={() => setShowThinking((prev) => !prev)}
+                sx={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: 0.5,
+                  cursor: 'pointer',
+                  px: 1.5,
+                  py: 0.5,
+                  borderRadius: 1,
+                  bgcolor: isDark ? 'rgba(255, 255, 255, 0.06)' : 'rgba(0, 0, 0, 0.04)',
+                  '&:hover': {
+                    bgcolor: isDark ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.08)',
+                  },
+                  transition: 'background-color 0.2s',
+                  userSelect: 'none',
+                }}
+              >
+                <PsychologyAltIcon sx={{ fontSize: 18, color: 'text.secondary' }} />
+                <Typography variant="caption" sx={{ color: 'text.secondary', fontWeight: 500 }}>
+                  {showThinking ? 'Hide thinking' : 'Show thinking'}
+                </Typography>
+              </Box>
+              <Collapse in={showThinking}>
+                <Box
+                  sx={{
+                    mt: 1,
+                    pl: 1.5,
+                    borderLeft: '2px solid',
+                    borderColor: isDark ? 'rgba(255, 255, 255, 0.15)' : 'rgba(0, 0, 0, 0.15)',
+                    color: 'text.secondary',
+                    fontSize: '0.9em',
+                    '& p': { m: 0, mb: 1, '&:last-child': { mb: 0 } },
+                  }}
+                >
+                  <ReactMarkdown>{thinking}</ReactMarkdown>
+                </Box>
+              </Collapse>
+            </Box>
+          )}
           <ReactMarkdown
             components={{
               code({ className, children, ...rest }) {
@@ -135,7 +195,7 @@ export function ChatMessage({ message, loadingJudges = [], isLastUserMessage, on
               },
             }}
           >
-            {message.content}
+            {visibleContent}
           </ReactMarkdown>
         </Box>
         {(message.judgeRatings || loadingJudges.length > 0) && (
