@@ -2,7 +2,10 @@ import type { Message } from '../types'
 import {
   sendMessageStream as sendAppSyncStream,
   isConfigured as isAppSyncConfigured,
+  type StreamResult,
 } from './appsyncChat'
+
+export type { StreamResult }
 
 export interface ChatProviderConfig {
   id: string
@@ -14,7 +17,7 @@ export interface ChatProviderConfig {
     messages: Message[],
     systemPrompt: string | undefined,
     onChunk: (content: string) => void
-  ) => Promise<string>
+  ) => StreamResult
 }
 
 // Create a wrapper that binds the provider ID
@@ -23,7 +26,7 @@ function createProviderStream(providerId: string) {
     messages: Message[],
     systemPrompt: string | undefined,
     onChunk: (content: string) => void
-  ) => sendAppSyncStream(providerId, messages, systemPrompt, onChunk)
+  ): StreamResult => sendAppSyncStream(providerId, messages, systemPrompt, onChunk)
 }
 
 // Registry of all available chat providers

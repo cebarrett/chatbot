@@ -2,13 +2,16 @@ import { useState } from 'react'
 import type { KeyboardEvent } from 'react'
 import { Box, TextField, IconButton } from '@mui/material'
 import SendIcon from '@mui/icons-material/Send'
+import StopIcon from '@mui/icons-material/Stop'
 
 interface ChatInputProps {
   onSend: (message: string) => void
+  onStop?: () => void
   disabled?: boolean
+  isTyping?: boolean
 }
 
-export function ChatInput({ onSend, disabled = false }: ChatInputProps) {
+export function ChatInput({ onSend, onStop, disabled = false, isTyping = false }: ChatInputProps) {
   const [input, setInput] = useState('')
 
   const handleSend = () => {
@@ -53,26 +56,42 @@ export function ChatInput({ onSend, disabled = false }: ChatInputProps) {
           },
         }}
       />
-      <IconButton
-        color="primary"
-        onClick={handleSend}
-        disabled={disabled || !input.trim()}
-        sx={{
-          bgcolor: 'primary.main',
-          color: 'white',
-          '&:hover': {
-            bgcolor: 'primary.dark',
-          },
-          '&.Mui-disabled': {
-            bgcolor: (theme) =>
-              theme.palette.mode === 'dark' ? 'grey.700' : 'grey.300',
-            color: (theme) =>
-              theme.palette.mode === 'dark' ? 'grey.500' : 'grey.500',
-          },
-        }}
-      >
-        <SendIcon />
-      </IconButton>
+      {isTyping ? (
+        <IconButton
+          color="error"
+          onClick={onStop}
+          sx={{
+            bgcolor: 'error.main',
+            color: 'white',
+            '&:hover': {
+              bgcolor: 'error.dark',
+            },
+          }}
+        >
+          <StopIcon />
+        </IconButton>
+      ) : (
+        <IconButton
+          color="primary"
+          onClick={handleSend}
+          disabled={disabled || !input.trim()}
+          sx={{
+            bgcolor: 'primary.main',
+            color: 'white',
+            '&:hover': {
+              bgcolor: 'primary.dark',
+            },
+            '&.Mui-disabled': {
+              bgcolor: (theme) =>
+                theme.palette.mode === 'dark' ? 'grey.700' : 'grey.300',
+              color: (theme) =>
+                theme.palette.mode === 'dark' ? 'grey.500' : 'grey.500',
+            },
+          }}
+        >
+          <SendIcon />
+        </IconButton>
+      )}
     </Box>
   )
 }
