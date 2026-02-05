@@ -6,7 +6,10 @@
 import { AppSyncEvent } from './types';
 import { resolveInternalUserId } from './userService';
 import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
-import { DynamoDBDocumentClient, BatchWriteCommand } from '@aws-sdk/lib-dynamodb';
+import {
+  DynamoDBDocumentClient,
+  TransactWriteCommand,
+} from '@aws-sdk/lib-dynamodb';
 
 const client = new DynamoDBClient({});
 const docClient = DynamoDBDocumentClient.from(client);
@@ -47,15 +50,18 @@ export async function handler(
 
   const now = new Date().toISOString();
 
-  // Create both the chat metadata and user-chat index items
-  await docClient.send(
-    new BatchWriteCommand({
-      RequestItems: {
-        [TABLE_NAME]: [
+  // Create both the chat metadata and user-chat index items using TransactWrite
+  // to ensure atomicity and allow condition expressions to prevent overwrites
+  try {
+    await docClient.send(
+      new TransactWriteCommand({
+        TransactItems: [
           // Chat metadata item
           // Stores both internalUserId (for data organization) and clerkId (for VTL auth)
+          // ConditionExpression prevents overwriting existing chats (security fix)
           {
-            PutRequest: {
+            Put: {
+              TableName: TABLE_NAME,
               Item: {
                 PK: `CHAT#${chatId}`,
                 SK: 'META',
@@ -68,12 +74,14 @@ export async function handler(
                 updatedAt: now,
                 messageCount: 0,
               },
+              ConditionExpression: 'attribute_not_exists(PK)',
             },
           },
           // User-chat index item (for listing user's chats)
           // Uses internal user ID for partition key (decoupled from auth provider)
           {
-            PutRequest: {
+            Put: {
+              TableName: TABLE_NAME,
               Item: {
                 PK: `USER#${internalUserId}`,
                 SK: `CHAT#${now}#${chatId}`,
@@ -87,9 +95,24 @@ export async function handler(
             },
           },
         ],
-      },
-    })
-  );
+      })
+    );
+  } catch (error: unknown) {
+    // Handle the case where a chat with this ID already exists
+    if (
+      error instanceof Error &&
+      error.name === 'TransactionCanceledException'
+    ) {
+      const txError = error as Error & {
+        CancellationReasons?: Array<{ Code?: string }>;
+      };
+      // Check if the first item (chat metadata) failed due to condition check
+      if (txError.CancellationReasons?.[0]?.Code === 'ConditionalCheckFailed') {
+        throw new Error(`Chat with ID ${chatId} already exists`);
+      }
+    }
+    throw error;
+  }
 
   return {
     chatId,

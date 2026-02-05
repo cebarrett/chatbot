@@ -12,6 +12,7 @@ Thorough security review of the chatbot application: React/TypeScript frontend, 
 
 ### Fixed Issues
 - **Subscription eavesdropping** (was Critical #1) -- Fixed by adding `userId` filter to subscription
+- **createChat overwrite** (was Critical #2) -- Fixed using `TransactWriteCommand` with `ConditionExpression: 'attribute_not_exists(PK)'`
 - **Input validation in Lambdas** (was Critical #3) -- Comprehensive validation added
 - **Prompt injection in judge** (was Critical #4) -- Improved with XML tags and escaping
 - **Dead API key code** (was Critical #5) -- Direct browser API files removed
@@ -21,7 +22,6 @@ Thorough security review of the chatbot application: React/TypeScript frontend, 
 - **Weak ID generation** (was High #7) -- `requestId` now uses `crypto.randomUUID()`, but `chatId` and `messageId` still use weak generator
 
 ### Still Vulnerable
-- **createChat overwrite** (was Critical #2) -- Still vulnerable, moved from VTL to Lambda
 - **No rate limiting** (was High #6) -- No changes
 - **Local Terraform state** (was High #8) -- No changes
 
@@ -33,43 +33,32 @@ Thorough security review of the chatbot application: React/TypeScript frontend, 
 
 ## Critical Severity
 
-### 1. createChat allows overwriting other users' chats (STILL VULNERABLE)
+### 1. createChat allows overwriting other users' chats (FIXED)
 
-**Files:** `infrastructure/lambda/src/createChat.ts:51-92`
+**Files:** `infrastructure/lambda/src/createChat.ts:53-115`
 
-The `createChat` resolver was migrated from VTL to Lambda, but the vulnerability persists. The Lambda uses `BatchWriteCommand` which performs unconditional puts:
+**Status:** Fixed
+
+The `createChat` Lambda now uses `TransactWriteCommand` with a condition expression `attribute_not_exists(PK)` on the chat metadata item. This prevents any write if a chat with that ID already exists, returning a clear error message to the client.
 
 ```typescript
 await docClient.send(
-  new BatchWriteCommand({
-    RequestItems: {
-      [TABLE_NAME]: [
-        {
-          PutRequest: {
-            Item: {
-              PK: `CHAT#${chatId}`,
-              SK: 'META',
-              internalUserId,
-              clerkId,
-              // ...
-            },
-          },
+  new TransactWriteCommand({
+    TransactItems: [
+      {
+        Put: {
+          TableName: TABLE_NAME,
+          Item: { PK: `CHAT#${chatId}`, SK: 'META', ... },
+          ConditionExpression: 'attribute_not_exists(PK)',
         },
-        // ...
-      ],
-    },
+      },
+      // ...
+    ],
   })
 );
 ```
 
-DynamoDB `BatchWriteItem` does not support condition expressions. An authenticated user who supplies an existing `chatId` belonging to another user will overwrite that chat's metadata, reassigning ownership to themselves.
-
-**Impact:** Any authenticated user can hijack or destroy another user's chat by guessing or knowing their chatId.
-
-**Remediation:**
-1. Replace `BatchWriteCommand` with individual `PutCommand` calls that include `ConditionExpression: 'attribute_not_exists(PK)'`
-2. Or use `TransactWriteCommand` which supports condition expressions
-3. Or generate `chatId` server-side using `crypto.randomUUID()`
+The error handling checks for `TransactionCanceledException` with `ConditionalCheckFailed` and returns a user-friendly error message.
 
 ---
 
@@ -425,8 +414,8 @@ The implementation correctly passes `externalUserId` (Clerk ID) to `publishChunk
 Recommended ordering for fixes:
 
 1. **Race condition in userService** (finding #2) -- Bug causing data integrity issues
-2. **createChat overwrite vulnerability** (finding #1) -- Critical authorization bypass
-3. **Weak ID generation** (finding #4) -- Enables attack #1
+2. ~~**createChat overwrite vulnerability** (finding #1) -- Critical authorization bypass~~ **FIXED**
+3. **Weak ID generation** (finding #4) -- Still enables ID guessing (reduced severity with #1 fixed)
 4. **Rate limiting** (finding #3) -- Denial-of-wallet protection
 5. **IAM policy scoping** (finding #6) -- Least privilege
 6. **Data inconsistency in user service** (finding #7) -- Use transactions
