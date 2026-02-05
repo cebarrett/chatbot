@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import type { KeyboardEvent } from 'react'
 import { Box, TextField, IconButton } from '@mui/material'
 import SendIcon from '@mui/icons-material/Send'
@@ -9,16 +9,27 @@ interface ChatInputProps {
   onStop?: () => void
   disabled?: boolean
   isTyping?: boolean
+  editValue?: string | null
+  onEditClear?: () => void
 }
 
-export function ChatInput({ onSend, onStop, disabled = false, isTyping = false }: ChatInputProps) {
+export function ChatInput({ onSend, onStop, disabled = false, isTyping = false, editValue, onEditClear }: ChatInputProps) {
   const [input, setInput] = useState('')
+
+  // When editValue is set, populate the input field
+  // This is intentionally syncing prop to state for the edit feature
+  useEffect(() => {
+    if (editValue !== null && editValue !== undefined) {
+      setInput(editValue) // eslint-disable-line react-hooks/set-state-in-effect
+    }
+  }, [editValue])
 
   const handleSend = () => {
     const trimmed = input.trim()
     if (trimmed) {
       onSend(trimmed)
       setInput('')
+      onEditClear?.()
     }
   }
 
