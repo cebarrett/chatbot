@@ -4,7 +4,7 @@ This file provides guidance for Claude Code when working with this repository.
 
 ## Project Overview
 
-This is a React + TypeScript chatbot application with an AWS AppSync GraphQL backend and Clerk authentication. The frontend is built with Vite and deployed to Amazon S3. The backend uses AWS Lambda functions to securely call LLM APIs (OpenAI, Anthropic, Google Gemini).
+This is a multi-provider LLM chatbot application with a React + TypeScript frontend and AWS serverless backend. Users can chat with multiple LLM providers (OpenAI, Anthropic Claude, Google Gemini, Perplexity) and have responses evaluated by an AI judge system. The frontend is built with Vite and Material-UI, uses Clerk for authentication, and communicates with an AWS AppSync GraphQL API. The backend uses Lambda functions that securely call LLM APIs with keys stored in Secrets Manager, and persists chat history in DynamoDB.
 
 ## Commands
 
@@ -14,6 +14,7 @@ This is a React + TypeScript chatbot application with an AWS AppSync GraphQL bac
 - `npm run lint` - Run ESLint
 - `npm run preview` - Preview production build
 - `npm run deploy` - Deploy frontend to S3 (requires S3_BUCKET env var)
+- `npm run deploy:prod` - Deploy using S3_BUCKET from environment
 
 ### Infrastructure
 - `cd infrastructure && terraform init` - Initialize Terraform
@@ -21,44 +22,94 @@ This is a React + TypeScript chatbot application with an AWS AppSync GraphQL bac
 - `cd infrastructure && terraform apply` - Deploy infrastructure
 - `cd infrastructure && terraform output` - Get deployment outputs (AppSync URL, etc.)
 
+### Lambda
+- `cd infrastructure/lambda && npm run build` - Compile Lambda TypeScript
+- `cd infrastructure/lambda && npm run clean` - Clean build output
+
 ## Architecture
 
-### Frontend
-- **Entry point**: `src/main.tsx` renders App with ClerkProvider into `#root`
-- **Main component**: `src/App.tsx` wrapped with AuthLayout for protected routes
-- **Auth components**: `src/components/AuthLayout.tsx` - Clerk sign-in/sign-out UI
+### Frontend (`src/`)
+
+- **Entry point**: `src/main.tsx` - Renders App with ClerkProvider and ThemeProvider
+- **Main component**: `src/App.tsx` - Chat UI with provider selection, streaming, judge integration, chat history
+- **Config**: `src/config/clerk.ts`, `src/config/appsync.ts` - Clerk and AppSync endpoint configuration
+- **Types**: `src/types/index.ts` - Message, Chat, QualityRating, JudgeRatings types
 - **Build output**: `dist/` directory
 - **Static assets**: `public/` (copied as-is to build)
 
-### Authentication (Clerk)
-- **Provider**: `ClerkProvider` wraps the app in `main.tsx`
-- **Auth context**: `src/contexts/AuthContext.tsx` - Sets up AppSync token provider
-- **Protected routes**: `AuthLayout` shows sign-in for unauthenticated users
-- **User button**: Clerk's `UserButton` component in the header
+### Components (`src/components/`)
+- `AuthLayout.tsx` - Clerk sign-in/sign-out UI with theme support
+- `ChatMessage.tsx` - Message display with markdown rendering and code syntax highlighting
+- `ChatInput.tsx` - Message input form
+- `ChatHistorySidebar.tsx` - Chat list, creation, and deletion
+- `ProviderSelector.tsx` - LLM provider selection dropdown
+- `JudgeSelector.tsx` - Judge enable/disable checkboxes
+- `ResponseQualityRating.tsx` - Judge quality ratings display for assistant messages
 
-### Backend (infrastructure/)
-- **AppSync API**: GraphQL API with OIDC authentication (Clerk) and real-time subscriptions
-- **Lambda Functions**: Node.js/TypeScript handlers for chat and judge operations
-- **Secrets Manager**: Secure storage for LLM API keys
-- **IAM Roles**: Least-privilege access policies
+### Contexts (`src/contexts/`)
+- `AuthContext.tsx` - Clerk auth integration, sets up AppSync JWT token provider
+- `ThemeContext.tsx` - Light/dark/system theme mode with MUI theming
 
-### Key Services
-- `src/services/appsyncClient.ts` - GraphQL client with JWT auth and WebSocket subscriptions
-- `src/services/appsyncChat.ts` - Chat streaming via AppSync
-- `src/services/appsyncJudge.ts` - Judge evaluations via AppSync
-- `src/services/chatProviderRegistry.ts` - Provider configuration
-- `src/services/judgeRegistry.ts` - Judge configuration
+### Services (`src/services/`)
+- `appsyncClient.ts` - GraphQL client with JWT auth and WebSocket subscriptions
+- `appsyncChat.ts` - Chat streaming via AppSync mutations and subscriptions
+- `appsyncJudge.ts` - Judge quality evaluations via AppSync
+- `chatHistoryService.ts` - Chat CRUD operations (create, list, delete, save/update messages) via AppSync/DynamoDB
+- `chatProviderRegistry.ts` - Provider registry (OpenAI, Claude, Gemini, Perplexity)
+- `judgeRegistry.ts` - Judge registry with localStorage persistence for enabled judges
 
-### GraphQL Operations
-- `src/graphql/operations.ts` - Queries, mutations, and subscriptions
+### GraphQL
+- `src/graphql/operations.ts` - Queries, mutations, subscriptions, and TypeScript types
 - `infrastructure/schema.graphql` - GraphQL schema with OIDC/IAM auth directives
+
+### Authentication (Clerk)
+- `ClerkProvider` wraps the app in `main.tsx`
+- `AuthContext` provides JWT tokens to the AppSync client
+- `AuthLayout` shows Clerk sign-in for unauthenticated users
+
+### Backend (`infrastructure/`)
+- **AppSync API** (`appsync.tf`): GraphQL API with OIDC auth (Clerk) and IAM auth (Lambda), real-time WebSocket subscriptions
+- **Lambda Functions** (`lambda.tf`): Node.js 22 TypeScript handlers for chat streaming and judge evaluation
+- **DynamoDB** (`dynamodb.tf`): Single-table design for chat history persistence
+- **Secrets Manager** (`secrets.tf`): Secure storage for LLM API keys
+- **IAM Roles** (`iam.tf`): Least-privilege policies for Lambda execution and AppSync access
+- **VTL Resolvers** (`resolvers/`): ~28 Velocity Template Language files for AppSync resolver mapping
+
+### Lambda Functions (`infrastructure/lambda/src/`)
+- `index.ts` - Handler exports (chat, judge)
+- `chat.ts` - Chat handler with streaming response
+- `judge.ts` - Judge handler with prompt injection protection
+- `validation.ts` - Input validation and model allowlists
+- `secrets.ts` - Secrets Manager client for LLM API keys
+- `appsync.ts` - AppSync client for publishing streaming chunks
+- `userService.ts` - User ID resolution (Clerk to internal mapping)
+- `chunkBatcher.ts` - Streaming response chunk batching
+- `createChat.ts`, `deleteChat.ts`, `listChats.ts` - Chat CRUD resolvers
+- `providers/` - LLM provider implementations: `openai.ts`, `anthropic.ts`, `gemini.ts`, `perplexity.ts`
 
 ## Code Style
 
-- TypeScript strict mode enabled
-- ESLint with React hooks plugin
+- TypeScript strict mode enabled (frontend and Lambda)
+- ESLint with React hooks and React Refresh plugins
 - Functional components with hooks
-- CSS modules or plain CSS files alongside components
+- Material-UI (MUI) component library with Emotion styling
+- CSS files alongside components where needed
+
+## Environment Variables
+
+### Frontend (`.env`)
+- `VITE_CLERK_PUBLISHABLE_KEY` - Clerk publishable key (required)
+- `VITE_APPSYNC_URL` - AppSync GraphQL endpoint URL (required)
+- `VITE_AWS_REGION` - AWS region (optional, defaults to us-east-1)
+
+### Deployment
+- `S3_BUCKET` - S3 bucket name for frontend deployment
+- `CLOUDFRONT_DISTRIBUTION_ID` - CloudFront distribution for cache invalidation (optional)
+
+### Infrastructure (`terraform.tfvars`)
+- `clerk_issuer_url` - Clerk OIDC issuer URL
+- `clerk_client_id` - Clerk application client ID
+- `aws_region` - AWS region (defaults to us-east-1)
 
 ## Deployment
 
@@ -81,8 +132,12 @@ Deploys to S3 via `scripts/deploy.sh`. Requires:
 
 ## File Conventions
 
-- Components: PascalCase (e.g., `MyComponent.tsx`)
-- Utilities: camelCase (e.g., `helpers.ts`)
+- Components: PascalCase (e.g., `ChatMessage.tsx`)
+- Services/utilities: camelCase (e.g., `appsyncClient.ts`, `chatStorage.ts`)
+- Config files: camelCase (e.g., `clerk.ts`, `appsync.ts`)
+- Types: camelCase in `types/` directory (e.g., `index.ts`)
 - Styles: Same name as component (e.g., `App.css` for `App.tsx`)
 - Lambda handlers: camelCase (e.g., `chat.ts`, `judge.ts`)
+- Lambda providers: lowercase (e.g., `openai.ts`, `anthropic.ts`)
 - Terraform files: lowercase with hyphens (e.g., `main.tf`, `lambda.tf`)
+- VTL resolvers: descriptive names in `resolvers/` (e.g., `Query.listChats.request.vtl`)
