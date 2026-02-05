@@ -58,30 +58,32 @@ export async function getOrCreateInternalUserId(
   const now = new Date().toISOString();
 
   // Create the external-to-internal mapping
-  await docClient.send(
-    new PutCommand({
-      TableName: TABLE_NAME,
-      Item: {
-        PK: `EXTUSER#${authProvider}#${externalUserId}`,
-        SK: 'MAPPING',
-        internalUserId,
-        externalUserId,
-        authProvider,
-        createdAt: now,
-      },
-      // Only create if it doesn't exist (handles race conditions)
-      ConditionExpression: 'attribute_not_exists(PK)',
-    })
-  ).catch(async (error) => {
-    // If condition failed, another request created the mapping - fetch it
-    if (error.name === 'ConditionalCheckFailedException') {
+  try {
+    await docClient.send(
+      new PutCommand({
+        TableName: TABLE_NAME,
+        Item: {
+          PK: `EXTUSER#${authProvider}#${externalUserId}`,
+          SK: 'MAPPING',
+          internalUserId,
+          externalUserId,
+          authProvider,
+          createdAt: now,
+        },
+        // Only create if it doesn't exist (handles race conditions)
+        ConditionExpression: 'attribute_not_exists(PK)',
+      })
+    );
+  } catch (error) {
+    // If condition failed, another request created the mapping - fetch and return it
+    if (error instanceof Error && error.name === 'ConditionalCheckFailedException') {
       const mapping = await getUserMapping(externalUserId, authProvider);
       if (mapping) {
-        return mapping.internalUserId;
+        return mapping.internalUserId; // Early return from function
       }
     }
     throw error;
-  });
+  }
 
   // Create the internal user record
   await docClient.send(
