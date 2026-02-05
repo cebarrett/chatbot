@@ -46,6 +46,7 @@ function App() {
   const [error, setError] = useState<string | null>(null)
   const [enabledJudges, setEnabledJudges] = useState<string[]>(() => loadEnabledJudges())
   const messagesEndRef = useRef<HTMLDivElement>(null)
+  const streamCancelRef = useRef<(() => void) | null>(null)
   const { resolvedMode, toggleMode } = useTheme()
   const muiTheme = useMuiTheme()
   const isMobile = useMediaQuery(muiTheme.breakpoints.down('md'))
@@ -362,10 +363,13 @@ function App() {
       let finalResponse = ''
 
       if (provider?.isConfigured()) {
-        await provider.sendMessageStream(messagesForApi, SYSTEM_PROMPT, (streamedContent) => {
+        const { promise, cancel } = provider.sendMessageStream(messagesForApi, SYSTEM_PROMPT, (streamedContent) => {
           finalResponse = streamedContent
           updateBotMessage(chatIdForStream, botMessageId, streamedContent)
         })
+        streamCancelRef.current = cancel
+        await promise
+        streamCancelRef.current = null
       } else {
         finalResponse = getDummyResponse()
         await streamDummyResponse(chatIdForStream, botMessageId, finalResponse)
@@ -409,9 +413,18 @@ function App() {
         })
       )
     } finally {
+      streamCancelRef.current = null
       setIsTyping(false)
     }
   }
+
+  const handleStop = useCallback(() => {
+    if (streamCancelRef.current) {
+      streamCancelRef.current()
+      streamCancelRef.current = null
+    }
+    setIsTyping(false)
+  }, [])
 
   const handleCloseError = () => {
     setError(null)
@@ -550,7 +563,7 @@ function App() {
           )}
         </Box>
 
-        <ChatInput onSend={handleSend} disabled={isTyping} />
+        <ChatInput onSend={handleSend} onStop={handleStop} disabled={isTyping} isTyping={isTyping} />
       </Box>
 
         <Snackbar open={!!error} autoHideDuration={6000} onClose={handleCloseError}>

@@ -60,33 +60,50 @@ function convertMessages(
   return graphqlMessages;
 }
 
+// Result type for streaming with cancellation support
+export interface StreamResult {
+  promise: Promise<string>
+  cancel: () => void
+}
+
 // Send a message and stream the response via subscription
-export async function sendMessageStream(
+export function sendMessageStream(
   providerId: string,
   messages: Message[],
   systemPrompt: string | undefined,
   onChunk: (content: string) => void
-): Promise<string> {
+): StreamResult {
   if (!isAppSyncConfigured()) {
-    throw new AppSyncChatError(
+    const error = new AppSyncChatError(
       'AppSync not configured. Please set VITE_APPSYNC_URL in your .env file.'
     );
+    return {
+      promise: Promise.reject(error),
+      cancel: () => {},
+    };
   }
 
   const requestId = crypto.randomUUID();
-  const userId = await getCurrentUserId();
   const provider = mapProviderToEnum(providerId);
   const graphqlMessages = convertMessages(messages, systemPrompt);
 
   let fullContent = '';
   let streamDone = false;
+  let cancelled = false;
   let subscriptionError: Error | null = null;
-  let resolvePromise: ((value: string) => void) | null = null;
-  let rejectPromise: ((error: Error) => void) | null = null;
+
+  // Deferred pattern for promise resolution
+  const deferred: {
+    resolve: (value: string) => void;
+    reject: (error: Error) => void;
+  } = {
+    resolve: () => {},
+    reject: () => {},
+  };
 
   const resultPromise = new Promise<string>((resolve, reject) => {
-    resolvePromise = resolve;
-    rejectPromise = reject;
+    deferred.resolve = resolve;
+    deferred.reject = reject;
   });
 
   // Reordering state: buffer out-of-order chunks and emit in sequence
@@ -113,13 +130,14 @@ export async function sendMessageStream(
   }
 
   function processInOrder() {
+    if (cancelled) return;
     while (pendingChunks.has(nextExpectedSeq)) {
       clearStallTimer();
       const chunk = pendingChunks.get(nextExpectedSeq)!;
       pendingChunks.delete(nextExpectedSeq);
       nextExpectedSeq++;
 
-      if (chunk.chunk) {
+      if (chunk.chunk && !cancelled) {
         fullContent += chunk.chunk;
         onChunk(fullContent);
       }
@@ -127,7 +145,9 @@ export async function sendMessageStream(
       if (chunk.done) {
         streamDone = true;
         subscription?.close();
-        resolvePromise?.(fullContent);
+        if (!cancelled) {
+          deferred.resolve(fullContent);
+        }
         return;
       }
     }
@@ -142,82 +162,103 @@ export async function sendMessageStream(
   // Variable to hold subscription reference
   let subscription: { close: () => void } | null = null;
 
-  // First, set up the subscription (now async)
-  // Pass userId to filter subscription - prevents eavesdropping on other users' streams
-  try {
-    subscription = await createSubscription<MessageChunk>(
-      ON_MESSAGE_CHUNK_SUBSCRIPTION,
-      { requestId, userId },
-      {
-        onData: (chunk) => {
-          if (chunk.error) {
+  // Cancel function to stop the stream
+  const cancel = () => {
+    if (cancelled) return;
+    cancelled = true;
+    clearStallTimer();
+    subscription?.close();
+    deferred.resolve(fullContent);
+  };
+
+  // Async initialization - set up subscription and send mutation
+  (async () => {
+    try {
+      const userId = await getCurrentUserId();
+
+      // First, set up the subscription (now async)
+      // Pass userId to filter subscription - prevents eavesdropping on other users' streams
+      subscription = await createSubscription<MessageChunk>(
+        ON_MESSAGE_CHUNK_SUBSCRIPTION,
+        { requestId, userId },
+        {
+          onData: (chunk) => {
+            if (cancelled) return;
+            if (chunk.error) {
+              clearStallTimer();
+              subscriptionError = new AppSyncChatError(chunk.error);
+              subscription?.close();
+              deferred.reject(subscriptionError);
+              return;
+            }
+
+            // Buffer the chunk and emit in sequence order
+            pendingChunks.set(chunk.sequence, chunk);
+            processInOrder();
+          },
+          onError: (error) => {
+            if (cancelled) return;
             clearStallTimer();
-            subscriptionError = new AppSyncChatError(chunk.error);
+            subscriptionError = error;
             subscription?.close();
-            rejectPromise?.(subscriptionError);
-            return;
-          }
+            deferred.reject(error);
+          },
+          onComplete: () => {
+            clearStallTimer();
+            if (streamDone || cancelled) {
+              // Normal close after done chunk or cancellation — already resolved
+              return;
+            }
+            // WebSocket closed before stream finished. Resolve with what we have
+            // rather than hanging forever.
+            if (!subscriptionError && fullContent) {
+              console.warn('WebSocket closed before done chunk received. Resolving with partial content.');
+              deferred.resolve(fullContent);
+            }
+          },
+        }
+      );
 
-          // Buffer the chunk and emit in sequence order
-          pendingChunks.set(chunk.sequence, chunk);
-          processInOrder();
-        },
-        onError: (error) => {
-          clearStallTimer();
-          subscriptionError = error;
-          subscription?.close();
-          rejectPromise?.(error);
-        },
-        onComplete: () => {
-          clearStallTimer();
-          if (streamDone) {
-            // Normal close after done chunk — already resolved by processInOrder
-            return;
-          }
-          // WebSocket closed before stream finished. Resolve with what we have
-          // rather than hanging forever.
-          if (!subscriptionError && fullContent) {
-            console.warn('WebSocket closed before done chunk received. Resolving with partial content.');
-            resolvePromise?.(fullContent);
-          }
-        },
+      if (cancelled) {
+        subscription?.close();
+        return;
       }
-    );
-  } catch (error) {
-    throw error instanceof Error ? error : new AppSyncChatError('Failed to create subscription');
-  }
 
-  // Send the mutation to start streaming
-  // (createSubscription now waits for start_ack, so the subscription is fully ready)
-  try {
-    const input: SendMessageInput = {
-      requestId,
-      provider,
-      messages: graphqlMessages,
-    };
+      // Send the mutation to start streaming
+      // (createSubscription now waits for start_ack, so the subscription is fully ready)
+      const input: SendMessageInput = {
+        requestId,
+        provider,
+        messages: graphqlMessages,
+      };
 
-    const response = await executeGraphQL<{ sendMessage: SendMessageResponse }>(
-      SEND_MESSAGE_MUTATION,
-      { input }
-    );
+      const response = await executeGraphQL<{ sendMessage: SendMessageResponse }>(
+        SEND_MESSAGE_MUTATION,
+        { input }
+      );
 
-    if (response.sendMessage.status === 'ERROR') {
-      subscription?.close();
-      throw new AppSyncChatError(response.sendMessage.message || 'Unknown error');
+      if (response.sendMessage.status === 'ERROR') {
+        subscription?.close();
+        if (!cancelled) {
+          deferred.reject(new AppSyncChatError(response.sendMessage.message || 'Unknown error'));
+        }
+      }
+      // Status 'STREAMING' means Lambda returned immediately and is streaming
+      // in the background. The subscription will receive the chunks.
+    } catch (error) {
+      if (cancelled) return;
+      if (error instanceof AppSyncChatError) {
+        subscription?.close();
+        deferred.reject(error);
+      } else {
+        // Non-fatal mutation errors (e.g., network issues) — keep subscription
+        // open since Lambda may still be streaming.
+        console.warn('sendMessage mutation error (streaming may continue):', error);
+      }
     }
-    // Status 'STREAMING' means Lambda returned immediately and is streaming
-    // in the background. The subscription will receive the chunks.
-  } catch (error) {
-    if (error instanceof AppSyncChatError) {
-      subscription?.close();
-      throw error;
-    }
-    // Non-fatal mutation errors (e.g., network issues) — keep subscription
-    // open since Lambda may still be streaming.
-    console.warn('sendMessage mutation error (streaming may continue):', error);
-  }
+  })();
 
-  return resultPromise;
+  return { promise: resultPromise, cancel };
 }
 
 // Re-export isConfigured
