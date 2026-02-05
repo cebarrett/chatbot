@@ -1,4 +1,5 @@
 import { AppSyncEvent } from './types';
+import { resolveInternalUserId } from './userService';
 
 // DynamoDB DocumentClient via AWS SDK v3
 import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
@@ -26,9 +27,11 @@ export async function handler(
   event: AppSyncEvent<DeleteChatArgs>
 ): Promise<DeleteChatResult> {
   const { chatId } = event.arguments;
-  const userId = event.identity.sub;
 
-  console.log(`Deleting chat ${chatId} for user ${userId}`);
+  // Resolve internal user ID from Clerk ID
+  const internalUserId = await resolveInternalUserId(event.identity);
+
+  console.log(`Deleting chat ${chatId} for user ${internalUserId}`);
 
   // Step 1: Verify chat ownership
   const metaResult = await docClient.send(
@@ -42,7 +45,8 @@ export async function handler(
     throw new Error('Chat not found');
   }
 
-  if (metaResult.Item.userId !== userId) {
+  // Verify ownership using internal user ID
+  if (metaResult.Item.internalUserId !== internalUserId) {
     throw new Error('Unauthorized');
   }
 
@@ -76,14 +80,14 @@ export async function handler(
   } while (lastEvaluatedKey);
 
   // Step 3: Find and add the user-chat index item
-  // Query USER#{userId} partition for the entry matching this chatId
+  // Query USER#{internalUserId} partition for the entry matching this chatId
   const indexResult = await docClient.send(
     new QueryCommand({
       TableName: TABLE_NAME,
       KeyConditionExpression: 'PK = :pk AND begins_with(SK, :sk)',
       FilterExpression: 'chatId = :chatId',
       ExpressionAttributeValues: {
-        ':pk': `USER#${userId}`,
+        ':pk': `USER#${internalUserId}`,
         ':sk': 'CHAT#',
         ':chatId': chatId,
       },

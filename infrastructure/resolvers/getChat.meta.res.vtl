@@ -2,7 +2,10 @@
   $util.error("Chat not found", "NOT_FOUND")
 #end
 
-#if($ctx.result.userId != $context.identity.sub)
+## Authorization check: compare current user's Clerk ID with stored clerkId
+## Note: clerkId is stored in chat metadata for VTL auth checks
+## The internalUserId is used for data organization (USER# partition keys)
+#if($ctx.result.clerkId != $context.identity.sub)
   $util.unauthorized()
 #end
 
