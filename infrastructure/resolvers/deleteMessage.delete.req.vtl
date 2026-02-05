@@ -1,0 +1,11 @@
+#set($chatId = $ctx.args.input.chatId)
+#set($messageId = $ctx.args.input.messageId)
+#set($timestamp = $ctx.args.input.timestamp)
+{
+  "version": "2017-02-28",
+  "operation": "DeleteItem",
+  "key": {
+    "PK": $util.dynamodb.toDynamoDBJson("CHAT#${chatId}"),
+    "SK": $util.dynamodb.toDynamoDBJson("MSG#${timestamp}#${messageId}")
+  }
+}

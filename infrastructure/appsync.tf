@@ -489,3 +489,42 @@ resource "aws_appsync_function" "update_message_update" {
   request_mapping_template  = file("${path.module}/resolvers/updateMessage.update.req.vtl")
   response_mapping_template = file("${path.module}/resolvers/updateMessage.update.res.vtl")
 }
+
+# ==========================================
+# Chat History - deleteMessage Mutation Resolver (Pipeline)
+# ==========================================
+
+resource "aws_appsync_resolver" "delete_message" {
+  api_id = aws_appsync_graphql_api.chatbot.id
+  type   = "Mutation"
+  field  = "deleteMessage"
+  kind   = "PIPELINE"
+
+  pipeline_config {
+    functions = [
+      aws_appsync_function.delete_message_auth.function_id,
+      aws_appsync_function.delete_message_delete.function_id,
+    ]
+  }
+
+  request_template  = "{}"
+  response_template = "$util.toJson($ctx.result)"
+}
+
+resource "aws_appsync_function" "delete_message_auth" {
+  api_id      = aws_appsync_graphql_api.chatbot.id
+  data_source = aws_appsync_datasource.dynamodb_chats.name
+  name        = "deleteMessageAuth"
+
+  request_mapping_template  = file("${path.module}/resolvers/deleteMessage.auth.req.vtl")
+  response_mapping_template = file("${path.module}/resolvers/deleteMessage.auth.res.vtl")
+}
+
+resource "aws_appsync_function" "delete_message_delete" {
+  api_id      = aws_appsync_graphql_api.chatbot.id
+  data_source = aws_appsync_datasource.dynamodb_chats.name
+  name        = "deleteMessageDelete"
+
+  request_mapping_template  = file("${path.module}/resolvers/deleteMessage.delete.req.vtl")
+  response_mapping_template = file("${path.module}/resolvers/deleteMessage.delete.res.vtl")
+}

@@ -21,6 +21,7 @@ import {
   deleteChat as deleteChatRemote,
   saveMessage as saveMessageRemote,
   updateMessage as updateMessageRemote,
+  deleteMessage as deleteMessageRemote,
   generateChatTitle,
 } from './services/chatHistoryService'
 import {
@@ -343,6 +344,29 @@ function App() {
     // If we're editing, remove the last user message and any following assistant message
     const isEditing = editValue !== null
     if (isEditing && currentChatId) {
+      // Collect messages to delete from DynamoDB before removing from state
+      const currentChatForEdit = chats.find((c) => c.id === currentChatId)
+      if (currentChatForEdit) {
+        let lastUserIdx = -1
+        for (let i = currentChatForEdit.messages.length - 1; i >= 0; i--) {
+          if (currentChatForEdit.messages[i].role === 'user') {
+            lastUserIdx = i
+            break
+          }
+        }
+        if (lastUserIdx >= 0) {
+          const messagesToDelete = currentChatForEdit.messages.slice(lastUserIdx)
+          // Delete old messages from DynamoDB (non-blocking)
+          for (const msg of messagesToDelete) {
+            deleteMessageRemote({
+              chatId: currentChatId,
+              messageId: msg.id,
+              timestamp: msg.timestamp.toISOString(),
+            }).catch((err) => console.error('Failed to delete old message:', err))
+          }
+        }
+      }
+
       setChats((prev) =>
         prev.map((chat) => {
           if (chat.id === currentChatId) {

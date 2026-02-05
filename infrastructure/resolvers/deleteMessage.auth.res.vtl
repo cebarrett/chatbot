@@ -1,0 +1,11 @@
+#if($util.isNull($ctx.result))
+  $util.error("Chat not found", "NOT_FOUND")
+#end
+
+## Authorization check: compare current user's Clerk ID with stored clerkId
+#if($ctx.result.clerkId != $context.identity.sub)
+  $util.unauthorized()
+#end
+
+$util.qr($ctx.stash.put("chatMeta", $ctx.result))
+{}

@@ -51,6 +51,12 @@ input UpdateChatInput {
   providerId: String
 }
 
+input DeleteMessageInput {
+  chatId: String!
+  messageId: String!
+  timestamp: String!
+}
+
 # Enums
 enum ChatProvider {
   OPENAI
@@ -125,6 +131,11 @@ type DeleteChatResult @aws_oidc {
   success: Boolean!
 }
 
+type DeleteMessageResult @aws_oidc {
+  messageId: String!
+  success: Boolean!
+}
+
 # Queries
 type Query {
   # Health check endpoint
@@ -180,6 +191,10 @@ type Mutation {
 
   # Update an existing message (content or judge ratings)
   updateMessage(input: UpdateMessageInput!): StoredMessage!
+    @aws_oidc
+
+  # Delete a message from a chat
+  deleteMessage(input: DeleteMessageInput!): DeleteMessageResult!
     @aws_oidc
 }
 
