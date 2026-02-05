@@ -47,6 +47,7 @@ function App() {
   const [enabledJudges, setEnabledJudges] = useState<string[]>(() => loadEnabledJudges())
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const streamCancelRef = useRef<(() => void) | null>(null)
+  const judgeCancelRef = useRef<(() => void) | null>(null)
   const { resolvedMode, toggleMode } = useTheme()
   const muiTheme = useMuiTheme()
   const isMobile = useMediaQuery(muiTheme.breakpoints.down('md'))
@@ -287,6 +288,12 @@ function App() {
   }
 
   const handleSend = async (content: string) => {
+    // Cancel any in-progress judge requests from previous messages
+    if (judgeCancelRef.current) {
+      judgeCancelRef.current()
+      judgeCancelRef.current = null
+    }
+
     let currentChatId = activeChatId
     if (!currentChatId) {
       currentChatId = createNewChat()
@@ -361,6 +368,7 @@ function App() {
       const provider = getProviderById(currentChat?.providerId || DEFAULT_PROVIDER_ID)
 
       let finalResponse = ''
+      let wasCancelled = false
 
       if (provider?.isConfigured()) {
         const { promise, cancel } = provider.sendMessageStream(messagesForApi, SYSTEM_PROMPT, (streamedContent) => {
@@ -368,7 +376,9 @@ function App() {
           updateBotMessage(chatIdForStream, botMessageId, streamedContent)
         })
         streamCancelRef.current = cancel
-        await promise
+        const result = await promise
+        finalResponse = result.content
+        wasCancelled = result.cancelled
         streamCancelRef.current = null
       } else {
         finalResponse = getDummyResponse()
@@ -385,9 +395,10 @@ function App() {
       }).catch((err) => console.error('Failed to save assistant message:', err))
 
       // Fetch quality ratings from enabled judges in parallel (async, non-blocking)
-      if (enabledJudges.length > 0) {
+      // Skip judging if the request was cancelled - partial responses shouldn't be judged
+      if (enabledJudges.length > 0 && !wasCancelled) {
         const respondingProviderId = currentChat?.providerId || DEFAULT_PROVIDER_ID
-        fetchRatingsFromJudges(
+        const { cancel: cancelJudges } = fetchRatingsFromJudges(
           enabledJudges,
           messagesForApi,
           finalResponse,
@@ -396,6 +407,7 @@ function App() {
             updateMessageRating(chatIdForStream, botMessageId, botMessage.timestamp, judgeId, rating)
           }
         )
+        judgeCancelRef.current = cancelJudges
       }
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'An unexpected error occurred'
@@ -414,6 +426,8 @@ function App() {
       )
     } finally {
       streamCancelRef.current = null
+      // Note: don't clear judgeCancelRef here - judges may still be running in background
+      // They will be cleared on next send or if user cancels
       setIsTyping(false)
     }
   }
@@ -422,6 +436,11 @@ function App() {
     if (streamCancelRef.current) {
       streamCancelRef.current()
       streamCancelRef.current = null
+    }
+    // Also cancel any in-progress judge requests
+    if (judgeCancelRef.current) {
+      judgeCancelRef.current()
+      judgeCancelRef.current = null
     }
     setIsTyping(false)
   }, [])

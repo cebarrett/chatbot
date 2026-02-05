@@ -60,9 +60,15 @@ function convertMessages(
   return graphqlMessages;
 }
 
+// Result type for streaming response
+export interface StreamResponse {
+  content: string
+  cancelled: boolean
+}
+
 // Result type for streaming with cancellation support
 export interface StreamResult {
-  promise: Promise<string>
+  promise: Promise<StreamResponse>
   cancel: () => void
 }
 
@@ -94,14 +100,14 @@ export function sendMessageStream(
 
   // Deferred pattern for promise resolution
   const deferred: {
-    resolve: (value: string) => void;
+    resolve: (value: StreamResponse) => void;
     reject: (error: Error) => void;
   } = {
     resolve: () => {},
     reject: () => {},
   };
 
-  const resultPromise = new Promise<string>((resolve, reject) => {
+  const resultPromise = new Promise<StreamResponse>((resolve, reject) => {
     deferred.resolve = resolve;
     deferred.reject = reject;
   });
@@ -146,7 +152,7 @@ export function sendMessageStream(
         streamDone = true;
         subscription?.close();
         if (!cancelled) {
-          deferred.resolve(fullContent);
+          deferred.resolve({ content: fullContent, cancelled: false });
         }
         return;
       }
@@ -168,7 +174,7 @@ export function sendMessageStream(
     cancelled = true;
     clearStallTimer();
     subscription?.close();
-    deferred.resolve(fullContent);
+    deferred.resolve({ content: fullContent, cancelled: true });
   };
 
   // Async initialization - set up subscription and send mutation
@@ -213,7 +219,7 @@ export function sendMessageStream(
             // rather than hanging forever.
             if (!subscriptionError && fullContent) {
               console.warn('WebSocket closed before done chunk received. Resolving with partial content.');
-              deferred.resolve(fullContent);
+              deferred.resolve({ content: fullContent, cancelled: false });
             }
           },
         }

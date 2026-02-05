@@ -59,7 +59,8 @@ export async function getCurrentUserId(): Promise<string> {
 // Execute a GraphQL mutation or query
 export async function executeGraphQL<T>(
   query: string,
-  variables?: Record<string, unknown>
+  variables?: Record<string, unknown>,
+  signal?: AbortSignal
 ): Promise<T> {
   const config = getAppSyncConfig();
   const token = await getAuthToken();
@@ -71,6 +72,7 @@ export async function executeGraphQL<T>(
       Authorization: token,
     },
     body: JSON.stringify({ query, variables }),
+    signal,
   });
 
   if (!response.ok) {

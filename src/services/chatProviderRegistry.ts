@@ -3,9 +3,10 @@ import {
   sendMessageStream as sendAppSyncStream,
   isConfigured as isAppSyncConfigured,
   type StreamResult,
+  type StreamResponse,
 } from './appsyncChat'
 
-export type { StreamResult }
+export type { StreamResult, StreamResponse }
 
 export interface ChatProviderConfig {
   id: string
