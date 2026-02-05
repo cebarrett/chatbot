@@ -273,6 +273,69 @@ function App() {
     })
   }, [])
 
+  const handleDeleteMessage = useCallback(
+    (messageId: string) => {
+      if (!activeChatId) return
+      const chatId = activeChatId
+      const chat = chats.find((c) => c.id === chatId)
+      if (!chat) return
+
+      // Find the user message index
+      const userMsgIdx = chat.messages.findIndex((m) => m.id === messageId)
+      if (userMsgIdx < 0) return
+
+      // Collect messages to delete: the user message and any immediately following assistant message
+      const messagesToRemove: Message[] = [chat.messages[userMsgIdx]]
+      if (
+        userMsgIdx + 1 < chat.messages.length &&
+        chat.messages[userMsgIdx + 1].role === 'assistant'
+      ) {
+        messagesToRemove.push(chat.messages[userMsgIdx + 1])
+      }
+      const idsToRemove = new Set(messagesToRemove.map((m) => m.id))
+
+      // If we're deleting the last exchange, cancel any in-progress streaming or judging
+      const isLastUserMsg = messageId === lastUserMessageId
+      if (isLastUserMsg) {
+        if (streamCancelRef.current) {
+          streamCancelRef.current()
+          streamCancelRef.current = null
+          setIsTyping(false)
+        }
+        if (judgeCancelRef.current) {
+          judgeCancelRef.current()
+          judgeCancelRef.current = null
+          setJudgingMessageId(null)
+          setPendingJudges([])
+        }
+      }
+
+      // Optimistically remove from local state
+      setChats((prev) =>
+        prev.map((c) => {
+          if (c.id === chatId) {
+            return {
+              ...c,
+              messages: c.messages.filter((m) => !idsToRemove.has(m.id)),
+              updatedAt: new Date(),
+            }
+          }
+          return c
+        })
+      )
+
+      // Delete from DynamoDB (non-blocking)
+      for (const msg of messagesToRemove) {
+        deleteMessageRemote({
+          chatId,
+          messageId: msg.id,
+          timestamp: msg.timestamp.toISOString(),
+        }).catch((err) => console.error('Failed to delete message:', err))
+      }
+    },
+    [activeChatId, chats, lastUserMessageId]
+  )
+
   const handleEditMessage = useCallback((content: string) => {
     setEditValue(content)
   }, [])
@@ -704,6 +767,7 @@ function App() {
                   loadingJudges={message.id === judgingMessageId ? pendingJudges : []}
                   isLastUserMessage={message.id === lastUserMessageId && !isTyping}
                   onEdit={handleEditMessage}
+                  onDelete={handleDeleteMessage}
                 />
               ))}
               {isTyping && (

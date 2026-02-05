@@ -3,6 +3,7 @@ import { Box, Paper, Typography, IconButton, Tooltip, Collapse, useTheme } from 
 import SmartToyIcon from '@mui/icons-material/SmartToy'
 import PersonIcon from '@mui/icons-material/Person'
 import EditIcon from '@mui/icons-material/Edit'
+import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline'
 import PsychologyAltIcon from '@mui/icons-material/PsychologyAlt'
 import ReactMarkdown from 'react-markdown'
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter'
@@ -26,9 +27,10 @@ interface ChatMessageProps {
   loadingJudges?: string[]  // Judges actively loading for this message
   isLastUserMessage?: boolean
   onEdit?: (content: string) => void
+  onDelete?: (messageId: string) => void
 }
 
-export function ChatMessage({ message, loadingJudges = [], isLastUserMessage, onEdit }: ChatMessageProps) {
+export function ChatMessage({ message, loadingJudges = [], isLastUserMessage, onEdit, onDelete }: ChatMessageProps) {
   const isUser = message.role === 'user'
   const theme = useTheme()
   const isDark = theme.palette.mode === 'dark'
@@ -269,26 +271,46 @@ export function ChatMessage({ message, loadingJudges = [], isLastUserMessage, on
             >
               {message.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
             </Typography>
-            {showEditButton && (
-              <Tooltip title="Edit message">
-                <IconButton
-                  size="small"
-                  onClick={() => onEdit(message.content)}
-                  sx={{
-                    color: 'white',
-                    opacity: 0.7,
-                    p: 0.25,
-                    ml: 1,
-                    '&:hover': {
-                      opacity: 1,
-                      bgcolor: 'rgba(255, 255, 255, 0.1)',
-                    },
-                  }}
-                >
-                  <EditIcon sx={{ fontSize: 16 }} />
-                </IconButton>
-              </Tooltip>
-            )}
+            <Box sx={{ display: 'flex', alignItems: 'center', ml: 1 }}>
+              {showEditButton && (
+                <Tooltip title="Edit message">
+                  <IconButton
+                    size="small"
+                    onClick={() => onEdit(message.content)}
+                    sx={{
+                      color: 'white',
+                      opacity: 0.7,
+                      p: 0.25,
+                      '&:hover': {
+                        opacity: 1,
+                        bgcolor: 'rgba(255, 255, 255, 0.1)',
+                      },
+                    }}
+                  >
+                    <EditIcon sx={{ fontSize: 16 }} />
+                  </IconButton>
+                </Tooltip>
+              )}
+              {isUser && onDelete && (
+                <Tooltip title="Delete message and response">
+                  <IconButton
+                    size="small"
+                    onClick={() => onDelete(message.id)}
+                    sx={{
+                      color: 'white',
+                      opacity: 0.7,
+                      p: 0.25,
+                      '&:hover': {
+                        opacity: 1,
+                        bgcolor: 'rgba(255, 255, 255, 0.1)',
+                      },
+                    }}
+                  >
+                    <DeleteOutlineIcon sx={{ fontSize: 16 }} />
+                  </IconButton>
+                </Tooltip>
+              )}
+            </Box>
           </Box>
         </Paper>
       </Box>
