@@ -80,7 +80,7 @@ export function ChatMessage({ message, loadingJudges = [], isLastUserMessage, on
         </Box>
         <Box
           sx={{
-            pl: { xs: 4.5, sm: 6 },
+            pl: { xs: 0, sm: 6 },
             '& p': { m: 0, mb: 1.5, '&:last-child': { mb: 0 } },
             '& h1, & h2, & h3, & h4, & h5, & h6': { mt: 2, mb: 1, '&:first-of-type': { mt: 0 } },
             '& ul, & ol': { m: 0, pl: 2.5, mb: 1.5 },
@@ -201,7 +201,7 @@ export function ChatMessage({ message, loadingJudges = [], isLastUserMessage, on
           </ReactMarkdown>
         </Box>
         {(message.judgeRatings || loadingJudges.length > 0) && (
-          <Box sx={{ pl: { xs: 4.5, sm: 6 }, mt: 1 }}>
+          <Box sx={{ pl: { xs: 0, sm: 6 }, mt: 1 }}>
             <ResponseQualityRating ratings={message.judgeRatings || {}} loadingJudges={loadingJudges} />
           </Box>
         )}
