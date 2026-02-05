@@ -150,6 +150,15 @@ export const UPDATE_MESSAGE_MUTATION = `
   }
 `;
 
+export const DELETE_MESSAGE_MUTATION = `
+  mutation DeleteMessage($input: DeleteMessageInput!) {
+    deleteMessage(input: $input) {
+      messageId
+      success
+    }
+  }
+`;
+
 // Types matching the GraphQL schema
 export type ChatProvider = 'OPENAI' | 'ANTHROPIC' | 'GEMINI' | 'PERPLEXITY';
 
@@ -261,4 +270,15 @@ export interface UpdateChatInput {
   chatId: string;
   title?: string;
   providerId?: string;
+}
+
+export interface DeleteMessageInput {
+  chatId: string;
+  messageId: string;
+  timestamp: string;
+}
+
+export interface DeleteMessageResult {
+  messageId: string;
+  success: boolean;
 }

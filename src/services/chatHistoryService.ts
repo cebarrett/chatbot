@@ -10,6 +10,7 @@ import {
   DELETE_CHAT_MUTATION,
   SAVE_MESSAGE_MUTATION,
   UPDATE_MESSAGE_MUTATION,
+  DELETE_MESSAGE_MUTATION,
 } from '../graphql/operations';
 import type {
   ChatSummary,
@@ -21,6 +22,8 @@ import type {
   UpdateMessageInput,
   UpdateChatInput,
   StoredMessage,
+  DeleteMessageInput,
+  DeleteMessageResult,
 } from '../graphql/operations';
 import type { Chat, Message, JudgeRatings } from '../types';
 
@@ -137,6 +140,14 @@ export async function saveMessage(input: SaveMessageInput): Promise<void> {
 export async function updateMessage(input: UpdateMessageInput): Promise<void> {
   await executeGraphQL<{ updateMessage: StoredMessage }>(
     UPDATE_MESSAGE_MUTATION,
+    { input }
+  );
+}
+
+// Delete a message from a chat
+export async function deleteMessage(input: DeleteMessageInput): Promise<void> {
+  await executeGraphQL<{ deleteMessage: DeleteMessageResult }>(
+    DELETE_MESSAGE_MUTATION,
     { input }
   );
 }
