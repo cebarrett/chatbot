@@ -13,6 +13,7 @@ import {
 import AddIcon from '@mui/icons-material/Add'
 import DeleteIcon from '@mui/icons-material/Delete'
 import ChatIcon from '@mui/icons-material/Chat'
+import VisibilityOffIcon from '@mui/icons-material/VisibilityOff'
 import type { Chat } from '../types'
 
 const SIDEBAR_WIDTH = 280
@@ -124,6 +125,12 @@ export function ChatHistorySidebar({
                   },
                 }}
               >
+                {chat.incognito && (
+                  <VisibilityOffIcon
+                    fontSize="small"
+                    sx={{ mr: 1, opacity: 0.6, flexShrink: 0 }}
+                  />
+                )}
                 <ListItemText
                   primary={chat.title}
                   secondary={formatDate(chat.updatedAt)}

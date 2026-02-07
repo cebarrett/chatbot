@@ -22,4 +22,5 @@ export interface Chat {
   createdAt: Date
   updatedAt: Date
   providerId?: string // Chat provider (claude, openai, gemini) - defaults to claude
+  incognito?: boolean // Ephemeral chat - not persisted to DynamoDB
 }
