@@ -1,8 +1,11 @@
 import { useState } from 'react'
-import { Box, Chip, Collapse, Typography, Paper, CircularProgress, Button } from '@mui/material'
+import { Box, Chip, Collapse, Typography, Paper, CircularProgress, Button, useTheme } from '@mui/material'
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore'
 import ExpandLessIcon from '@mui/icons-material/ExpandLess'
 import QuestionAnswerIcon from '@mui/icons-material/QuestionAnswer'
+import ReactMarkdown from 'react-markdown'
+import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter'
+import { oneDark, oneLight } from 'react-syntax-highlighter/dist/esm/styles/prism'
 import type { JudgeRatings, QualityRating, Message, JudgeFollowUp } from '../types'
 import { getJudgeById } from '../services/judgeRegistry'
 import { JudgeFollowUpModal } from './JudgeFollowUpModal'
@@ -28,6 +31,42 @@ function getRatingLabel(score: number): string {
   if (score >= 5.0) return 'Fair'
   if (score >= 3.0) return 'Poor'
   return 'Very Poor'
+}
+
+function getMarkdownSx(isDark: boolean) {
+  return {
+    '& p': { m: 0, mb: 1, '&:last-child': { mb: 0 } },
+    '& h1, & h2, & h3, & h4, & h5, & h6': { mt: 1.5, mb: 0.75, '&:first-of-type': { mt: 0 } },
+    '& ul, & ol': { m: 0, pl: 2.5, mb: 1 },
+    '& li': { mb: 0.25 },
+    '& code': {
+      bgcolor: isDark ? 'rgba(255, 255, 255, 0.08)' : 'rgba(0, 0, 0, 0.08)',
+      px: 0.5,
+      py: 0.25,
+      borderRadius: 0.5,
+      fontFamily: 'monospace',
+      fontSize: '0.875em',
+    },
+    '& pre': {
+      bgcolor: isDark ? 'rgba(255, 255, 255, 0.08)' : 'rgba(0, 0, 0, 0.08)',
+      p: 1.5,
+      borderRadius: 1,
+      overflow: 'auto',
+      mb: 1,
+      '& code': { bgcolor: 'transparent', p: 0 },
+    },
+    '& blockquote': {
+      borderLeft: '3px solid',
+      borderColor: 'grey.400',
+      pl: 1.5,
+      ml: 0,
+      my: 1,
+      color: 'text.secondary',
+    },
+    '& a': { color: 'primary.main' },
+    '& table': { borderCollapse: 'collapse', width: '100%', mb: 1 },
+    '& th, & td': { border: '1px solid', borderColor: 'grey.300', p: 0.75 },
+  }
 }
 
 interface SingleRatingBadgeProps {
@@ -119,6 +158,30 @@ interface RatingDetailsProps {
 
 function RatingDetails({ judgeName, judgeColor, rating, canAskFollowUp, onAskFollowUp }: RatingDetailsProps) {
   const color = getRatingColor(rating.score)
+  const theme = useTheme()
+  const isDark = theme.palette.mode === 'dark'
+  const mdSx = getMarkdownSx(isDark)
+
+  const markdownComponents = {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    code({ className, children, ...rest }: any) {
+      const match = /language-(\w+)/.exec(className || '')
+      const codeString = String(children).replace(/\n$/, '')
+      if (match) {
+        return (
+          <SyntaxHighlighter
+            style={isDark ? oneDark : oneLight}
+            language={match[1]}
+            PreTag="div"
+            customStyle={{ margin: 0, borderRadius: '4px', fontSize: '0.875em' }}
+          >
+            {codeString}
+          </SyntaxHighlighter>
+        )
+      }
+      return <code className={className} {...rest}>{children}</code>
+    },
+  }
 
   return (
     <Paper
@@ -165,9 +228,11 @@ function RatingDetails({ judgeName, judgeColor, rating, canAskFollowUp, onAskFol
           </Button>
         )}
       </Box>
-      <Typography variant="body2" sx={{ mb: rating.problems.length > 0 || rating.followUp ? 1.5 : 0 }}>
-        {rating.explanation}
-      </Typography>
+      <Box sx={{ ...mdSx, fontSize: '0.875rem', mb: rating.problems.length > 0 || rating.followUp ? 1.5 : 0 }}>
+        <ReactMarkdown components={markdownComponents}>
+          {rating.explanation}
+        </ReactMarkdown>
+      </Box>
 
       {rating.problems.length > 0 && (
         <>
@@ -221,9 +286,14 @@ function RatingDetails({ judgeName, judgeColor, rating, canAskFollowUp, onAskFol
           <Typography variant="caption" sx={{ fontWeight: 600, display: 'block', mb: 0.5 }}>
             Q: {rating.followUp.question}
           </Typography>
-          <Typography variant="caption" sx={{ display: 'block', whiteSpace: 'pre-wrap' }}>
-            A: {rating.followUp.answer}
+          <Typography variant="caption" sx={{ fontWeight: 600, display: 'block', mb: 0.5 }}>
+            A:
           </Typography>
+          <Box sx={{ ...mdSx, fontSize: '0.75rem' }}>
+            <ReactMarkdown components={markdownComponents}>
+              {rating.followUp.answer}
+            </ReactMarkdown>
+          </Box>
         </Paper>
       )}
     </Paper>

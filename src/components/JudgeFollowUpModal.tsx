@@ -11,11 +11,51 @@ import {
   CircularProgress,
   Paper,
   IconButton,
+  useTheme,
 } from '@mui/material'
 import CloseIcon from '@mui/icons-material/Close'
 import SendIcon from '@mui/icons-material/Send'
+import ReactMarkdown from 'react-markdown'
+import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter'
+import { oneDark, oneLight } from 'react-syntax-highlighter/dist/esm/styles/prism'
 import type { QualityRating, Message, JudgeFollowUp } from '../types'
 import { askFollowUpQuestion } from '../services/appsyncJudge'
+
+function getMarkdownSx(isDark: boolean) {
+  return {
+    '& p': { m: 0, mb: 1, '&:last-child': { mb: 0 } },
+    '& h1, & h2, & h3, & h4, & h5, & h6': { mt: 1.5, mb: 0.75, '&:first-of-type': { mt: 0 } },
+    '& ul, & ol': { m: 0, pl: 2.5, mb: 1 },
+    '& li': { mb: 0.25 },
+    '& code': {
+      bgcolor: isDark ? 'rgba(255, 255, 255, 0.08)' : 'rgba(0, 0, 0, 0.08)',
+      px: 0.5,
+      py: 0.25,
+      borderRadius: 0.5,
+      fontFamily: 'monospace',
+      fontSize: '0.875em',
+    },
+    '& pre': {
+      bgcolor: isDark ? 'rgba(255, 255, 255, 0.08)' : 'rgba(0, 0, 0, 0.08)',
+      p: 1.5,
+      borderRadius: 1,
+      overflow: 'auto',
+      mb: 1,
+      '& code': { bgcolor: 'transparent', p: 0 },
+    },
+    '& blockquote': {
+      borderLeft: '3px solid',
+      borderColor: 'grey.400',
+      pl: 1.5,
+      ml: 0,
+      my: 1,
+      color: 'text.secondary',
+    },
+    '& a': { color: 'primary.main' },
+    '& table': { borderCollapse: 'collapse', width: '100%', mb: 1 },
+    '& th, & td': { border: '1px solid', borderColor: 'grey.300', p: 0.75 },
+  }
+}
 
 interface JudgeFollowUpModalProps {
   open: boolean
@@ -46,6 +86,30 @@ export function JudgeFollowUpModal({
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [answer, setAnswer] = useState<string | null>(null)
+  const theme = useTheme()
+  const isDark = theme.palette.mode === 'dark'
+  const mdSx = getMarkdownSx(isDark)
+
+  const markdownComponents = {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    code({ className, children, ...rest }: any) {
+      const match = /language-(\w+)/.exec(className || '')
+      const codeString = String(children).replace(/\n$/, '')
+      if (match) {
+        return (
+          <SyntaxHighlighter
+            style={isDark ? oneDark : oneLight}
+            language={match[1]}
+            PreTag="div"
+            customStyle={{ margin: 0, borderRadius: '4px', fontSize: '0.875em' }}
+          >
+            {codeString}
+          </SyntaxHighlighter>
+        )
+      }
+      return <code className={className} {...rest}>{children}</code>
+    },
+  }
 
   const handleSubmit = async () => {
     if (!question.trim()) return
@@ -134,9 +198,11 @@ export function JudgeFollowUpModal({
           <Typography variant="subtitle2" color="text.secondary" gutterBottom>
             Original Rating: {rating.score.toFixed(1)}/10
           </Typography>
-          <Typography variant="body2" sx={{ mb: rating.problems.length > 0 ? 1 : 0 }}>
-            {rating.explanation}
-          </Typography>
+          <Box sx={{ ...mdSx, fontSize: '0.875rem', mb: rating.problems.length > 0 ? 1 : 0 }}>
+            <ReactMarkdown components={markdownComponents}>
+              {rating.explanation}
+            </ReactMarkdown>
+          </Box>
           {rating.problems.length > 0 && (
             <Box sx={{ mt: 1 }}>
               <Typography variant="caption" color="text.secondary">
@@ -192,9 +258,11 @@ export function JudgeFollowUpModal({
                 />
                 <Typography variant="subtitle2">{judgeName}'s response:</Typography>
               </Box>
-              <Typography variant="body2" sx={{ whiteSpace: 'pre-wrap' }}>
-                {answer}
-              </Typography>
+              <Box sx={{ ...mdSx, fontSize: '0.875rem' }}>
+                <ReactMarkdown components={markdownComponents}>
+                  {answer}
+                </ReactMarkdown>
+              </Box>
             </Paper>
           </Box>
         ) : (
