@@ -60,9 +60,10 @@ function App() {
   const isMobile = useMediaQuery(muiTheme.breakpoints.down('md'))
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [incognitoMode, setIncognitoMode] = useState(false)
+  const [newChatProviderId, setNewChatProviderId] = useState(DEFAULT_PROVIDER_ID)
 
   const activeChat = chats.find((c) => c.id === activeChatId) || null
-  const activeProviderId = activeChat?.providerId || DEFAULT_PROVIDER_ID
+  const activeProviderId = activeChat?.providerId || newChatProviderId
   const activeProvider = getProviderById(activeProviderId)
   const providerConfigured = activeProvider?.isConfigured() ?? false
   const messages = useMemo(() => activeChat?.messages || [], [activeChat?.messages])
@@ -159,13 +160,14 @@ function App() {
   const createNewChat = useCallback((isIncognito: boolean = false) => {
     const chatId = generateId()
     const now = new Date()
+    const providerId = newChatProviderId
     const newChat: Chat = {
       id: chatId,
       title: isIncognito ? 'Incognito Chat' : 'New Chat',
       messages: [],
       createdAt: now,
       updatedAt: now,
-      providerId: DEFAULT_PROVIDER_ID,
+      providerId,
       incognito: isIncognito || undefined,
     }
     setChats((prev) => [newChat, ...prev])
@@ -177,7 +179,7 @@ function App() {
       const createPromise = createChatRemote({
         chatId,
         title: 'New Chat',
-        providerId: DEFAULT_PROVIDER_ID,
+        providerId,
       }).catch((err) => console.error('Failed to create chat:', err))
 
       pendingCreates.current.set(chatId, createPromise)
@@ -185,7 +187,7 @@ function App() {
     }
 
     return chatId
-  }, [])
+  }, [newChatProviderId])
 
   const handleSelectChat = (chatId: string) => {
     setActiveChatId(chatId)
@@ -195,6 +197,7 @@ function App() {
     // Just clear the active chat to show new chat window
     // The chat will be created and persisted when user sends first message
     setActiveChatId(null)
+    setNewChatProviderId(DEFAULT_PROVIDER_ID)
     setIncognitoMode(false)
   }, [])
 
@@ -403,7 +406,10 @@ function App() {
 
   const handleChangeProvider = useCallback(
     (providerId: string) => {
-      if (!activeChatId) return
+      if (!activeChatId) {
+        setNewChatProviderId(providerId)
+        return
+      }
       setChats((prev) =>
         prev.map((chat) => {
           if (chat.id === activeChatId) {
