@@ -1,10 +1,11 @@
 import { useState, useRef, useEffect, useCallback, useMemo } from 'react'
 import { useAuth } from '@clerk/clerk-react'
-import { Box, Typography, Paper, Alert, Snackbar, IconButton, Tooltip, CircularProgress, useMediaQuery, useTheme as useMuiTheme } from '@mui/material'
+import { Box, Typography, Paper, Alert, Snackbar, IconButton, Tooltip, CircularProgress, useMediaQuery, useTheme as useMuiTheme, Chip, Button } from '@mui/material'
 import SmartToyIcon from '@mui/icons-material/SmartToy'
 import LightModeIcon from '@mui/icons-material/LightMode'
 import DarkModeIcon from '@mui/icons-material/DarkMode'
 import MenuIcon from '@mui/icons-material/Menu'
+import VisibilityOffIcon from '@mui/icons-material/VisibilityOff'
 import { useTheme } from './contexts/ThemeContext'
 import { AuthLayout, UserButton } from './components/AuthLayout'
 import { ChatMessage } from './components/ChatMessage'
@@ -58,6 +59,7 @@ function App() {
   const muiTheme = useMuiTheme()
   const isMobile = useMediaQuery(muiTheme.breakpoints.down('md'))
   const [sidebarOpen, setSidebarOpen] = useState(false)
+  const [incognitoMode, setIncognitoMode] = useState(false)
 
   const activeChat = chats.find((c) => c.id === activeChatId) || null
   const activeProviderId = activeChat?.providerId || DEFAULT_PROVIDER_ID
@@ -154,29 +156,33 @@ function App() {
   // Track pending createChat promises so saveMessage can await them
   const pendingCreates = useRef<Map<string, Promise<unknown>>>(new Map())
 
-  const createNewChat = useCallback(() => {
+  const createNewChat = useCallback((isIncognito: boolean = false) => {
     const chatId = generateId()
     const now = new Date()
     const newChat: Chat = {
       id: chatId,
-      title: 'New Chat',
+      title: isIncognito ? 'Incognito Chat' : 'New Chat',
       messages: [],
       createdAt: now,
       updatedAt: now,
       providerId: DEFAULT_PROVIDER_ID,
+      incognito: isIncognito || undefined,
     }
     setChats((prev) => [newChat, ...prev])
     setActiveChatId(chatId)
 
-    // Persist to DynamoDB — store the promise so saveMessage can await it
-    const createPromise = createChatRemote({
-      chatId,
-      title: 'New Chat',
-      providerId: DEFAULT_PROVIDER_ID,
-    }).catch((err) => console.error('Failed to create chat:', err))
+    // Skip persistence for incognito chats
+    if (!isIncognito) {
+      // Persist to DynamoDB — store the promise so saveMessage can await it
+      const createPromise = createChatRemote({
+        chatId,
+        title: 'New Chat',
+        providerId: DEFAULT_PROVIDER_ID,
+      }).catch((err) => console.error('Failed to create chat:', err))
 
-    pendingCreates.current.set(chatId, createPromise)
-    createPromise.finally(() => pendingCreates.current.delete(chatId))
+      pendingCreates.current.set(chatId, createPromise)
+      createPromise.finally(() => pendingCreates.current.delete(chatId))
+    }
 
     return chatId
   }, [])
@@ -189,9 +195,11 @@ function App() {
     // Just clear the active chat to show new chat window
     // The chat will be created and persisted when user sends first message
     setActiveChatId(null)
+    setIncognitoMode(false)
   }, [])
 
   const handleDeleteChat = useCallback((chatId: string) => {
+    const chatToDelete = chats.find((c) => c.id === chatId)
     setChats((prev) => {
       const filtered = prev.filter((c) => c.id !== chatId)
       if (chatId === activeChatId) {
@@ -200,11 +208,13 @@ function App() {
       return filtered
     })
 
-    // Persist to DynamoDB (non-blocking)
-    deleteChatRemote(chatId).catch((err) =>
-      console.error('Failed to delete chat:', err)
-    )
-  }, [activeChatId])
+    // Skip persistence for incognito chats
+    if (!chatToDelete?.incognito) {
+      deleteChatRemote(chatId).catch((err) =>
+        console.error('Failed to delete chat:', err)
+      )
+    }
+  }, [activeChatId, chats])
 
   const updateBotMessage = useCallback((chatId: string, messageId: string, content: string) => {
     setChats((prev) =>
@@ -237,15 +247,17 @@ function App() {
                     [judgeId]: rating,
                   }
 
-                  // Persist judge rating to DynamoDB (non-blocking)
-                  updateMessageRemote({
-                    chatId,
-                    messageId,
-                    timestamp: messageTimestamp.toISOString(),
-                    judgeRatings: JSON.stringify(updatedRatings),
-                  }).catch((err) =>
-                    console.error('Failed to persist judge rating:', err)
-                  )
+                  // Skip persistence for incognito chats
+                  if (!chat.incognito) {
+                    updateMessageRemote({
+                      chatId,
+                      messageId,
+                      timestamp: messageTimestamp.toISOString(),
+                      judgeRatings: JSON.stringify(updatedRatings),
+                    }).catch((err) =>
+                      console.error('Failed to persist judge rating:', err)
+                    )
+                  }
 
                   return {
                     ...msg,
@@ -324,13 +336,15 @@ function App() {
         })
       )
 
-      // Delete from DynamoDB (non-blocking)
-      for (const msg of messagesToRemove) {
-        deleteMessageRemote({
-          chatId,
-          messageId: msg.id,
-          timestamp: msg.timestamp.toISOString(),
-        }).catch((err) => console.error('Failed to delete message:', err))
+      // Skip persistence for incognito chats
+      if (!chat.incognito) {
+        for (const msg of messagesToRemove) {
+          deleteMessageRemote({
+            chatId,
+            messageId: msg.id,
+            timestamp: msg.timestamp.toISOString(),
+          }).catch((err) => console.error('Failed to delete message:', err))
+        }
       }
     },
     [activeChatId, chats, lastUserMessageId]
@@ -360,13 +374,16 @@ function App() {
         })
       )
 
-      // Persist to DynamoDB (non-blocking)
-      updateChatRemote({
-        chatId: activeChatId,
-        providerId,
-      }).catch((err) => console.error('Failed to update chat provider:', err))
+      // Skip persistence for incognito chats
+      const chat = chats.find((c) => c.id === activeChatId)
+      if (!chat?.incognito) {
+        updateChatRemote({
+          chatId: activeChatId,
+          providerId,
+        }).catch((err) => console.error('Failed to update chat provider:', err))
+      }
     },
-    [activeChatId]
+    [activeChatId, chats]
   )
 
   const streamDummyResponse = async (
@@ -401,15 +418,17 @@ function App() {
 
     let currentChatId = activeChatId
     if (!currentChatId) {
-      currentChatId = createNewChat()
+      currentChatId = createNewChat(incognitoMode)
     }
+
+    const isIncognito = chats.find((c) => c.id === currentChatId)?.incognito || incognitoMode
 
     // If we're editing, remove the last user message and any following assistant message
     const isEditing = editValue !== null
     if (isEditing && currentChatId) {
       // Collect messages to delete from DynamoDB before removing from state
       const currentChatForEdit = chats.find((c) => c.id === currentChatId)
-      if (currentChatForEdit) {
+      if (currentChatForEdit && !isIncognito) {
         let lastUserIdx = -1
         for (let i = currentChatForEdit.messages.length - 1; i >= 0; i--) {
           if (currentChatForEdit.messages[i].role === 'user') {
@@ -507,28 +526,31 @@ function App() {
       })
     )
 
-    // Ensure the chat exists in DynamoDB before saving messages
-    const pendingCreate = pendingCreates.current.get(currentChatId)
-    if (pendingCreate) {
-      await pendingCreate
-    }
+    // Skip all persistence for incognito chats
+    if (!isIncognito) {
+      // Ensure the chat exists in DynamoDB before saving messages
+      const pendingCreate = pendingCreates.current.get(currentChatId)
+      if (pendingCreate) {
+        await pendingCreate
+      }
 
-    // Save user message to DynamoDB (non-blocking)
-    saveMessageRemote({
-      chatId: currentChatId,
-      messageId: userMessage.id,
-      role: 'user',
-      content: userMessage.content,
-      timestamp: userMessage.timestamp.toISOString(),
-    }).catch((err) => console.error('Failed to save user message:', err))
-
-    // Update chat title if this is the first message
-    if (isFirstMessage) {
-      const newTitle = generateChatTitle([userMessage])
-      updateChatRemote({
+      // Save user message to DynamoDB (non-blocking)
+      saveMessageRemote({
         chatId: currentChatId,
-        title: newTitle,
-      }).catch((err) => console.error('Failed to update chat title:', err))
+        messageId: userMessage.id,
+        role: 'user',
+        content: userMessage.content,
+        timestamp: userMessage.timestamp.toISOString(),
+      }).catch((err) => console.error('Failed to save user message:', err))
+
+      // Update chat title if this is the first message
+      if (isFirstMessage) {
+        const newTitle = generateChatTitle([userMessage])
+        updateChatRemote({
+          chatId: currentChatId,
+          title: newTitle,
+        }).catch((err) => console.error('Failed to update chat title:', err))
+      }
     }
 
     setIsTyping(true)
@@ -569,13 +591,15 @@ function App() {
       }
 
       // Save completed assistant message to DynamoDB (non-blocking)
-      saveMessageRemote({
-        chatId: chatIdForStream,
-        messageId: botMessageId,
-        role: 'assistant',
-        content: finalResponse,
-        timestamp: botMessage.timestamp.toISOString(),
-      }).catch((err) => console.error('Failed to save assistant message:', err))
+      if (!isIncognito) {
+        saveMessageRemote({
+          chatId: chatIdForStream,
+          messageId: botMessageId,
+          role: 'assistant',
+          content: finalResponse,
+          timestamp: botMessage.timestamp.toISOString(),
+        }).catch((err) => console.error('Failed to save assistant message:', err))
+      }
 
       // Fetch quality ratings from enabled judges in parallel (async, non-blocking)
       // Skip judging if the request was cancelled - partial responses shouldn't be judged
@@ -689,6 +713,15 @@ function App() {
           <Typography variant="h6" component="h1">
             Chatbot
           </Typography>
+          {(activeChat?.incognito || (!activeChatId && incognitoMode)) && (
+            <Chip
+              icon={<VisibilityOffIcon />}
+              label="Incognito"
+              size="small"
+              color="default"
+              variant="outlined"
+            />
+          )}
           <Box sx={{ ml: 'auto', display: 'flex', alignItems: 'center', gap: 1 }}>
             <ProviderSelector
               selectedProviderId={activeProviderId}
@@ -757,6 +790,18 @@ function App() {
                   ? 'Send a message to start the conversation'
                   : 'Running in demo mode. Configure AppSync backend to enable AI responses.'}
               </Typography>
+              {!activeChatId && (
+                <Button
+                  variant={incognitoMode ? 'contained' : 'outlined'}
+                  size="small"
+                  startIcon={<VisibilityOffIcon />}
+                  onClick={() => setIncognitoMode((prev) => !prev)}
+                  sx={{ mt: 2 }}
+                  color={incognitoMode ? 'primary' : 'inherit'}
+                >
+                  {incognitoMode ? 'Incognito On' : 'Incognito Off'}
+                </Button>
+              )}
             </Box>
           ) : (
             <>
