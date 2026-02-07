@@ -8,7 +8,7 @@ import PsychologyAltIcon from '@mui/icons-material/PsychologyAlt'
 import ReactMarkdown from 'react-markdown'
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter'
 import { oneDark, oneLight } from 'react-syntax-highlighter/dist/esm/styles/prism'
-import type { Message } from '../types'
+import type { Message, JudgeFollowUp } from '../types'
 import { ResponseQualityRating } from './ResponseQualityRating'
 
 function parseThinkingBlocks(content: string): { thinking: string | null; visibleContent: string } {
@@ -28,9 +28,21 @@ interface ChatMessageProps {
   isLastUserMessage?: boolean
   onEdit?: (content: string) => void
   onDelete?: (messageId: string) => void
+  conversationHistory?: Message[]  // For follow-up context
+  respondingProvider?: string  // Provider that generated the response
+  onFollowUpComplete?: (judgeId: string, followUp: JudgeFollowUp) => void
 }
 
-export function ChatMessage({ message, loadingJudges = [], isLastUserMessage, onEdit, onDelete }: ChatMessageProps) {
+export function ChatMessage({
+  message,
+  loadingJudges = [],
+  isLastUserMessage,
+  onEdit,
+  onDelete,
+  conversationHistory,
+  respondingProvider,
+  onFollowUpComplete,
+}: ChatMessageProps) {
   const isUser = message.role === 'user'
   const theme = useTheme()
   const isDark = theme.palette.mode === 'dark'
@@ -202,7 +214,14 @@ export function ChatMessage({ message, loadingJudges = [], isLastUserMessage, on
         </Box>
         {(message.judgeRatings || loadingJudges.length > 0) && (
           <Box sx={{ pl: { xs: 0, sm: 6 }, mt: 1 }}>
-            <ResponseQualityRating ratings={message.judgeRatings || {}} loadingJudges={loadingJudges} />
+            <ResponseQualityRating
+              ratings={message.judgeRatings || {}}
+              loadingJudges={loadingJudges}
+              conversationHistory={conversationHistory}
+              responseContent={message.content}
+              respondingProvider={respondingProvider}
+              onFollowUpComplete={onFollowUpComplete}
+            />
           </Box>
         )}
       </Box>

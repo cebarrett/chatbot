@@ -170,6 +170,45 @@ $util.toJson($context.result)
 EOF
 }
 
+# Data source for Judge Follow-Up Lambda
+resource "aws_appsync_datasource" "judge_follow_up_lambda" {
+  api_id           = aws_appsync_graphql_api.chatbot.id
+  name             = "JudgeFollowUpLambda"
+  type             = "AWS_LAMBDA"
+  service_role_arn = aws_iam_role.appsync_lambda.arn
+
+  lambda_config {
+    function_arn = aws_lambda_function.judge_follow_up.arn
+  }
+}
+
+# Resolver for judgeFollowUp mutation
+resource "aws_appsync_resolver" "judge_follow_up" {
+  api_id      = aws_appsync_graphql_api.chatbot.id
+  type        = "Mutation"
+  field       = "judgeFollowUp"
+  data_source = aws_appsync_datasource.judge_follow_up_lambda.name
+
+  request_template = <<EOF
+{
+  "version": "2017-02-28",
+  "operation": "Invoke",
+  "payload": {
+    "arguments": $util.toJson($context.arguments),
+    "identity": {
+      "sub": "$context.identity.sub",
+      "issuer": "$context.identity.issuer",
+      "claims": $util.toJson($context.identity.claims)
+    }
+  }
+}
+EOF
+
+  response_template = <<EOF
+$util.toJson($context.result)
+EOF
+}
+
 # ==========================================
 # Chat History - DynamoDB Data Source
 # ==========================================

@@ -1,0 +1,244 @@
+import { useState } from 'react'
+import {
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  Button,
+  TextField,
+  Box,
+  Typography,
+  CircularProgress,
+  Paper,
+  IconButton,
+} from '@mui/material'
+import CloseIcon from '@mui/icons-material/Close'
+import SendIcon from '@mui/icons-material/Send'
+import type { QualityRating, Message, JudgeFollowUp } from '../types'
+import { askFollowUpQuestion } from '../services/appsyncJudge'
+
+interface JudgeFollowUpModalProps {
+  open: boolean
+  onClose: () => void
+  judgeId: string
+  judgeName: string
+  judgeColor: string
+  rating: QualityRating
+  conversationHistory: Message[]
+  responseContent: string
+  respondingProvider: string
+  onFollowUpComplete: (followUp: JudgeFollowUp) => void
+}
+
+export function JudgeFollowUpModal({
+  open,
+  onClose,
+  judgeId,
+  judgeName,
+  judgeColor,
+  rating,
+  conversationHistory,
+  responseContent,
+  respondingProvider,
+  onFollowUpComplete,
+}: JudgeFollowUpModalProps) {
+  const [question, setQuestion] = useState('')
+  const [isLoading, setIsLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const [answer, setAnswer] = useState<string | null>(null)
+
+  const handleSubmit = async () => {
+    if (!question.trim()) return
+
+    setIsLoading(true)
+    setError(null)
+
+    try {
+      const followUp = await askFollowUpQuestion(
+        judgeId,
+        conversationHistory,
+        responseContent,
+        respondingProvider,
+        rating,
+        question.trim()
+      )
+      setAnswer(followUp.answer)
+      onFollowUpComplete(followUp)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to get response')
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter' && !e.shiftKey && !isLoading && question.trim()) {
+      e.preventDefault()
+      handleSubmit()
+    }
+  }
+
+  const handleClose = () => {
+    setQuestion('')
+    setAnswer(null)
+    setError(null)
+    onClose()
+  }
+
+  return (
+    <Dialog
+      open={open}
+      onClose={handleClose}
+      maxWidth="sm"
+      fullWidth
+      PaperProps={{
+        sx: { maxHeight: '80vh' },
+      }}
+    >
+      <DialogTitle
+        sx={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          pb: 1,
+        }}
+      >
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+          <Box
+            sx={{
+              width: 12,
+              height: 12,
+              borderRadius: '50%',
+              bgcolor: judgeColor,
+            }}
+          />
+          <Typography variant="h6">
+            Ask {judgeName}
+          </Typography>
+        </Box>
+        <IconButton onClick={handleClose} size="small">
+          <CloseIcon />
+        </IconButton>
+      </DialogTitle>
+
+      <DialogContent dividers>
+        {/* Original Rating Summary */}
+        <Paper
+          variant="outlined"
+          sx={{
+            p: 2,
+            mb: 2,
+            bgcolor: 'grey.50',
+          }}
+        >
+          <Typography variant="subtitle2" color="text.secondary" gutterBottom>
+            Original Rating: {rating.score.toFixed(1)}/10
+          </Typography>
+          <Typography variant="body2" sx={{ mb: rating.problems.length > 0 ? 1 : 0 }}>
+            {rating.explanation}
+          </Typography>
+          {rating.problems.length > 0 && (
+            <Box sx={{ mt: 1 }}>
+              <Typography variant="caption" color="text.secondary">
+                Issues identified:
+              </Typography>
+              <Box component="ul" sx={{ m: 0, pl: 2, mt: 0.5 }}>
+                {rating.problems.map((problem, i) => (
+                  <Typography key={i} component="li" variant="caption" color="text.secondary">
+                    {problem}
+                  </Typography>
+                ))}
+              </Box>
+            </Box>
+          )}
+        </Paper>
+
+        {/* Question Input or Answer Display */}
+        {answer ? (
+          <Box>
+            <Paper
+              variant="outlined"
+              sx={{
+                p: 2,
+                mb: 2,
+                bgcolor: 'primary.50',
+                borderColor: 'primary.200',
+              }}
+            >
+              <Typography variant="subtitle2" color="primary.main" gutterBottom>
+                Your question:
+              </Typography>
+              <Typography variant="body2">{question}</Typography>
+            </Paper>
+
+            <Paper
+              variant="outlined"
+              sx={{
+                p: 2,
+                borderColor: judgeColor,
+                borderWidth: 2,
+              }}
+            >
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
+                <Box
+                  sx={{
+                    width: 8,
+                    height: 8,
+                    borderRadius: '50%',
+                    bgcolor: judgeColor,
+                  }}
+                />
+                <Typography variant="subtitle2">{judgeName}'s response:</Typography>
+              </Box>
+              <Typography variant="body2" sx={{ whiteSpace: 'pre-wrap' }}>
+                {answer}
+              </Typography>
+            </Paper>
+          </Box>
+        ) : (
+          <Box>
+            <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+              Ask a follow-up question about this rating. For example: "Why did you rate this a {rating.score.toFixed(1)}?" or "How could this response be improved?"
+            </Typography>
+
+            <TextField
+              fullWidth
+              multiline
+              rows={3}
+              placeholder="Type your follow-up question..."
+              value={question}
+              onChange={(e) => setQuestion(e.target.value)}
+              onKeyDown={handleKeyDown}
+              disabled={isLoading}
+              autoFocus
+              error={!!error}
+              helperText={error}
+            />
+          </Box>
+        )}
+      </DialogContent>
+
+      <DialogActions sx={{ px: 3, py: 2 }}>
+        {answer ? (
+          <Button onClick={handleClose} variant="contained">
+            Done
+          </Button>
+        ) : (
+          <>
+            <Button onClick={handleClose} disabled={isLoading}>
+              Cancel
+            </Button>
+            <Button
+              onClick={handleSubmit}
+              variant="contained"
+              disabled={isLoading || !question.trim()}
+              endIcon={isLoading ? <CircularProgress size={16} /> : <SendIcon />}
+            >
+              {isLoading ? 'Asking...' : 'Ask'}
+            </Button>
+          </>
+        )}
+      </DialogActions>
+    </Dialog>
+  )
+}

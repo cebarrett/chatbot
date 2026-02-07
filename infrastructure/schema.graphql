@@ -23,6 +23,19 @@ input JudgeInput {
   model: String
 }
 
+input JudgeFollowUpInput {
+  judgeProvider: ChatProvider!
+  originalPrompt: String!
+  responseToJudge: String!
+  respondingProvider: String!
+  conversationHistory: [ChatMessageInput!]
+  previousScore: Float!
+  previousExplanation: String!
+  previousProblems: [String!]!
+  followUpQuestion: String!
+  model: String
+}
+
 input CreateChatInput {
   chatId: String!
   title: String!
@@ -91,6 +104,11 @@ type JudgeResponse {
   score: Float!
   explanation: String!
   problems: [String!]!
+  judgeProvider: String!
+}
+
+type JudgeFollowUpResponse {
+  answer: String!
   judgeProvider: String!
 }
 
@@ -171,6 +189,10 @@ type Mutation {
 
   # Judge a response quality
   judgeResponse(input: JudgeInput!): JudgeResponse!
+    @aws_oidc
+
+  # Ask a follow-up question to a judge about their rating
+  judgeFollowUp(input: JudgeFollowUpInput!): JudgeFollowUpResponse!
     @aws_oidc
 
   # Create a new chat

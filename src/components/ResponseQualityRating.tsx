@@ -1,13 +1,19 @@
 import { useState } from 'react'
-import { Box, Chip, Collapse, Typography, Paper, CircularProgress } from '@mui/material'
+import { Box, Chip, Collapse, Typography, Paper, CircularProgress, Button } from '@mui/material'
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore'
 import ExpandLessIcon from '@mui/icons-material/ExpandLess'
-import type { JudgeRatings, QualityRating } from '../types'
+import QuestionAnswerIcon from '@mui/icons-material/QuestionAnswer'
+import type { JudgeRatings, QualityRating, Message, JudgeFollowUp } from '../types'
 import { getJudgeById } from '../services/judgeRegistry'
+import { JudgeFollowUpModal } from './JudgeFollowUpModal'
 
 interface ResponseQualityRatingProps {
   ratings: JudgeRatings
   loadingJudges?: string[]  // Judges actively loading for this message
+  conversationHistory?: Message[]  // For follow-up context
+  responseContent?: string  // The assistant response that was rated
+  respondingProvider?: string  // Provider that generated the response
+  onFollowUpComplete?: (judgeId: string, followUp: JudgeFollowUp) => void  // Callback when follow-up is answered
 }
 
 function getRatingColor(score: number): 'success' | 'warning' | 'error' {
@@ -107,9 +113,11 @@ interface RatingDetailsProps {
   judgeName: string
   judgeColor: string
   rating: QualityRating
+  canAskFollowUp?: boolean
+  onAskFollowUp?: () => void
 }
 
-function RatingDetails({ judgeName, judgeColor, rating }: RatingDetailsProps) {
+function RatingDetails({ judgeName, judgeColor, rating, canAskFollowUp, onAskFollowUp }: RatingDetailsProps) {
   const color = getRatingColor(rating.score)
 
   return (
@@ -123,23 +131,41 @@ function RatingDetails({ judgeName, judgeColor, rating }: RatingDetailsProps) {
         minWidth: 200,
       }}
     >
-      <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, mb: 0.5 }}>
-        <Box
-          sx={{
-            width: 10,
-            height: 10,
-            borderRadius: '50%',
-            bgcolor: judgeColor,
-          }}
-        />
-        <Typography variant="caption" sx={{ fontWeight: 700, color: `${color}.main` }}>
-          {judgeName}
-        </Typography>
-        <Typography variant="caption" sx={{ fontWeight: 700, color: `${color}.main` }}>
-          - {rating.score.toFixed(1)}/10
-        </Typography>
+      <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 0.5 }}>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+          <Box
+            sx={{
+              width: 10,
+              height: 10,
+              borderRadius: '50%',
+              bgcolor: judgeColor,
+            }}
+          />
+          <Typography variant="caption" sx={{ fontWeight: 700, color: `${color}.main` }}>
+            {judgeName}
+          </Typography>
+          <Typography variant="caption" sx={{ fontWeight: 700, color: `${color}.main` }}>
+            - {rating.score.toFixed(1)}/10
+          </Typography>
+        </Box>
+        {canAskFollowUp && !rating.followUp && (
+          <Button
+            size="small"
+            startIcon={<QuestionAnswerIcon sx={{ fontSize: 14 }} />}
+            onClick={onAskFollowUp}
+            sx={{
+              fontSize: '0.7rem',
+              py: 0,
+              px: 1,
+              minHeight: 24,
+              textTransform: 'none',
+            }}
+          >
+            Ask
+          </Button>
+        )}
       </Box>
-      <Typography variant="body2" sx={{ mb: rating.problems.length > 0 ? 1.5 : 0 }}>
+      <Typography variant="body2" sx={{ mb: rating.problems.length > 0 || rating.followUp ? 1.5 : 0 }}>
         {rating.explanation}
       </Typography>
 
@@ -156,7 +182,7 @@ function RatingDetails({ judgeName, judgeColor, rating }: RatingDetailsProps) {
           >
             Issues identified:
           </Typography>
-          <Box component="ul" sx={{ m: 0, pl: 2 }}>
+          <Box component="ul" sx={{ m: 0, pl: 2, mb: rating.followUp ? 1.5 : 0 }}>
             {rating.problems.map((problem, index) => (
               <Typography
                 key={index}
@@ -170,12 +196,51 @@ function RatingDetails({ judgeName, judgeColor, rating }: RatingDetailsProps) {
           </Box>
         </>
       )}
+
+      {rating.followUp && (
+        <Paper
+          variant="outlined"
+          sx={{
+            p: 1,
+            mt: 1,
+            bgcolor: 'grey.50',
+            borderColor: judgeColor,
+          }}
+        >
+          <Typography
+            variant="caption"
+            sx={{
+              fontWeight: 600,
+              color: 'text.secondary',
+              display: 'block',
+              mb: 0.5,
+            }}
+          >
+            Follow-up Q&A:
+          </Typography>
+          <Typography variant="caption" sx={{ fontWeight: 600, display: 'block', mb: 0.5 }}>
+            Q: {rating.followUp.question}
+          </Typography>
+          <Typography variant="caption" sx={{ display: 'block', whiteSpace: 'pre-wrap' }}>
+            A: {rating.followUp.answer}
+          </Typography>
+        </Paper>
+      )}
     </Paper>
   )
 }
 
-export function ResponseQualityRating({ ratings, loadingJudges = [] }: ResponseQualityRatingProps) {
+export function ResponseQualityRating({
+  ratings,
+  loadingJudges = [],
+  conversationHistory,
+  responseContent,
+  respondingProvider,
+  onFollowUpComplete,
+}: ResponseQualityRatingProps) {
   const [expanded, setExpanded] = useState(false)
+  const [followUpModalOpen, setFollowUpModalOpen] = useState(false)
+  const [selectedJudgeId, setSelectedJudgeId] = useState<string | null>(null)
 
   // Show all judges that have ratings (even if disabled), plus judges actively loading for this message
   const judgeIdsToShow = new Set<string>([
@@ -196,6 +261,27 @@ export function ResponseQualityRating({ ratings, loadingJudges = [] }: ResponseQ
   if (judgesWithRatings.length === 0) {
     return null
   }
+
+  const canAskFollowUp = !!(conversationHistory && responseContent && respondingProvider && onFollowUpComplete)
+
+  const handleAskFollowUp = (judgeId: string) => {
+    setSelectedJudgeId(judgeId)
+    setFollowUpModalOpen(true)
+  }
+
+  const handleFollowUpComplete = (followUp: JudgeFollowUp) => {
+    if (selectedJudgeId && onFollowUpComplete) {
+      onFollowUpComplete(selectedJudgeId, followUp)
+    }
+  }
+
+  const handleCloseModal = () => {
+    setFollowUpModalOpen(false)
+    setSelectedJudgeId(null)
+  }
+
+  const selectedJudge = selectedJudgeId ? getJudgeById(selectedJudgeId) : null
+  const selectedRating = selectedJudgeId ? ratings[selectedJudgeId] : null
 
   return (
     <Box sx={{ mt: 1.5 }}>
@@ -230,10 +316,28 @@ export function ResponseQualityRating({ ratings, loadingJudges = [] }: ResponseQ
                 judgeName={judge!.name}
                 judgeColor={judge!.color}
                 rating={rating!}
+                canAskFollowUp={canAskFollowUp}
+                onAskFollowUp={() => handleAskFollowUp(judgeId)}
               />
             ))}
         </Box>
       </Collapse>
+
+      {/* Follow-up Modal */}
+      {selectedJudge && selectedRating && conversationHistory && responseContent && respondingProvider && (
+        <JudgeFollowUpModal
+          open={followUpModalOpen}
+          onClose={handleCloseModal}
+          judgeId={selectedJudgeId!}
+          judgeName={selectedJudge.name}
+          judgeColor={selectedJudge.color}
+          rating={selectedRating}
+          conversationHistory={conversationHistory}
+          responseContent={responseContent}
+          respondingProvider={respondingProvider}
+          onFollowUpComplete={handleFollowUpComplete}
+        />
+      )}
     </Box>
   )
 }
