@@ -5,6 +5,10 @@ const ANTHROPIC_API_URL = 'https://api.anthropic.com/v1/messages';
 const DEFAULT_MODEL = 'claude-sonnet-4-20250514';
 const ANTHROPIC_VERSION = '2023-06-01';
 
+const THINKING_CAPABLE_MODELS = new Set([
+  'claude-sonnet-4-20250514',
+]);
+
 export async function streamAnthropic(
   apiKey: string,
   messages: ChatMessageInput[],
@@ -27,12 +31,22 @@ export async function streamAnthropic(
     }
   }
 
+  const selectedModel = model || DEFAULT_MODEL;
+  const useThinking = THINKING_CAPABLE_MODELS.has(selectedModel);
+
   const requestBody: Record<string, unknown> = {
-    model: model || DEFAULT_MODEL,
+    model: selectedModel,
     messages: anthropicMessages,
-    max_tokens: 4096,
+    max_tokens: useThinking ? 16000 : 4096,
     stream: true,
   };
+
+  if (useThinking) {
+    requestBody.thinking = {
+      type: 'enabled',
+      budget_tokens: 10000,
+    };
+  }
 
   if (systemPrompt) {
     requestBody.system = systemPrompt;
@@ -61,6 +75,7 @@ export async function streamAnthropic(
   const decoder = new TextDecoder();
   let buffer = '';
   const batcher = new ChunkBatcher(requestId, userId);
+  let currentBlockType: string | null = null;
 
   try {
     while (true) {
@@ -83,11 +98,28 @@ export async function streamAnthropic(
         try {
           const parsed = JSON.parse(data);
 
-          if (parsed.type === 'content_block_delta') {
-            const text = parsed.delta?.text;
-            if (text) {
-              batcher.add(text);
+          if (parsed.type === 'content_block_start') {
+            currentBlockType = parsed.content_block?.type || null;
+            if (currentBlockType === 'thinking') {
+              batcher.add('<think>');
             }
+          } else if (parsed.type === 'content_block_delta') {
+            if (parsed.delta?.type === 'thinking_delta') {
+              const thinking = parsed.delta?.thinking;
+              if (thinking) {
+                batcher.add(thinking);
+              }
+            } else if (parsed.delta?.type === 'text_delta') {
+              const text = parsed.delta?.text;
+              if (text) {
+                batcher.add(text);
+              }
+            }
+          } else if (parsed.type === 'content_block_stop') {
+            if (currentBlockType === 'thinking') {
+              batcher.add('</think>\n\n');
+            }
+            currentBlockType = null;
           } else if (parsed.type === 'message_stop') {
             await batcher.done();
             return;
@@ -107,9 +139,16 @@ export async function streamAnthropic(
         try {
           const parsed = JSON.parse(data);
           if (parsed.type === 'content_block_delta') {
-            const text = parsed.delta?.text;
-            if (text) {
-              batcher.add(text);
+            if (parsed.delta?.type === 'thinking_delta') {
+              const thinking = parsed.delta?.thinking;
+              if (thinking) {
+                batcher.add(thinking);
+              }
+            } else if (parsed.delta?.type === 'text_delta') {
+              const text = parsed.delta?.text;
+              if (text) {
+                batcher.add(text);
+              }
             }
           }
         } catch {

@@ -4,6 +4,11 @@ import { ChunkBatcher } from '../chunkBatcher';
 const GEMINI_API_BASE = 'https://generativelanguage.googleapis.com/v1beta/models';
 const DEFAULT_MODEL = 'gemini-2.5-pro';
 
+const THINKING_CAPABLE_MODELS = new Set([
+  'gemini-2.5-pro',
+  'gemini-2.5-flash',
+]);
+
 export async function streamGemini(
   apiKey: string,
   messages: ChatMessageInput[],
@@ -28,12 +33,23 @@ export async function streamGemini(
     }
   }
 
+  const useThinking = THINKING_CAPABLE_MODELS.has(modelName);
+
+  const generationConfig: Record<string, unknown> = {
+    maxOutputTokens: 4096,
+    temperature: 0.7,
+  };
+
+  if (useThinking) {
+    generationConfig.thinkingConfig = {
+      includeThoughts: true,
+      thinkingBudget: 8192,
+    };
+  }
+
   const requestBody: Record<string, unknown> = {
     contents: geminiContents,
-    generationConfig: {
-      maxOutputTokens: 4096,
-      temperature: 0.7,
-    },
+    generationConfig,
   };
 
   if (systemInstruction) {
@@ -63,6 +79,7 @@ export async function streamGemini(
   const decoder = new TextDecoder();
   let buffer = '';
   const batcher = new ChunkBatcher(requestId, userId);
+  let inThinking = false;
 
   try {
     while (true) {
@@ -84,9 +101,25 @@ export async function streamGemini(
 
         try {
           const parsed = JSON.parse(data);
-          const text = parsed.candidates?.[0]?.content?.parts?.[0]?.text;
-          if (text) {
-            batcher.add(text);
+          const parts = parsed.candidates?.[0]?.content?.parts;
+          if (parts && Array.isArray(parts)) {
+            for (const part of parts) {
+              if (part.thought) {
+                if (!inThinking) {
+                  batcher.add('<think>');
+                  inThinking = true;
+                }
+                if (part.text) {
+                  batcher.add(part.text);
+                }
+              } else if (part.text) {
+                if (inThinking) {
+                  batcher.add('</think>\n\n');
+                  inThinking = false;
+                }
+                batcher.add(part.text);
+              }
+            }
           }
         } catch {
           // Skip malformed JSON
@@ -102,14 +135,35 @@ export async function streamGemini(
         const data = trimmed.slice(6);
         try {
           const parsed = JSON.parse(data);
-          const text = parsed.candidates?.[0]?.content?.parts?.[0]?.text;
-          if (text) {
-            batcher.add(text);
+          const parts = parsed.candidates?.[0]?.content?.parts;
+          if (parts && Array.isArray(parts)) {
+            for (const part of parts) {
+              if (part.thought) {
+                if (!inThinking) {
+                  batcher.add('<think>');
+                  inThinking = true;
+                }
+                if (part.text) {
+                  batcher.add(part.text);
+                }
+              } else if (part.text) {
+                if (inThinking) {
+                  batcher.add('</think>\n\n');
+                  inThinking = false;
+                }
+                batcher.add(part.text);
+              }
+            }
           }
         } catch {
           // Skip malformed JSON
         }
       }
+    }
+
+    // Close any unclosed thinking block
+    if (inThinking) {
+      batcher.add('</think>\n\n');
     }
 
     // Send final done signal
