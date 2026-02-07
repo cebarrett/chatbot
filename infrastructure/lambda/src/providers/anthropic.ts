@@ -37,7 +37,7 @@ export async function streamAnthropic(
   const requestBody: Record<string, unknown> = {
     model: selectedModel,
     messages: anthropicMessages,
-    max_tokens: useThinking ? 16000 : 4096,
+    max_tokens: useThinking ? 32000 : 8192,
     stream: true,
   };
 

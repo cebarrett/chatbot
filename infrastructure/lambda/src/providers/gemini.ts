@@ -36,7 +36,7 @@ export async function streamGemini(
   const useThinking = THINKING_CAPABLE_MODELS.has(modelName);
 
   const generationConfig: Record<string, unknown> = {
-    maxOutputTokens: 4096,
+    maxOutputTokens: 8192,
     temperature: 0.7,
   };
 
