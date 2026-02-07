@@ -37,8 +37,8 @@ export const judgeRegistry: JudgeConfig[] = [
   },
   {
     id: 'openai',
-    name: 'OpenAI',
-    description: 'OpenAI GPT',
+    name: 'ChatGPT',
+    description: 'OpenAI ChatGPT',
     color: '#10A37F', // OpenAI green
     isConfigured: isAppSyncConfigured,
     getRating: createJudgeRating('openai'),
