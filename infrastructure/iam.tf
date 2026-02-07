@@ -94,6 +94,7 @@ resource "aws_iam_role_policy" "appsync_lambda_invoke" {
         Resource = [
           aws_lambda_function.chat.arn,
           aws_lambda_function.judge.arn,
+          aws_lambda_function.judge_follow_up.arn,
           aws_lambda_function.delete_chat.arn,
           aws_lambda_function.create_chat.arn,
           aws_lambda_function.list_chats.arn
