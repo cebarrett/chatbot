@@ -619,7 +619,7 @@ function App() {
         baseMessagesForApi = lastUserIdx >= 0 ? baseMessagesForApi.slice(0, lastUserIdx) : []
       }
       const messagesForApi = [...baseMessagesForApi, userMessage]
-      const provider = getProviderById(currentChat?.providerId || DEFAULT_PROVIDER_ID)
+      const provider = getProviderById(currentChat?.providerId || newChatProviderId)
 
       let finalResponse = ''
       let wasCancelled = false
@@ -653,7 +653,7 @@ function App() {
       // Fetch quality ratings from enabled judges in parallel (async, non-blocking)
       // Skip judging if the request was cancelled - partial responses shouldn't be judged
       if (enabledJudges.length > 0 && !wasCancelled) {
-        const respondingProviderId = currentChat?.providerId || DEFAULT_PROVIDER_ID
+        const respondingProviderId = currentChat?.providerId || newChatProviderId
         // Track which message is being judged and which judges are pending
         setJudgingMessageId(botMessageId)
         setPendingJudges([...enabledJudges])
