@@ -203,7 +203,7 @@ function RatingDetails({ judgeName, judgeColor, rating, canAskFollowUp, onAskFol
           sx={{
             p: 1,
             mt: 1,
-            bgcolor: 'grey.50',
+            bgcolor: 'action.hover',
             borderColor: judgeColor,
           }}
         >
