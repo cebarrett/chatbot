@@ -128,7 +128,7 @@ export function JudgeFollowUpModal({
           sx={{
             p: 2,
             mb: 2,
-            bgcolor: 'grey.50',
+            bgcolor: 'action.hover',
           }}
         >
           <Typography variant="subtitle2" color="text.secondary" gutterBottom>
@@ -161,8 +161,10 @@ export function JudgeFollowUpModal({
               sx={{
                 p: 2,
                 mb: 2,
-                bgcolor: 'primary.50',
-                borderColor: 'primary.200',
+                bgcolor: (theme) => theme.palette.mode === 'dark'
+                  ? 'rgba(144, 202, 249, 0.08)'
+                  : 'rgba(25, 118, 210, 0.04)',
+                borderColor: 'primary.main',
               }}
             >
               <Typography variant="subtitle2" color="primary.main" gutterBottom>
