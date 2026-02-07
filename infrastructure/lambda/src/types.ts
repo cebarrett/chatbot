@@ -20,6 +20,19 @@ export interface JudgeInput {
   model?: string;
 }
 
+export interface JudgeFollowUpInput {
+  judgeProvider: ChatProvider;
+  originalPrompt: string;
+  responseToJudge: string;
+  respondingProvider: string;
+  conversationHistory?: ChatMessageInput[];
+  previousScore: number;
+  previousExplanation: string;
+  previousProblems: string[];
+  followUpQuestion: string;
+  model?: string;
+}
+
 export type ChatProvider = 'OPENAI' | 'ANTHROPIC' | 'GEMINI' | 'PERPLEXITY';
 
 // GraphQL output types
@@ -42,6 +55,11 @@ export interface JudgeResponse {
   score: number;
   explanation: string;
   problems: string[];
+  judgeProvider: string;
+}
+
+export interface JudgeFollowUpResponse {
+  answer: string;
   judgeProvider: string;
 }
 

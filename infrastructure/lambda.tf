@@ -102,6 +102,44 @@ resource "aws_cloudwatch_log_group" "judge" {
   }
 }
 
+# Judge Follow-Up Lambda function
+resource "aws_lambda_function" "judge_follow_up" {
+  filename         = data.archive_file.lambda_package.output_path
+  function_name    = "${var.project_name}-${var.environment}-judge-follow-up"
+  role             = aws_iam_role.lambda_execution.arn
+  handler          = "judgeFollowUp.handler"
+  source_code_hash = data.archive_file.lambda_package.output_base64sha256
+  runtime          = "nodejs22.x"
+  timeout          = var.lambda_timeout
+  memory_size      = var.lambda_memory
+
+  environment {
+    variables = {
+      SECRETS_NAME        = aws_secretsmanager_secret.llm_api_keys.name
+      DYNAMODB_TABLE_NAME = aws_dynamodb_table.chats.name
+    }
+  }
+
+  depends_on = [
+    aws_iam_role_policy_attachment.lambda_basic_execution,
+    aws_iam_role_policy.lambda_secrets_access,
+    aws_iam_role_policy.lambda_dynamodb_access,
+  ]
+
+  tags = {
+    Name = "${var.project_name}-judge-follow-up"
+  }
+}
+
+resource "aws_cloudwatch_log_group" "judge_follow_up" {
+  name              = "/aws/lambda/${aws_lambda_function.judge_follow_up.function_name}"
+  retention_in_days = 14
+
+  tags = {
+    Name = "${var.project_name}-judge-follow-up-logs"
+  }
+}
+
 # Delete Chat Lambda function
 resource "aws_lambda_function" "delete_chat" {
   filename         = data.archive_file.lambda_package.output_path

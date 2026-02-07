@@ -34,6 +34,15 @@ export const JUDGE_RESPONSE_MUTATION = `
   }
 `;
 
+export const JUDGE_FOLLOW_UP_MUTATION = `
+  mutation JudgeFollowUp($input: JudgeFollowUpInput!) {
+    judgeFollowUp(input: $input) {
+      answer
+      judgeProvider
+    }
+  }
+`;
+
 export const ON_MESSAGE_CHUNK_SUBSCRIPTION = `
   subscription OnMessageChunk($requestId: String!, $userId: String!) {
     onMessageChunk(requestId: $requestId, userId: $userId) {
@@ -202,6 +211,24 @@ export interface JudgeResponse {
   score: number;
   explanation: string;
   problems: string[];
+  judgeProvider: string;
+}
+
+export interface JudgeFollowUpInput {
+  judgeProvider: ChatProvider;
+  originalPrompt: string;
+  responseToJudge: string;
+  respondingProvider: string;
+  conversationHistory?: ChatMessageInput[];
+  previousScore: number;
+  previousExplanation: string;
+  previousProblems: string[];
+  followUpQuestion: string;
+  model?: string;
+}
+
+export interface JudgeFollowUpResponse {
+  answer: string;
   judgeProvider: string;
 }
 

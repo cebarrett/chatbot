@@ -1,4 +1,4 @@
-import { ChatProvider, ChatMessageInput, SendMessageInput, JudgeInput } from './types';
+import { ChatProvider, ChatMessageInput, SendMessageInput, JudgeInput, JudgeFollowUpInput } from './types';
 
 // Validation constants
 export const VALIDATION_LIMITS = {
@@ -8,6 +8,7 @@ export const VALIDATION_LIMITS = {
   MAX_TITLE_LENGTH: 500,
   MAX_REQUEST_ID_LENGTH: 100,
   MAX_PROVIDER_NAME_LENGTH: 50,
+  MAX_FOLLOW_UP_QUESTION_BYTES: 4 * 1024, // 4KB for follow-up questions
 } as const;
 
 // Model allowlists per provider - only these models can be used
@@ -215,6 +216,60 @@ export function validateJudgeInput(input: JudgeInput): void {
     'respondingProvider',
     VALIDATION_LIMITS.MAX_PROVIDER_NAME_LENGTH
   );
+
+  // Validate conversation history if provided
+  if (input.conversationHistory) {
+    validateMessages(input.conversationHistory);
+  }
+}
+
+/**
+ * Validates complete JudgeFollowUpInput
+ */
+export function validateJudgeFollowUpInput(input: JudgeFollowUpInput): void {
+  if (!input || typeof input !== 'object') {
+    throw new ValidationError('Input is required');
+  }
+
+  validateProvider(input.judgeProvider);
+  validateModel(input.judgeProvider, input.model);
+
+  // Validate required string fields
+  validateStringField(
+    input.originalPrompt,
+    'originalPrompt',
+    VALIDATION_LIMITS.MAX_MESSAGE_SIZE_BYTES
+  );
+  validateStringField(
+    input.responseToJudge,
+    'responseToJudge',
+    VALIDATION_LIMITS.MAX_MESSAGE_SIZE_BYTES
+  );
+  validateStringField(
+    input.respondingProvider,
+    'respondingProvider',
+    VALIDATION_LIMITS.MAX_PROVIDER_NAME_LENGTH
+  );
+  validateStringField(
+    input.previousExplanation,
+    'previousExplanation',
+    VALIDATION_LIMITS.MAX_MESSAGE_SIZE_BYTES
+  );
+  validateStringField(
+    input.followUpQuestion,
+    'followUpQuestion',
+    VALIDATION_LIMITS.MAX_FOLLOW_UP_QUESTION_BYTES
+  );
+
+  // Validate score
+  if (typeof input.previousScore !== 'number' || input.previousScore < 1 || input.previousScore > 10) {
+    throw new ValidationError('previousScore must be a number between 1 and 10');
+  }
+
+  // Validate problems array
+  if (!Array.isArray(input.previousProblems)) {
+    throw new ValidationError('previousProblems must be an array');
+  }
 
   // Validate conversation history if provided
   if (input.conversationHistory) {

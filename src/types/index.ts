@@ -1,7 +1,13 @@
+export interface JudgeFollowUp {
+  question: string
+  answer: string
+}
+
 export interface QualityRating {
   score: number // 1.0 to 10.0 (two significant figures)
   explanation: string
   problems: string[]
+  followUp?: JudgeFollowUp
 }
 
 // Dynamic judge ratings - keyed by judge ID

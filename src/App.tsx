@@ -11,7 +11,7 @@ import { ChatMessage } from './components/ChatMessage'
 import { ChatInput } from './components/ChatInput'
 import { ChatHistorySidebar } from './components/ChatHistorySidebar'
 import { ProviderSelector } from './components/ProviderSelector'
-import type { Message, Chat } from './types'
+import type { Message, Chat, JudgeFollowUp } from './types'
 import { getDummyResponse, generateId } from './utils/dummyResponses'
 import {
   listChats as fetchChatList,
@@ -272,6 +272,49 @@ function App() {
       return newEnabled
     })
   }, [])
+
+  const handleFollowUpComplete = useCallback(
+    (chatId: string, messageId: string, messageTimestamp: Date, judgeId: string, followUp: JudgeFollowUp) => {
+      setChats((prev) =>
+        prev.map((chat) => {
+          if (chat.id === chatId) {
+            return {
+              ...chat,
+              messages: chat.messages.map((msg) => {
+                if (msg.id === messageId && msg.judgeRatings?.[judgeId]) {
+                  const updatedRatings = {
+                    ...msg.judgeRatings,
+                    [judgeId]: {
+                      ...msg.judgeRatings[judgeId],
+                      followUp,
+                    },
+                  }
+
+                  // Persist follow-up to DynamoDB (non-blocking)
+                  updateMessageRemote({
+                    chatId,
+                    messageId,
+                    timestamp: messageTimestamp.toISOString(),
+                    judgeRatings: JSON.stringify(updatedRatings),
+                  }).catch((err) =>
+                    console.error('Failed to persist follow-up:', err)
+                  )
+
+                  return {
+                    ...msg,
+                    judgeRatings: updatedRatings,
+                  }
+                }
+                return msg
+              }),
+            }
+          }
+          return chat
+        })
+      )
+    },
+    []
+  )
 
   const handleDeleteMessage = useCallback(
     (messageId: string) => {
@@ -760,7 +803,7 @@ function App() {
             </Box>
           ) : (
             <>
-              {messages.map((message) => (
+              {messages.map((message, index) => (
                 <ChatMessage
                   key={message.id}
                   message={message}
@@ -768,6 +811,17 @@ function App() {
                   isLastUserMessage={message.id === lastUserMessageId && !isTyping}
                   onEdit={handleEditMessage}
                   onDelete={handleDeleteMessage}
+                  conversationHistory={messages.slice(0, index + 1)}
+                  respondingProvider={activeProviderId}
+                  onFollowUpComplete={(judgeId, followUp) =>
+                    handleFollowUpComplete(
+                      activeChat!.id,
+                      message.id,
+                      message.timestamp,
+                      judgeId,
+                      followUp
+                    )
+                  }
                 />
               ))}
               {isTyping && (

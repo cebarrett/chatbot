@@ -1,11 +1,14 @@
 // AppSync-based judge service
-import type { QualityRating, Message } from '../types';
+import type { QualityRating, Message, JudgeFollowUp } from '../types';
 import { executeGraphQL, isAppSyncConfigured } from './appsyncClient';
 import {
   JUDGE_RESPONSE_MUTATION,
+  JUDGE_FOLLOW_UP_MUTATION,
   type ChatProvider,
   type JudgeInput,
   type JudgeResponse,
+  type JudgeFollowUpInput,
+  type JudgeFollowUpResponse,
 } from '../graphql/operations';
 
 export class AppSyncJudgeError extends Error {
@@ -77,6 +80,58 @@ export async function getQualityRating(
     score,
     explanation,
     problems,
+  };
+}
+
+// Ask a follow-up question to a judge about their rating
+export async function askFollowUpQuestion(
+  judgeId: string,
+  conversationHistory: Message[],
+  latestResponse: string,
+  respondingProvider: string,
+  rating: QualityRating,
+  followUpQuestion: string,
+  signal?: AbortSignal
+): Promise<JudgeFollowUp> {
+  if (!isAppSyncConfigured()) {
+    throw new AppSyncJudgeError(
+      'AppSync not configured. Please set VITE_APPSYNC_URL and VITE_APPSYNC_API_KEY.'
+    );
+  }
+
+  // Extract the latest user message as the original prompt
+  const userMessages = conversationHistory.filter((m) => m.role === 'user');
+  const originalPrompt = userMessages.length > 0
+    ? userMessages[userMessages.length - 1].content
+    : '';
+
+  // Pass prior conversation history (everything except the last user message)
+  const priorMessages = conversationHistory.slice(0, -1);
+  const history = priorMessages.length > 0
+    ? priorMessages.map((m) => ({ role: m.role as 'user' | 'assistant', content: m.content }))
+    : undefined;
+
+  const input: JudgeFollowUpInput = {
+    judgeProvider: mapJudgeToEnum(judgeId),
+    originalPrompt,
+    responseToJudge: latestResponse,
+    respondingProvider,
+    conversationHistory: history,
+    previousScore: rating.score,
+    previousExplanation: rating.explanation,
+    previousProblems: rating.problems,
+    followUpQuestion,
+  };
+
+  const response = await executeGraphQL<{ judgeFollowUp: JudgeFollowUpResponse }>(
+    JUDGE_FOLLOW_UP_MUTATION,
+    { input },
+    signal
+  );
+
+  return {
+    question: followUpQuestion,
+    answer: response.judgeFollowUp.answer,
   };
 }
 
