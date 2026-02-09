@@ -29,6 +29,8 @@ function mapJudgeToEnum(judgeId: string): ChatProvider {
       return 'GEMINI';
     case 'perplexity':
       return 'PERPLEXITY';
+    case 'grok':
+      return 'GROK';
     default:
       throw new AppSyncJudgeError(`Unknown judge: ${judgeId}`);
   }

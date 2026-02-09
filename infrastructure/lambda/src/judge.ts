@@ -4,7 +4,7 @@ import {
   JudgeResponse,
 } from './types';
 import { getSecrets } from './secrets';
-import { judgeOpenAI, judgeAnthropic, judgeGemini, judgePerplexity } from './providers';
+import { judgeOpenAI, judgeAnthropic, judgeGemini, judgePerplexity, judgeGrok } from './providers';
 import { validateJudgeInput, ValidationError } from './validation';
 import { resolveInternalUserId } from './userService';
 
@@ -145,6 +145,9 @@ export async function handler(
         break;
       case 'PERPLEXITY':
         responseText = await judgePerplexity(secrets.PERPLEXITY_API_KEY, JUDGE_SYSTEM_PROMPT + PERPLEXITY_JUDGE_ADDENDUM, userPrompt, model);
+        break;
+      case 'GROK':
+        responseText = await judgeGrok(secrets.GROK_API_KEY, JUDGE_SYSTEM_PROMPT, userPrompt, model);
         break;
       default:
         throw new Error(`Unknown judge provider: ${judgeProvider}`);

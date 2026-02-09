@@ -169,7 +169,7 @@ export const DELETE_MESSAGE_MUTATION = `
 `;
 
 // Types matching the GraphQL schema
-export type ChatProvider = 'OPENAI' | 'ANTHROPIC' | 'GEMINI' | 'PERPLEXITY';
+export type ChatProvider = 'OPENAI' | 'ANTHROPIC' | 'GEMINI' | 'PERPLEXITY' | 'GROK';
 
 export interface ChatMessageInput {
   role: 'user' | 'assistant' | 'system';

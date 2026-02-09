@@ -29,6 +29,8 @@ function mapProviderToEnum(providerId: string): ChatProvider {
       return 'GEMINI';
     case 'perplexity':
       return 'PERPLEXITY';
+    case 'grok':
+      return 'GROK';
     default:
       throw new AppSyncChatError(`Unknown provider: ${providerId}`);
   }

@@ -76,6 +76,7 @@ enum ChatProvider {
   ANTHROPIC
   GEMINI
   PERPLEXITY
+  GROK
 }
 
 enum MessageRole {
