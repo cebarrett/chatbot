@@ -12,14 +12,24 @@ import type { Message, JudgeFollowUp } from '../types'
 import { ResponseQualityRating } from './ResponseQualityRating'
 
 function parseThinkingBlocks(content: string): { thinking: string | null; visibleContent: string } {
+  // Match completed think blocks
   const thinkRegex = /<think>([\s\S]*?)<\/think>/
   const match = content.match(thinkRegex)
-  if (!match) {
-    return { thinking: null, visibleContent: content }
+  if (match) {
+    const thinking = match[1].trim()
+    const visibleContent = content.replace(thinkRegex, '').trim()
+    return { thinking: thinking || null, visibleContent }
   }
-  const thinking = match[1].trim()
-  const visibleContent = content.replace(thinkRegex, '').trim()
-  return { thinking: thinking || null, visibleContent }
+
+  // Handle incomplete think block during streaming (<think> without </think>)
+  const openThinkIndex = content.indexOf('<think>')
+  if (openThinkIndex !== -1) {
+    const thinking = content.substring(openThinkIndex + 7).trim()
+    const visibleContent = content.substring(0, openThinkIndex).trim()
+    return { thinking: thinking || null, visibleContent }
+  }
+
+  return { thinking: null, visibleContent: content }
 }
 
 interface ChatMessageProps {
