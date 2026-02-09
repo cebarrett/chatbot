@@ -39,6 +39,13 @@ If there are no problems, use an empty array: "problems": []
 
 Respond ONLY with the JSON object, no additional text.`;
 
+// Perplexity models are web-search-augmented and inherently bias toward valuing
+// citations/sources. This addendum prevents unfair penalization of responses
+// that don't include citations, which is not a requirement for this application.
+const PERPLEXITY_JUDGE_ADDENDUM = `
+
+IMPORTANT: Do NOT penalize responses for lacking citations, references, or source links. The AI assistants being evaluated are not expected to provide citations or URLs. Evaluate responses purely on accuracy, helpfulness, completeness, and clarity of the content itself.`;
+
 /**
  * Escapes content that might contain XML-like tags to prevent injection
  * by replacing < and > with escaped versions within user content
@@ -137,7 +144,7 @@ export async function handler(
         responseText = await judgeGemini(secrets.GEMINI_API_KEY, JUDGE_SYSTEM_PROMPT, userPrompt, model);
         break;
       case 'PERPLEXITY':
-        responseText = await judgePerplexity(secrets.PERPLEXITY_API_KEY, JUDGE_SYSTEM_PROMPT, userPrompt, model);
+        responseText = await judgePerplexity(secrets.PERPLEXITY_API_KEY, JUDGE_SYSTEM_PROMPT + PERPLEXITY_JUDGE_ADDENDUM, userPrompt, model);
         break;
       default:
         throw new Error(`Unknown judge provider: ${judgeProvider}`);
