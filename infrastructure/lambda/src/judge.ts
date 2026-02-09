@@ -40,11 +40,16 @@ If there are no problems, use an empty array: "problems": []
 Respond ONLY with the JSON object, no additional text.`;
 
 // Perplexity models are web-search-augmented and inherently bias toward valuing
-// citations/sources. This addendum prevents unfair penalization of responses
-// that don't include citations, which is not a requirement for this application.
+// citations/sources and treating search results as the sole source of truth.
+// This addendum prevents unfair penalization of responses based on the
+// limitations of Perplexity's own web search results.
 const PERPLEXITY_JUDGE_ADDENDUM = `
 
-IMPORTANT: Do NOT penalize responses for lacking citations, references, or source links. The AI assistants being evaluated are not expected to provide citations or URLs. Evaluate responses purely on accuracy, helpfulness, completeness, and clarity of the content itself.`;
+IMPORTANT EVALUATION GUIDELINES:
+- Do NOT penalize responses for lacking citations, references, or source links. The AI assistants being evaluated are not expected to provide citations or URLs.
+- Do NOT penalize or flag factual claims simply because they do not appear in your web search results. Your search results are limited and may not cover everything. A claim is not wrong just because you couldn't find it in a search.
+- Use your own knowledge and reasoning to evaluate accuracy, not just your search results. Only flag claims as inaccurate if you have strong evidence they are actually wrong, not merely because they are unverified by your search.
+- Evaluate responses purely on accuracy, helpfulness, completeness, and clarity of the content itself, the same way any other AI evaluator would.`;
 
 /**
  * Escapes content that might contain XML-like tags to prevent injection
