@@ -1,7 +1,7 @@
 # Secrets Manager for LLM API keys
 resource "aws_secretsmanager_secret" "llm_api_keys" {
   name        = "${var.project_name}-${var.environment}-llm-api-keys"
-  description = "API keys for LLM providers (OpenAI, Anthropic, Google)"
+  description = "API keys for LLM providers (OpenAI, Anthropic, Google, Perplexity, xAI)"
 
   tags = {
     Name = "${var.project_name}-llm-api-keys"
@@ -16,6 +16,7 @@ resource "aws_secretsmanager_secret_version" "llm_api_keys" {
     ANTHROPIC_API_KEY   = "placeholder-add-your-key"
     GEMINI_API_KEY      = "placeholder-add-your-key"
     PERPLEXITY_API_KEY  = "placeholder-add-your-key"
+    GROK_API_KEY        = "placeholder-add-your-key"
   })
 
   lifecycle {

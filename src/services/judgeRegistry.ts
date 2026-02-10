@@ -51,6 +51,14 @@ export const judgeRegistry: JudgeConfig[] = [
     isConfigured: isAppSyncConfigured,
     getRating: createJudgeRating('perplexity'),
   },
+  {
+    id: 'grok',
+    name: 'Grok',
+    description: 'xAI Grok',
+    color: '#EF4444', // xAI red
+    isConfigured: isAppSyncConfigured,
+    getRating: createJudgeRating('grok'),
+  },
 ]
 
 // Helper to get a judge by ID

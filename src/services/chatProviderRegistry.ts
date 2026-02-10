@@ -65,6 +65,14 @@ export const chatProviderRegistry: ChatProviderConfig[] = [
     isConfigured: isAppSyncConfigured,
     sendMessageStream: createProviderStream('openai'),
   },
+  {
+    id: 'grok',
+    name: 'Grok',
+    description: 'xAI Grok',
+    color: '#EF4444', // xAI red
+    isConfigured: isAppSyncConfigured,
+    sendMessageStream: createProviderStream('grok'),
+  },
 ]
 
 // Default provider ID

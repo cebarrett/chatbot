@@ -6,7 +6,7 @@ import {
 } from './types';
 import { getSecrets } from './secrets';
 import { publishChunk } from './appsync';
-import { streamOpenAI, streamAnthropic, streamGemini, streamPerplexity } from './providers';
+import { streamOpenAI, streamAnthropic, streamGemini, streamPerplexity, streamGrok } from './providers';
 import { validateSendMessageInput, ValidationError } from './validation';
 import { resolveInternalUserId } from './userService';
 
@@ -89,7 +89,7 @@ export function handler(
 }
 
 async function streamInBackground(
-  secrets: { OPENAI_API_KEY: string; ANTHROPIC_API_KEY: string; GEMINI_API_KEY: string; PERPLEXITY_API_KEY: string },
+  secrets: { OPENAI_API_KEY: string; ANTHROPIC_API_KEY: string; GEMINI_API_KEY: string; PERPLEXITY_API_KEY: string; GROK_API_KEY: string },
   provider: ChatProvider,
   messages: { role: 'user' | 'assistant' | 'system'; content: string }[],
   requestId: string,
@@ -109,6 +109,9 @@ async function streamInBackground(
         break;
       case 'PERPLEXITY':
         await streamPerplexity(secrets.PERPLEXITY_API_KEY, messages, requestId, userId, model);
+        break;
+      case 'GROK':
+        await streamGrok(secrets.GROK_API_KEY, messages, requestId, userId, model);
         break;
       default:
         throw new Error(`Unknown provider: ${provider}`);
