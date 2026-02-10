@@ -21,6 +21,7 @@ export const ALLOWED_MODELS: Record<ChatProvider, string[]> = {
     'gpt-3.5-turbo',
   ],
   ANTHROPIC: [
+    'claude-opus-4-20250514',
     'claude-sonnet-4-20250514',
     'claude-3-5-sonnet-20241022',
     'claude-3-5-haiku-20241022',
