@@ -2,15 +2,27 @@
 
 ## Overview
 
-This document defines the requirements for making the multi-provider LLM chatbot ready to share with non-technical friends and family as a free alternative to paid AI chat services like ChatGPT Plus.
+This document defines the requirements for making the multi-provider LLM chatbot ready to share with non-technical friends and family.
 
 ### Current State
 
 The app is a functional multi-provider AI chatbot with a React + TypeScript frontend, AWS serverless backend, Clerk authentication, and support for OpenAI, Anthropic Claude, Google Gemini, and Perplexity. It includes a unique AI judge system that evaluates response quality, chat history persistence, streaming responses, and dark/light theme support.
 
+### Value Proposition
+
+This app is not just a free alternative to ChatGPT Plus. Its differentiating feature is the multi-judge system: independent AI models that critique each other's responses, surface problems, and let users ask follow-up questions about the evaluation. For non-technical users encountering AI for the first time -- or skeptical users who distrust it -- this transparency is the product.
+
+Most AI chat apps present responses as authoritative. This app does the opposite: it treats every response as something to be questioned. That makes it uniquely suited for helping people develop the critical evaluation skills they need to use AI effectively, including recognizing hallucinations, understanding when models are confident vs. guessing, and learning that different AI systems give different answers to the same question.
+
+The goal is to help users get comfortable with both the power and the limitations of current AI, so they can use it productively without being misled by it.
+
 ### Target Audience
 
-Non-technical users (friends and family) who currently use or would consider paying for ChatGPT, Claude, or similar services.
+Non-technical users (friends and family) who:
+- Currently use or would consider paying for ChatGPT, Claude, or similar services
+- Are curious about AI but unsure how much to trust it
+- Are skeptical of AI hype and want to see the cracks for themselves
+- Have never used an AI chatbot and need safe, guided first exposure
 
 ### Success Criteria
 
@@ -18,6 +30,9 @@ Non-technical users (friends and family) who currently use or would consider pay
 - No single user can cause runaway API costs
 - Errors are surfaced clearly, never silently swallowed
 - Core workflows (chat, delete, edit) feel safe and forgiving
+- Users engage with judge ratings on at least 30% of responses (expand, read explanations, or ask follow-ups)
+- Users who complete onboarding can articulate at least one limitation of AI chat (e.g., "it can make things up" or "different AIs give different answers")
+- The judge system is understood as "AI checking AI," not confused for a human review or ignored entirely
 
 ---
 
@@ -68,20 +83,43 @@ Non-technical users (friends and family) who currently use or would consider pay
 
 ## P1: Should-Have (First Week)
 
-### 5. First-Visit Onboarding
+### 5. First-Visit Onboarding with AI Literacy Framing
 
-**Problem:** No explanation of features exists in the app. The judge system (gavel icon), provider selector, and incognito mode are undiscoverable to new users.
+**Problem:** No explanation of features exists in the app. The judge system (gavel icon), provider selector, and incognito mode are undiscoverable to new users. More importantly, the app's core value -- helping users critically evaluate AI responses -- is never communicated. Users who don't understand why the judge system exists will ignore it.
 
 **Requirements:**
-- Show a lightweight onboarding flow on first sign-in (3-4 steps max):
-  1. "Choose your AI" -- explain provider selector and what each provider is good at
-  2. "Get a second opinion" -- explain the judge system and how to read quality ratings
-  3. "Go incognito" -- explain ephemeral chats
+- Show a lightweight onboarding flow on first sign-in (4-5 steps max):
+  1. **"AI is useful, but not perfect"** -- set expectations upfront. AI chatbots can be confidently wrong, make things up, or give different answers depending on the day. This app is designed to help you see that for yourself.
+  2. **"Choose your AI"** -- explain the provider selector and that each provider is a different AI system with different strengths and blind spots.
+  3. **"Every response gets a second opinion"** -- explain that independent AI judges automatically review each response and flag potential problems. This is like having a fact-checker built in, though the fact-checker can be wrong too.
+  4. **"Ask the judges why"** -- show that users can tap on a judge rating and ask follow-up questions like "Is this really accurate?" or "What should I verify?"
+  5. **"You're the final judge"** -- close by reinforcing that the scores and evaluations are tools to help the user think, not a stamp of approval. Encourage users to question everything, including the judges.
 - Store completion state in localStorage so it only shows once
 - Add a "?" help button in the header that re-triggers the onboarding or shows a help summary
-- Add brief helper text or tooltips to the judge menu explaining what each judge does
+- Add brief helper text in the judge menu explaining what each judge does and why having multiple judges matters ("Different AI models catch different problems")
 
-### 6. Chat Renaming
+### 6. Judge Disagreement Highlighting
+
+**Problem:** When multiple judges evaluate a response, their scores are displayed side by side with no commentary. But judge disagreement is one of the most powerful AI literacy teaching moments available: it demonstrates that AI evaluation itself is subjective and uncertain. Currently, a user seeing "Claude: 8.5" next to "Gemini: 5.0" has no prompt to think about what that gap means.
+
+**Requirements:**
+- When judge scores diverge by more than 2.5 points, display a visible "Judges disagree" indicator on the rating summary
+- In the expanded view, show a brief explanation: "These AI judges evaluated this response differently. This is normal -- AI systems have different strengths and biases. Consider reading both explanations to decide for yourself."
+- Use a distinct visual treatment (e.g., a contrasting chip color or icon) so users notice disagreement without needing to expand
+- Track disagreement frequency in analytics to understand how often it occurs
+
+### 7. Visible Scoring Rubric
+
+**Problem:** The judge scoring rubric (1-3 = poor, 4-5 = below average, 6-7 = average, 8-9 = good, 9-10 = excellent) and the evaluation criteria (accuracy, helpfulness, completeness, clarity) are buried in the Lambda system prompt. Users see a number like "7.5" with no context for what it means or what the judge was looking for.
+
+**Requirements:**
+- Add a "How scoring works" expandable section accessible from the rating area (e.g., a small "?" icon next to the score)
+- Show the score scale with descriptions (Poor / Below Average / Average / Good / Excellent)
+- List the evaluation dimensions: accuracy, helpfulness, completeness, and clarity
+- Keep it brief -- a single compact card, not a wall of text
+- This helps users internalize the criteria and develop their own evaluation instincts over time
+
+### 8. Chat Renaming
 
 **Problem:** Chats are auto-titled from the first message and can't be renamed. The sidebar becomes a wall of truncated, unhelpful text.
 
@@ -91,7 +129,7 @@ Non-technical users (friends and family) who currently use or would consider pay
 - Limit title length to 100 characters
 - Save immediately on blur or Enter key
 
-### 7. Copy Button on Code Blocks
+### 9. Copy Button on Code Blocks
 
 **Problem:** Code blocks rendered via react-syntax-highlighter have no copy mechanism. On mobile, selecting and copying code is especially painful.
 
@@ -100,7 +138,7 @@ Non-technical users (friends and family) who currently use or would consider pay
 - Show brief "Copied!" confirmation feedback
 - Works on both desktop and mobile
 
-### 8. Content Moderation
+### 10. Content Moderation
 
 **Problem:** No input or output filtering exists. The app relies entirely on upstream LLM provider safety filters, which vary in strictness.
 
@@ -110,11 +148,72 @@ Non-technical users (friends and family) who currently use or would consider pay
 - At minimum, log flagged content for review
 - Consider age-gating or usage agreements if minors may have access
 
+### 11. Multi-Model Comparison View
+
+**Problem:** Nothing teaches "AI is not an oracle" faster than seeing three different models give three different answers to the same question. The existing multi-provider architecture already supports this, but users can only talk to one provider at a time.
+
+**Requirements:**
+- Add a "Compare" mode that sends the same prompt to 2-3 selected providers simultaneously
+- Display responses side by side (desktop) or stacked with clear provider labels (mobile)
+- Each response gets its own judge evaluations
+- Highlight differences between responses (even a simple "Responses differ" notice is valuable)
+- Frame this feature in the UI as a learning tool: "See how different AIs answer the same question"
+
+**AI literacy value:** This is one of the highest-impact features for shifting users' mental model from "AI gives me the answer" to "AI gives me an answer." When users see three confident, well-written, but contradictory responses, the lesson is immediate and visceral.
+
 ---
 
 ## P2: Nice-to-Have (First Month)
 
-### 9. File & Image Upload
+### 12. Hallucination-Specific Evaluation
+
+**Problem:** The current judge system evaluates general quality (accuracy, helpfulness, completeness, clarity) but doesn't specifically flag hallucinated content. The `problems` array can contain anything. If teaching users to watch for hallucinations is a core goal, the judge system needs to call this out explicitly.
+
+**Requirements:**
+- Add a hallucination-focused evaluation dimension to the judge system prompt, asking judges to specifically identify:
+  - Claims that cannot be verified or are likely fabricated
+  - Invented citations, statistics, or sources
+  - Confident statements about topics where the model is likely guessing
+- Display hallucination warnings distinctly in the UI, separate from general quality issues (e.g., a "Verify this" label or icon on flagged claims)
+- Consider a simple "Confidence" indicator alongside the quality score: "The judge thinks some claims in this response may need verification"
+- This should complement, not replace, the existing general quality evaluation
+
+### 13. Suggested Follow-Up Questions for Judges
+
+**Problem:** The follow-up question feature (asking a judge "why did you rate this a 7?") is one of the most valuable AI literacy tools in the app, but it requires users to know what to ask. Non-technical users may not engage with it because they don't have a question in mind.
+
+**Requirements:**
+- Pre-populate 2-3 suggested follow-up questions below the judge's explanation, tailored to the rating context:
+  - For low scores: "What's wrong with this response?" / "How could I get a better answer?"
+  - For high scores: "Is there anything I should double-check?" / "What's missing from this answer?"
+  - General: "Could this response be misleading?" / "How confident should I be in this?"
+- Suggested questions appear as tappable chips, not a dropdown or menu
+- Tapping a chip submits it immediately (same as typing and sending a follow-up)
+- This dramatically lowers the barrier to engaging with the judge system
+
+### 14. Persistent AI Literacy Nudges
+
+**Problem:** Even with good onboarding, users will forget the critical evaluation mindset after a few sessions. The app needs subtle, ongoing reminders that AI responses should be questioned.
+
+**Requirements:**
+- Add a subtle, non-intrusive caveat beneath each AI response: "AI responses may contain errors. Tap the ratings below for a second opinion." This should be visually muted (small, low-contrast text) so it doesn't dominate the UI, but present enough to normalize the idea that verification is expected.
+- Periodically (e.g., every 10th message), show a slightly more prominent tip: "Did you know? Different AI models often disagree with each other. Try switching providers to compare answers."
+- These nudges should be dismissible per-session and respect a "don't show again" preference
+- The tone should be helpful and empowering, never condescending: "Here's how to get more out of this" rather than "Be careful, AI is dangerous"
+
+### 15. Example Conversations
+
+**Problem:** Non-technical users landing in an empty chat may not know what to ask, and won't see the judge system in action until they send a message. Pre-loaded examples could demonstrate the app's value immediately.
+
+**Requirements:**
+- Offer 2-3 pre-loaded example conversations accessible from the empty chat state:
+  - One where a response got a high score with a clean evaluation
+  - One where a response got a low score with clear problems identified (e.g., a hallucinated fact)
+  - One showing judge disagreement, with the user asking a follow-up question
+- These should be clearly labeled as examples ("See how it works") and not mixed into the user's chat history
+- Users can dismiss them and start fresh at any time
+
+### 16. File & Image Upload
 
 **Problem:** ChatGPT supports uploading PDFs, images, and documents. This is one of its most-used features for casual users ("read this menu", "what's this error screenshot"). The app is text-only.
 
@@ -125,7 +224,7 @@ Non-technical users (friends and family) who currently use or would consider pay
 - Show clear errors for unsupported file types or sizes
 - Set file size limits (e.g. 10MB images, 20MB PDFs)
 
-### 10. Web Search Integration
+### 17. Web Search Integration
 
 **Problem:** Perplexity has built-in search capabilities but citations are stripped out. Users asking about current events get stale or incorrect answers from other providers.
 
@@ -134,7 +233,7 @@ Non-technical users (friends and family) who currently use or would consider pay
 - Consider adding a "Search" toggle or auto-detecting queries that need current information
 - Show a visual indicator when a response includes web search results
 
-### 11. Voice Input
+### 18. Voice Input
 
 **Problem:** Many casual users prefer speaking to typing, especially on mobile. ChatGPT's voice mode is heavily used.
 
@@ -145,7 +244,7 @@ Non-technical users (friends and family) who currently use or would consider pay
 - Transcribed text appears in the input field for review before sending
 - Graceful fallback for unsupported browsers
 
-### 12. Improved Mobile Experience
+### 19. Improved Mobile Experience
 
 **Problem:** While the app is responsive, some mobile-specific polish is missing.
 
@@ -156,7 +255,7 @@ Non-technical users (friends and family) who currently use or would consider pay
 - Test on small phones (320px), tablets, and landscape orientations
 - Ensure touch targets are at least 44x44px per accessibility guidelines
 
-### 13. Chat Sharing & Export
+### 20. Chat Sharing & Export
 
 **Problem:** No way to share an interesting conversation or export chat history.
 
@@ -170,23 +269,27 @@ Non-technical users (friends and family) who currently use or would consider pay
 
 ## P3: Future Considerations
 
-### 14. Custom System Prompts
+### 21. Custom System Prompts
 
 Allow users to set a persistent system prompt ("You are a helpful cooking assistant") per chat or globally.
 
-### 15. Prompt Library
+### 22. Prompt Library with AI Literacy Templates
 
-Pre-built prompt templates for common tasks (summarize, translate, explain like I'm 5, proofread, etc.) to help users who don't know what to ask.
+Pre-built prompt templates, but framed around critical thinking rather than just productivity:
+- **"Test the AI"** prompts that are known to produce hallucinations or inconsistencies (e.g., asking for fake citations, asking about very recent events, asking for medical/legal advice)
+- **"Compare answers"** templates that encourage sending the same question to multiple providers
+- **Everyday tasks:** summarize, translate, explain like I'm 5, proofread -- with tips on verifying the output
+- Each template should include a brief note on what to watch out for ("AI translations can miss cultural nuance -- have a native speaker check important translations")
 
-### 16. Multi-Model Comparison View
+### 23. Judge Calibration Transparency
 
-Side-by-side responses from multiple providers for the same prompt, leveraging the existing multi-provider architecture.
+Show aggregate statistics on how judges typically score: "Claude's average score is 7.8, Gemini's is 6.9." This helps users understand that judge scores are relative, not absolute, and that some judges are systematically harsher or more lenient. This kind of meta-information builds genuine AI literacy.
 
-### 17. Mobile App (PWA)
+### 24. Mobile App (PWA)
 
 Convert to a Progressive Web App with offline support, push notifications for shared chats, and home screen installation.
 
-### 18. Admin Dashboard
+### 25. Admin Dashboard
 
 Web-based dashboard for the app operator showing per-user usage, costs, error rates, and the ability to manage user limits.
 
