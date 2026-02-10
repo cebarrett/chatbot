@@ -44,14 +44,6 @@ export const judgeRegistry: JudgeConfig[] = [
     getRating: createJudgeRating('openai'),
   },
   {
-    id: 'perplexity',
-    name: 'Perplexity',
-    description: 'Perplexity Sonar AI',
-    color: '#20808D', // Perplexity teal
-    isConfigured: isAppSyncConfigured,
-    getRating: createJudgeRating('perplexity'),
-  },
-  {
     id: 'grok',
     name: 'Grok',
     description: 'xAI Grok',

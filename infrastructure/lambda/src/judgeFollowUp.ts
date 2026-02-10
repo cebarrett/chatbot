@@ -4,7 +4,7 @@ import {
   JudgeFollowUpResponse,
 } from './types';
 import { getSecrets } from './secrets';
-import { judgeOpenAI, judgeAnthropic, judgeGemini, judgePerplexity, judgeGrok } from './providers';
+import { judgeOpenAI, judgeAnthropic, judgeGemini, judgeGrok } from './providers';
 import { validateJudgeFollowUpInput, ValidationError } from './validation';
 import { resolveInternalUserId } from './userService';
 
@@ -148,9 +148,6 @@ export async function handler(
         break;
       case 'GEMINI':
         responseText = await judgeGemini(secrets.GEMINI_API_KEY, FOLLOW_UP_SYSTEM_PROMPT, userPrompt, model);
-        break;
-      case 'PERPLEXITY':
-        responseText = await judgePerplexity(secrets.PERPLEXITY_API_KEY, FOLLOW_UP_SYSTEM_PROMPT, userPrompt, model);
         break;
       case 'GROK':
         responseText = await judgeGrok(secrets.GROK_API_KEY, FOLLOW_UP_SYSTEM_PROMPT, userPrompt, model);
