@@ -106,7 +106,7 @@ function SingleRatingBadge({
         }
         size="small"
         variant="outlined"
-        sx={{ opacity: 0.7 }}
+        sx={{ opacity: 0.7, width: { xs: '100%', sm: 'auto' } }}
       />
     )
   }
@@ -140,6 +140,7 @@ function SingleRatingBadge({
       onClick={onToggle}
       sx={{
         cursor: 'pointer',
+        width: { xs: '100%', sm: 'auto' },
         '&:hover': {
           filter: 'brightness(0.95)',
         },
@@ -355,7 +356,7 @@ export function ResponseQualityRating({
 
   return (
     <Box sx={{ mt: 1.5 }}>
-      <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
+      <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap', flexDirection: { xs: 'column', sm: 'row' } }}>
         {judgesWithRatings.map(({ judgeId, judge, rating }) => (
           <SingleRatingBadge
             key={judgeId}
@@ -376,6 +377,7 @@ export function ResponseQualityRating({
             gap: 1,
             mt: 1,
             flexWrap: 'wrap',
+            flexDirection: { xs: 'column', sm: 'row' },
           }}
         >
           {judgesWithRatings
