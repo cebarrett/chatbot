@@ -2,7 +2,7 @@ import { ChatMessageInput, OpenAIMessage } from '../types';
 import { ChunkBatcher } from '../chunkBatcher';
 
 const OPENAI_API_URL = 'https://api.openai.com/v1/chat/completions';
-const DEFAULT_MODEL = 'gpt-4o';
+const DEFAULT_MODEL = 'gpt-5.2';
 
 export async function streamOpenAI(
   apiKey: string,
