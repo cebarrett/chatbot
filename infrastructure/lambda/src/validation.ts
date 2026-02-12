@@ -11,43 +11,6 @@ export const VALIDATION_LIMITS = {
   MAX_FOLLOW_UP_QUESTION_BYTES: 4 * 1024, // 4KB for follow-up questions
 } as const;
 
-// Model allowlists per provider - only these models can be used
-export const ALLOWED_MODELS: Record<ChatProvider, string[]> = {
-  OPENAI: [
-    'gpt-5.2',
-    'gpt-5.1',
-    'gpt-5',
-    'gpt-4o',
-    'gpt-4o-mini',
-    'gpt-4-turbo',
-    'gpt-4',
-    'gpt-3.5-turbo',
-  ],
-  ANTHROPIC: [
-    'claude-opus-4-6',
-    'claude-sonnet-4-5-20250929',
-    'claude-haiku-4-5-20251001',
-    'claude-sonnet-4-20250514',
-  ],
-  GEMINI: [
-    'gemini-3-pro-preview',
-    'gemini-3-flash-preview',
-    'gemini-2.5-pro',
-    'gemini-2.5-flash',
-  ],
-  PERPLEXITY: [
-    'sonar-reasoning-pro',
-    'sonar-reasoning',
-    'sonar-pro',
-    'sonar',
-  ],
-  GROK: [
-    'grok-4-0709',
-    'grok-4-1-fast',
-    'grok-3',
-  ],
-};
-
 export class ValidationError extends Error {
   constructor(message: string) {
     super(message);
@@ -62,22 +25,6 @@ export function validateProvider(provider: string): asserts provider is ChatProv
   const validProviders: ChatProvider[] = ['OPENAI', 'ANTHROPIC', 'GEMINI', 'PERPLEXITY', 'GROK'];
   if (!validProviders.includes(provider as ChatProvider)) {
     throw new ValidationError(`Invalid provider: ${provider}. Must be one of: ${validProviders.join(', ')}`);
-  }
-}
-
-/**
- * Validates that the model is allowed for the given provider
- */
-export function validateModel(provider: ChatProvider, model: string | undefined): void {
-  if (!model) {
-    return; // undefined model is ok - will use default
-  }
-
-  const allowedModels = ALLOWED_MODELS[provider];
-  if (!allowedModels.includes(model)) {
-    throw new ValidationError(
-      `Invalid model "${model}" for provider ${provider}. Allowed models: ${allowedModels.join(', ')}`
-    );
   }
 }
 
@@ -191,7 +138,6 @@ export function validateSendMessageInput(input: SendMessageInput): void {
 
   validateRequestId(input.requestId);
   validateProvider(input.provider);
-  validateModel(input.provider, input.model);
   validateMessages(input.messages);
 }
 
@@ -204,7 +150,6 @@ export function validateJudgeInput(input: JudgeInput): void {
   }
 
   validateProvider(input.judgeProvider);
-  validateModel(input.judgeProvider, input.model);
 
   // Validate required string fields
   validateStringField(
@@ -238,7 +183,6 @@ export function validateJudgeFollowUpInput(input: JudgeFollowUpInput): void {
   }
 
   validateProvider(input.judgeProvider);
-  validateModel(input.judgeProvider, input.model);
 
   // Validate required string fields
   validateStringField(
