@@ -22,7 +22,7 @@ export const judgeRegistry: JudgeConfig[] = [
   {
     id: 'claude',
     name: 'Claude',
-    description: 'Anthropic Claude AI',
+    description: 'Anthropic Claude Opus 4',
     color: '#D97706', // Amber/orange
     isConfigured: isAppSyncConfigured,
     getRating: createJudgeRating('claude'),
@@ -30,7 +30,7 @@ export const judgeRegistry: JudgeConfig[] = [
   {
     id: 'gemini',
     name: 'Gemini',
-    description: 'Google Gemini AI',
+    description: 'Google Gemini 2.5 Pro',
     color: '#4285F4', // Google blue
     isConfigured: isAppSyncConfigured,
     getRating: createJudgeRating('gemini'),
@@ -38,7 +38,7 @@ export const judgeRegistry: JudgeConfig[] = [
   {
     id: 'openai',
     name: 'ChatGPT',
-    description: 'OpenAI ChatGPT',
+    description: 'OpenAI GPT-4o',
     color: '#10A37F', // OpenAI green
     isConfigured: isAppSyncConfigured,
     getRating: createJudgeRating('openai'),
@@ -46,7 +46,7 @@ export const judgeRegistry: JudgeConfig[] = [
   {
     id: 'perplexity',
     name: 'Perplexity',
-    description: 'Perplexity Sonar AI',
+    description: 'Perplexity Sonar Reasoning Pro',
     color: '#20808D', // Perplexity teal
     isConfigured: isAppSyncConfigured,
     getRating: createJudgeRating('perplexity'),
@@ -54,7 +54,7 @@ export const judgeRegistry: JudgeConfig[] = [
   {
     id: 'grok',
     name: 'Grok',
-    description: 'xAI Grok',
+    description: 'xAI Grok 3',
     color: '#EF4444', // xAI red
     isConfigured: isAppSyncConfigured,
     getRating: createJudgeRating('grok'),
