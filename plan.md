@@ -129,7 +129,7 @@ This is the simplest safety measure and should be done first regardless of the r
   - `ConditionExpression`: `attribute_not_exists(requestCount) OR requestCount < :maxRequests`
   - On `ConditionalCheckFailedException`: throw a `RateLimitError` with a user-friendly message
 - `checkTokenBudget(internalUserId: string): Promise<void>` — Reads the current day's token count and throws `RateLimitError` if over budget. This is a soft check (read-then-decide), acceptable because token tracking is best-effort.
-- `recordTokenUsage(internalUserId: string, tokenCount: number): Promise<void>` — `UpdateItem` with `ADD tokenCount :tokens` to accumulate usage.
+- `recordTokenUsage(internalUserId: string, tokenCount: number): Promise<void>` — `UpdateItem` with `ADD tokenCount :tokens` to accumulate usage. Callers must wrap this in try/catch and log failures silently, since token recording happens after the response has already been returned to the user.
 - `RateLimitError` class extending `Error` with a `code: 'RATE_LIMIT_EXCEEDED'` property.
 - Helper: `getTodayKey(): string` — Returns `YYYY-MM-DD` in UTC for the sort key.
 - Helper: `getTtlEpoch(): number` — Returns epoch seconds for midnight UTC + 48 hours.
@@ -143,17 +143,17 @@ This is the simplest safety measure and should be done first regardless of the r
 - `infrastructure/lambda/src/judgeFollowUp.ts`
 
 **Changes in `chat.ts`:**
-- After `resolveInternalUserId()` resolves (line 52-54), call `checkAndIncrementRequestCount(internalUserId)` and `checkTokenBudget(internalUserId)`.
+- After `resolveInternalUserId()` resolves (line 52-54), call `checkTokenBudget(internalUserId)` first (read-only, won't mutate state if the next check fails), then `checkAndIncrementRequestCount(internalUserId)` (atomic write). This ordering ensures a token-budget rejection doesn't burn a request slot.
 - If `RateLimitError` is thrown, return `{ status: 'ERROR', message: error.message }` with the friendly message — same pattern as existing `ValidationError` handling.
-- After streaming completes in `streamInBackground()`, call `recordTokenUsage(internalUserId, tokenCount)` with the token count returned from the provider.
+- After streaming completes in `streamInBackground()`, call `recordTokenUsage(internalUserId, tokenCount)` with the token count returned from the provider. Wrap in try/catch — log failures with `console.error` but do not propagate, since `callback()` has already returned and the user cannot see these errors.
 
 **Changes in `judge.ts`:**
-- After `resolveInternalUserId()` (line 123), call `checkAndIncrementRequestCount(internalUserId)` and `checkTokenBudget(internalUserId)`.
+- After `resolveInternalUserId()` (line 123), call `checkTokenBudget(internalUserId)` first, then `checkAndIncrementRequestCount(internalUserId)` (same ordering rationale as chat.ts).
 - Catch `RateLimitError` and return `{ score: 0, explanation: error.message, problems: ['Rate limit exceeded'] }`.
-- After the judge call completes, call `recordTokenUsage()` with parsed token counts.
+- After the judge call completes, call `recordTokenUsage()` with parsed token counts. Wrap in try/catch — log failures but do not propagate.
 
 **Changes in `judgeFollowUp.ts`:**
-- Same pattern as `judge.ts`: check before calling, record after.
+- Same pattern as `judge.ts`: check token budget then increment request count before calling, record after (with silent failure handling).
 
 ### Step 7: Extract token usage from provider responses
 
