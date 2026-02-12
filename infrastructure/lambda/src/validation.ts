@@ -24,19 +24,16 @@ export const ALLOWED_MODELS: Record<ChatProvider, string[]> = {
     'gpt-3.5-turbo',
   ],
   ANTHROPIC: [
-    'claude-opus-4-20250514',
+    'claude-opus-4-6',
+    'claude-sonnet-4-5-20250929',
+    'claude-haiku-4-5-20251001',
     'claude-sonnet-4-20250514',
-    'claude-3-5-sonnet-20241022',
-    'claude-3-5-haiku-20241022',
-    'claude-3-opus-20240229',
-    'claude-3-haiku-20240307',
   ],
   GEMINI: [
+    'gemini-3-pro-preview',
+    'gemini-3-flash-preview',
     'gemini-2.5-pro',
     'gemini-2.5-flash',
-    'gemini-2.0-flash',
-    'gemini-1.5-pro',
-    'gemini-1.5-flash',
   ],
   PERPLEXITY: [
     'sonar-reasoning-pro',
@@ -45,9 +42,9 @@ export const ALLOWED_MODELS: Record<ChatProvider, string[]> = {
     'sonar',
   ],
   GROK: [
+    'grok-4-0709',
+    'grok-4-1-fast',
     'grok-3',
-    'grok-3-mini',
-    'grok-2',
   ],
 };
 
