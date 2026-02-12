@@ -2,9 +2,11 @@ import { ChatMessageInput, GeminiContent } from '../types';
 import { ChunkBatcher } from '../chunkBatcher';
 
 const GEMINI_API_BASE = 'https://generativelanguage.googleapis.com/v1beta/models';
-const DEFAULT_MODEL = 'gemini-2.5-pro';
+const DEFAULT_MODEL = 'gemini-3-pro-preview';
 
 const THINKING_CAPABLE_MODELS = new Set([
+  'gemini-3-pro-preview',
+  'gemini-3-flash-preview',
   'gemini-2.5-pro',
   'gemini-2.5-flash',
 ]);
