@@ -1,5 +1,20 @@
 import '@testing-library/jest-dom/vitest'
 
+// Provide a full localStorage mock (Node 25's native localStorage can conflict with jsdom)
+const store: Record<string, string> = {}
+Object.defineProperty(globalThis, 'localStorage', {
+  value: {
+    getItem: (key: string) => store[key] ?? null,
+    setItem: (key: string, value: string) => { store[key] = String(value) },
+    removeItem: (key: string) => { delete store[key] },
+    clear: () => { for (const key in store) delete store[key] },
+    get length() { return Object.keys(store).length },
+    key: (index: number) => Object.keys(store)[index] ?? null,
+  },
+  writable: true,
+  configurable: true,
+})
+
 // Mock window.matchMedia for MUI responsive components
 Object.defineProperty(window, 'matchMedia', {
   writable: true,

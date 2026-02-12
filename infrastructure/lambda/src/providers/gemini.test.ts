@@ -41,7 +41,7 @@ describe('streamGemini - request building', () => {
 
   it('uses default model when none specified', async () => {
     await streamGemini('key', [{ role: 'user', content: 'hi' }], 'req', 'user');
-    expect(captureUrl()).toContain('/gemini-2.5-pro:');
+    expect(captureUrl()).toContain('/gemini-3-pro-preview:');
   });
 
   it('uses specified model when provided', async () => {
