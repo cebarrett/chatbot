@@ -5,6 +5,14 @@
 
 set -e
 
+# Load .env file if present
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+if [ -f "$SCRIPT_DIR/../.env" ]; then
+    set -a
+    source "$SCRIPT_DIR/../.env"
+    set +a
+fi
+
 # Configuration - set these environment variables or modify defaults
 S3_BUCKET="${S3_BUCKET:-}"
 AWS_REGION="${AWS_REGION:-us-east-1}"
