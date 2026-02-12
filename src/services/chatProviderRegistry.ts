@@ -36,7 +36,7 @@ export const chatProviderRegistry: ChatProviderConfig[] = [
   {
     id: 'perplexity',
     name: 'Perplexity',
-    description: 'Perplexity Sonar AI',
+    description: 'Perplexity Sonar Reasoning Pro',
     color: '#20808D', // Perplexity teal
     isConfigured: isAppSyncConfigured,
     sendMessageStream: createProviderStream('perplexity'),
@@ -44,7 +44,7 @@ export const chatProviderRegistry: ChatProviderConfig[] = [
   {
     id: 'gemini',
     name: 'Gemini',
-    description: 'Google Gemini AI',
+    description: 'Google Gemini 2.5 Pro',
     color: '#4285F4', // Google blue
     isConfigured: isAppSyncConfigured,
     sendMessageStream: createProviderStream('gemini'),
@@ -52,7 +52,7 @@ export const chatProviderRegistry: ChatProviderConfig[] = [
   {
     id: 'claude',
     name: 'Claude',
-    description: 'Anthropic Claude AI',
+    description: 'Anthropic Claude Opus 4',
     color: '#D97706', // Amber/orange
     isConfigured: isAppSyncConfigured,
     sendMessageStream: createProviderStream('claude'),
@@ -60,7 +60,7 @@ export const chatProviderRegistry: ChatProviderConfig[] = [
   {
     id: 'openai',
     name: 'ChatGPT',
-    description: 'OpenAI ChatGPT',
+    description: 'OpenAI GPT-5.2',
     color: '#10A37F', // OpenAI green
     isConfigured: isAppSyncConfigured,
     sendMessageStream: createProviderStream('openai'),
@@ -68,7 +68,7 @@ export const chatProviderRegistry: ChatProviderConfig[] = [
   {
     id: 'grok',
     name: 'Grok',
-    description: 'xAI Grok',
+    description: 'xAI Grok 3',
     color: '#EF4444', // xAI red
     isConfigured: isAppSyncConfigured,
     sendMessageStream: createProviderStream('grok'),
