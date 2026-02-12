@@ -52,6 +52,15 @@ IMPORTANT EVALUATION GUIDELINES:
 - Evaluate responses purely on accuracy, helpfulness, completeness, and clarity of the content itself, the same way any other AI evaluator would.`;
 
 /**
+ * Strips <think>...</think> blocks from response content so that
+ * internal reasoning (e.g. from Anthropic extended thinking) is not
+ * visible to judges.
+ */
+function stripThinkBlocks(content: string): string {
+  return content.replace(/<think>[\s\S]*?<\/think>\s*/g, '');
+}
+
+/**
  * Escapes content that might contain XML-like tags to prevent injection
  * by replacing < and > with escaped versions within user content
  */
@@ -70,10 +79,13 @@ function buildUserPrompt(
   responseToJudge: string,
   respondingProvider: string
 ): string {
+  // Strip think blocks so judges only see the visible response content
+  const cleanedResponse = stripThinkBlocks(responseToJudge);
+
   let historySection = '';
   if (conversationHistory && conversationHistory.length > 0) {
     const formattedHistory = conversationHistory
-      .map((m) => `<message role="${escapeXmlContent(m.role)}">${escapeXmlContent(m.content)}</message>`)
+      .map((m) => `<message role="${escapeXmlContent(m.role)}">${escapeXmlContent(stripThinkBlocks(m.content))}</message>`)
       .join('\n');
     historySection = `<conversation_history>
 ${formattedHistory}
@@ -89,7 +101,7 @@ ${escapeXmlContent(originalPrompt)}
 </user_prompt>
 
 <ai_response provider="${escapeXmlContent(respondingProvider)}">
-${escapeXmlContent(responseToJudge)}
+${escapeXmlContent(cleanedResponse)}
 </ai_response>
 
 Evaluate the AI response above and provide your JSON assessment.`;
