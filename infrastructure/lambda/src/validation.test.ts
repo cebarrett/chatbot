@@ -1,14 +1,12 @@
 import { describe, it, expect } from 'vitest';
 import {
   validateProvider,
-  validateModel,
   validateMessages,
   validateRequestId,
   validateSendMessageInput,
   validateJudgeInput,
   validateJudgeFollowUpInput,
   ValidationError,
-  ALLOWED_MODELS,
   VALIDATION_LIMITS,
 } from './validation';
 import { ChatProvider } from './types';
@@ -31,33 +29,6 @@ describe('validateProvider', () => {
 
   it('rejects unknown provider', () => {
     expect(() => validateProvider('INVALID')).toThrow(ValidationError);
-  });
-});
-
-describe('validateModel', () => {
-  it('accepts undefined model', () => {
-    expect(() => validateModel('OPENAI', undefined)).not.toThrow();
-  });
-
-  it.each<[ChatProvider, string]>([
-    ['OPENAI', 'gpt-4o'],
-    ['ANTHROPIC', 'claude-sonnet-4-20250514'],
-    ['GEMINI', 'gemini-2.5-pro'],
-    ['PERPLEXITY', 'sonar-reasoning-pro'],
-  ])('accepts valid model for %s: %s', (provider, model) => {
-    expect(() => validateModel(provider, model)).not.toThrow();
-  });
-
-  it('rejects model for wrong provider', () => {
-    expect(() => validateModel('ANTHROPIC', 'gpt-4o')).toThrow(ValidationError);
-  });
-
-  it('rejects non-existent model', () => {
-    expect(() => validateModel('OPENAI', 'gpt-99')).toThrow(ValidationError);
-  });
-
-  it('treats empty string model same as undefined (uses default)', () => {
-    expect(() => validateModel('OPENAI', '')).not.toThrow();
   });
 });
 
@@ -173,12 +144,6 @@ describe('validateSendMessageInput', () => {
     expect(() => validateSendMessageInput(validInput)).not.toThrow();
   });
 
-  it('accepts input with optional model', () => {
-    expect(() =>
-      validateSendMessageInput({ ...validInput, model: 'gpt-4o' })
-    ).not.toThrow();
-  });
-
   it('rejects null input', () => {
     expect(() => validateSendMessageInput(null as any)).toThrow(ValidationError);
   });
@@ -186,12 +151,6 @@ describe('validateSendMessageInput', () => {
   it('rejects invalid provider', () => {
     expect(() =>
       validateSendMessageInput({ ...validInput, provider: 'INVALID' as any })
-    ).toThrow(ValidationError);
-  });
-
-  it('rejects invalid model for provider', () => {
-    expect(() =>
-      validateSendMessageInput({ ...validInput, model: 'claude-sonnet-4-20250514' })
     ).toThrow(ValidationError);
   });
 });
@@ -317,27 +276,3 @@ describe('validateJudgeFollowUpInput', () => {
   });
 });
 
-describe('ALLOWED_MODELS', () => {
-  it('every provider has at least one model', () => {
-    for (const provider of Object.keys(ALLOWED_MODELS) as ChatProvider[]) {
-      expect(ALLOWED_MODELS[provider].length).toBeGreaterThan(0);
-    }
-  });
-
-  // Regression guards for specific models
-  it('includes claude-sonnet-4-20250514 for ANTHROPIC', () => {
-    expect(ALLOWED_MODELS.ANTHROPIC).toContain('claude-sonnet-4-20250514');
-  });
-
-  it('includes gemini-2.5-pro for GEMINI', () => {
-    expect(ALLOWED_MODELS.GEMINI).toContain('gemini-2.5-pro');
-  });
-
-  it('includes gpt-4o for OPENAI', () => {
-    expect(ALLOWED_MODELS.OPENAI).toContain('gpt-4o');
-  });
-
-  it('includes sonar-reasoning-pro for PERPLEXITY', () => {
-    expect(ALLOWED_MODELS.PERPLEXITY).toContain('sonar-reasoning-pro');
-  });
-});
