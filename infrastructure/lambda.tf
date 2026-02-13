@@ -36,9 +36,11 @@ resource "aws_lambda_function" "chat" {
 
   environment {
     variables = {
-      SECRETS_NAME        = aws_secretsmanager_secret.llm_api_keys.name
-      APPSYNC_URL         = aws_appsync_graphql_api.chatbot.uris["GRAPHQL"]
-      DYNAMODB_TABLE_NAME = aws_dynamodb_table.chats.name
+      SECRETS_NAME               = aws_secretsmanager_secret.llm_api_keys.name
+      APPSYNC_URL                = aws_appsync_graphql_api.chatbot.uris["GRAPHQL"]
+      DYNAMODB_TABLE_NAME        = aws_dynamodb_table.chats.name
+      RATE_LIMIT_DAILY_REQUESTS  = tostring(var.rate_limit_daily_requests)
+      RATE_LIMIT_DAILY_TOKENS    = tostring(var.rate_limit_daily_tokens)
     }
   }
 
@@ -67,8 +69,10 @@ resource "aws_lambda_function" "judge" {
 
   environment {
     variables = {
-      SECRETS_NAME        = aws_secretsmanager_secret.llm_api_keys.name
-      DYNAMODB_TABLE_NAME = aws_dynamodb_table.chats.name
+      SECRETS_NAME               = aws_secretsmanager_secret.llm_api_keys.name
+      DYNAMODB_TABLE_NAME        = aws_dynamodb_table.chats.name
+      RATE_LIMIT_DAILY_REQUESTS  = tostring(var.rate_limit_daily_requests)
+      RATE_LIMIT_DAILY_TOKENS    = tostring(var.rate_limit_daily_tokens)
     }
   }
 
@@ -115,8 +119,10 @@ resource "aws_lambda_function" "judge_follow_up" {
 
   environment {
     variables = {
-      SECRETS_NAME        = aws_secretsmanager_secret.llm_api_keys.name
-      DYNAMODB_TABLE_NAME = aws_dynamodb_table.chats.name
+      SECRETS_NAME               = aws_secretsmanager_secret.llm_api_keys.name
+      DYNAMODB_TABLE_NAME        = aws_dynamodb_table.chats.name
+      RATE_LIMIT_DAILY_REQUESTS  = tostring(var.rate_limit_daily_requests)
+      RATE_LIMIT_DAILY_TOKENS    = tostring(var.rate_limit_daily_tokens)
     }
   }
 

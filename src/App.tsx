@@ -897,7 +897,7 @@ function App() {
       </Box>
 
         <Snackbar open={!!error} autoHideDuration={6000} onClose={handleCloseError}>
-          <Alert onClose={handleCloseError} severity="error" sx={{ width: '100%' }}>
+          <Alert onClose={handleCloseError} severity={error?.includes("reached today's limit") ? 'info' : 'error'} sx={{ width: '100%' }}>
             {error}
           </Alert>
         </Snackbar>

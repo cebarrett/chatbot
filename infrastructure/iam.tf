@@ -153,6 +153,7 @@ resource "aws_iam_role_policy" "lambda_dynamodb_access" {
       Action = [
         "dynamodb:GetItem",
         "dynamodb:PutItem",
+        "dynamodb:UpdateItem",
         "dynamodb:DeleteItem",
         "dynamodb:Query",
         "dynamodb:BatchWriteItem"

@@ -16,6 +16,11 @@ resource "aws_dynamodb_table" "chats" {
     type = "S"
   }
 
+  ttl {
+    attribute_name = "ttl"
+    enabled        = true
+  }
+
   tags = {
     Name        = "${var.project_name}-chats"
     Environment = var.environment
