@@ -28,7 +28,7 @@ export async function streamOpenAI(
       stream: true,
       stream_options: { include_usage: true },
       temperature: 0.7,
-      max_tokens: 4096,
+      max_completion_tokens: 4096,
     }),
   });
 
@@ -134,7 +134,7 @@ export async function judgeOpenAI(
         { role: 'user', content: userPrompt }
       ],
       temperature: 0.3,
-      max_tokens: 4096,
+      max_completion_tokens: 4096,
     }),
   });
 
