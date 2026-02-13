@@ -1,6 +1,6 @@
-import { render, screen, waitFor, within } from '@testing-library/react'
+import { render, screen, waitFor, within, act, fireEvent } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import type { QualityRating, Message } from '../types'
 
 // ── Mocks ───────────────────────────────────────────────────────────────────
@@ -51,12 +51,16 @@ vi.mock('../services/chatHistoryService', () => ({
   },
 }))
 
-// Mock chat provider registry – providers are NOT configured (demo mode)
+// Module-level mock controls for provider configurability
+const mockProviderIsConfigured = vi.fn().mockReturnValue(false)
+const mockSendMessageStream = vi.fn()
+
+// Mock chat provider registry – delegates to module-level mocks for per-test control
 vi.mock('../services/chatProviderRegistry', () => {
   const providers = [
-    { id: 'gemini', name: 'Gemini', description: 'Google Gemini', color: '#4285F4', isConfigured: () => false, sendMessageStream: vi.fn() },
-    { id: 'claude', name: 'Claude', description: 'Anthropic Claude', color: '#D97706', isConfigured: () => false, sendMessageStream: vi.fn() },
-    { id: 'openai', name: 'ChatGPT', description: 'OpenAI GPT', color: '#10A37F', isConfigured: () => false, sendMessageStream: vi.fn() },
+    { id: 'gemini', name: 'Gemini', description: 'Google Gemini', color: '#4285F4', isConfigured: () => mockProviderIsConfigured(), sendMessageStream: (...args: unknown[]) => mockSendMessageStream(...args) },
+    { id: 'claude', name: 'Claude', description: 'Anthropic Claude', color: '#D97706', isConfigured: () => mockProviderIsConfigured(), sendMessageStream: (...args: unknown[]) => mockSendMessageStream(...args) },
+    { id: 'openai', name: 'ChatGPT', description: 'OpenAI GPT', color: '#10A37F', isConfigured: () => mockProviderIsConfigured(), sendMessageStream: (...args: unknown[]) => mockSendMessageStream(...args) },
   ]
   return {
     chatProviderRegistry: providers,
@@ -64,7 +68,7 @@ vi.mock('../services/chatProviderRegistry', () => {
     getProviderById: (id: string) => providers.find((p) => p.id === id),
     getDefaultProvider: () => providers[0],
     getAllProviderIds: () => providers.map((p) => p.id),
-    isAnyProviderConfigured: () => false,
+    isAnyProviderConfigured: () => mockProviderIsConfigured(),
   }
 })
 
@@ -127,12 +131,18 @@ function renderApp() {
 describe('App integration tests', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    mockProviderIsConfigured.mockReturnValue(false)
     mockListChats.mockResolvedValue({ chats: [], nextToken: null })
     mockFetchRatingsFromJudges.mockImplementation(() => ({
       promise: Promise.resolve(),
       cancel: vi.fn(),
     }))
     localStorage.clear()
+  })
+
+  afterEach(() => {
+    // Ensure real timers are restored if a test used fake timers
+    vi.useRealTimers()
   })
 
   it('renders the welcome screen for an authenticated user', async () => {
@@ -145,11 +155,11 @@ describe('App integration tests', () => {
     expect(screen.getByText('Chatbot')).toBeInTheDocument()
   })
 
-  it('shows demo mode indicator when provider is not configured', async () => {
+  it('shows Not Connected indicator when provider is not configured', async () => {
     renderApp()
 
     await waitFor(() => {
-      expect(screen.getByText('Demo Mode')).toBeInTheDocument()
+      expect(screen.getByText('Not Connected')).toBeInTheDocument()
     })
   })
 
@@ -500,5 +510,227 @@ describe('App integration tests', () => {
       },
       { timeout: 5000 },
     )
+  })
+
+  // ── Error handling & user feedback tests ────────────────────────────────
+
+  it('shows provider-specific error message when API call fails', async () => {
+    mockProviderIsConfigured.mockReturnValue(true)
+    mockSendMessageStream.mockImplementation(() => ({
+      promise: Promise.reject(new Error('rate limit exceeded')),
+      cancel: vi.fn(),
+    }))
+
+    const user = userEvent.setup()
+    renderApp()
+
+    await waitFor(() => {
+      expect(screen.getByText('Welcome to Chatbot')).toBeInTheDocument()
+    })
+
+    const input = screen.getByPlaceholderText('Type your message...')
+    await user.type(input, 'Test error handling')
+    const sendButton = screen.getByTestId('SendIcon').closest('button')!
+    await user.click(sendButton)
+
+    // Should show provider-specific error with provider name
+    await waitFor(() => {
+      expect(screen.getByText(/Gemini is temporarily unavailable/)).toBeInTheDocument()
+      expect(screen.getByText(/Try a different provider/)).toBeInTheDocument()
+    })
+
+    // The empty bot message should be removed — only the user message remains
+    await waitFor(() => {
+      const matches = screen.getAllByText('Test error handling')
+      expect(matches.length).toBeGreaterThanOrEqual(1)
+    })
+  })
+
+  it('displays dismissible judge failure notice on affected message', async () => {
+    mockFetchRatingsFromJudges.mockImplementation(
+      (
+        _judges: string[],
+        _history: Message[],
+        _response: string,
+        _provider: string,
+        _onRating: (judgeId: string, rating: QualityRating) => void,
+        onError?: (judgeId: string, judgeName: string, error: string) => void,
+      ) => {
+        // Simulate a judge failure for Claude
+        setTimeout(() => onError?.('claude', 'Claude', 'Service unavailable'), 0)
+        return { promise: Promise.resolve(), cancel: vi.fn() }
+      },
+    )
+
+    const user = userEvent.setup()
+    renderApp()
+
+    await waitFor(() => {
+      expect(screen.getByText('Welcome to Chatbot')).toBeInTheDocument()
+    })
+
+    const input = screen.getByPlaceholderText('Type your message...')
+    await user.type(input, 'Judge failure test')
+    const sendButton = screen.getByTestId('SendIcon').closest('button')!
+    await user.click(sendButton)
+
+    // Wait for the judge error chip to appear on the assistant message
+    await waitFor(
+      () => {
+        expect(screen.getByText('Claude evaluation failed')).toBeInTheDocument()
+      },
+      { timeout: 5000 },
+    )
+
+    // Dismiss the error by clicking the chip's delete button
+    const errorChip = screen.getByText('Claude evaluation failed').closest('.MuiChip-root')!
+    const deleteArea = errorChip.querySelector('.MuiChip-deleteIcon') as HTMLElement
+    await user.click(deleteArea)
+
+    // Error chip should be dismissed
+    await waitFor(() => {
+      expect(screen.queryByText('Claude evaluation failed')).not.toBeInTheDocument()
+    })
+  })
+
+  it('passes onError callback to fetchRatingsFromJudges', async () => {
+    const user = userEvent.setup()
+    renderApp()
+
+    await waitFor(() => {
+      expect(screen.getByText('Welcome to Chatbot')).toBeInTheDocument()
+    })
+
+    const input = screen.getByPlaceholderText('Type your message...')
+    await user.type(input, 'Check onError callback')
+    const sendButton = screen.getByTestId('SendIcon').closest('button')!
+    await user.click(sendButton)
+
+    // Wait for fetchRatingsFromJudges to be called
+    await waitFor(
+      () => {
+        expect(mockFetchRatingsFromJudges).toHaveBeenCalledTimes(1)
+      },
+      { timeout: 5000 },
+    )
+
+    // Verify onError callback (6th argument) is a function
+    const callArgs = mockFetchRatingsFromJudges.mock.calls[0]
+    expect(callArgs[5]).toBeTypeOf('function') // onError callback
+  })
+
+  it('shows stall message after 30 seconds of no response', async () => {
+    vi.useFakeTimers()
+
+    mockProviderIsConfigured.mockReturnValue(true)
+    // sendMessageStream returns a promise that never resolves (simulating a stall)
+    mockSendMessageStream.mockImplementation(() => ({
+      promise: new Promise(() => {}),
+      cancel: vi.fn(),
+    }))
+
+    // Use fireEvent (synchronous) instead of userEvent to avoid timer conflicts
+    await act(async () => {
+      renderApp()
+      await vi.advanceTimersByTimeAsync(1000)
+    })
+
+    const input = screen.getByPlaceholderText('Type your message...')
+
+    await act(async () => {
+      fireEvent.change(input, { target: { value: 'Stall test' } })
+      await vi.advanceTimersByTimeAsync(100)
+    })
+
+    const sendButton = screen.getByTestId('SendIcon').closest('button')!
+    await act(async () => {
+      fireEvent.click(sendButton)
+      await vi.advanceTimersByTimeAsync(500)
+    })
+
+    // Should show "Typing..." but NOT the stall message yet
+    expect(screen.getByText('Typing...')).toBeInTheDocument()
+    expect(screen.queryByText(/taking longer than expected/i)).not.toBeInTheDocument()
+
+    // Advance past 30 seconds
+    await act(async () => { await vi.advanceTimersByTimeAsync(31000) })
+
+    // Now the stall message should appear
+    expect(screen.getByText(/taking longer than expected/i)).toBeInTheDocument()
+    expect(screen.getByText(/You can wait or try again/i)).toBeInTheDocument()
+  }, 15000)
+
+  it('shows connection interrupted warning for partial WebSocket response', async () => {
+    mockProviderIsConfigured.mockReturnValue(true)
+    mockSendMessageStream.mockImplementation(
+      (_msgs: unknown, _sys: unknown, onChunk: (content: string) => void) => {
+        return {
+          promise: new Promise<{ content: string; cancelled: boolean; partial: boolean }>((resolve) => {
+            // Simulate receiving some content then WebSocket disconnecting
+            setTimeout(() => {
+              onChunk('Partial response before disconnect')
+              resolve({ content: 'Partial response before disconnect', cancelled: false, partial: true })
+            }, 10)
+          }),
+          cancel: vi.fn(),
+        }
+      },
+    )
+
+    const user = userEvent.setup()
+    renderApp()
+
+    await waitFor(() => {
+      expect(screen.getByText('Welcome to Chatbot')).toBeInTheDocument()
+    })
+
+    const input = screen.getByPlaceholderText('Type your message...')
+    await user.type(input, 'WebSocket disconnect test')
+    const sendButton = screen.getByTestId('SendIcon').closest('button')!
+    await user.click(sendButton)
+
+    // Should show the partial response content
+    await waitFor(
+      () => {
+        expect(screen.getByText('Partial response before disconnect')).toBeInTheDocument()
+      },
+      { timeout: 5000 },
+    )
+
+    // Should show the connection interrupted warning
+    await waitFor(() => {
+      expect(screen.getByText(/Connection was interrupted/)).toBeInTheDocument()
+    })
+  })
+
+  it('shows "not configured" in provider selector dropdown', async () => {
+    const user = userEvent.setup()
+    renderApp()
+
+    await waitFor(() => {
+      expect(screen.getByText('Welcome to Chatbot')).toBeInTheDocument()
+    })
+
+    // Click the provider selector button to open dropdown
+    const providerButton = screen.getByText('Gemini').closest('button')!
+    await user.click(providerButton)
+
+    // Provider descriptions should show "(not configured)" suffix
+    await waitFor(() => {
+      const notConfiguredTexts = screen.getAllByText(/not configured/)
+      expect(notConfiguredTexts.length).toBeGreaterThanOrEqual(1)
+    })
+  })
+
+  it('shows configuration instructions in welcome message when not connected', async () => {
+    renderApp()
+
+    await waitFor(() => {
+      expect(screen.getByText('Welcome to Chatbot')).toBeInTheDocument()
+    })
+
+    // Should show backend configuration instructions instead of "demo mode"
+    expect(screen.getByText(/Backend not configured/)).toBeInTheDocument()
+    expect(screen.getByText(/VITE_APPSYNC_URL/)).toBeInTheDocument()
   })
 })
