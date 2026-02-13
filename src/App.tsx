@@ -688,8 +688,8 @@ function App() {
       }
 
       // Fetch quality ratings from enabled judges in parallel (async, non-blocking)
-      // Skip judging if the request was cancelled - partial responses shouldn't be judged
-      if (enabledJudges.length > 0 && !wasCancelled) {
+      // Skip judging if the request was cancelled or response is empty (e.g., timeout before first token)
+      if (enabledJudges.length > 0 && !wasCancelled && finalResponse.trim()) {
         const respondingProviderId = currentChat?.providerId || newChatProviderId
         // Track which message is being judged and which judges are pending
         setJudgingMessageId(botMessageId)

@@ -3,6 +3,7 @@ import {
   SendMessageInput,
   SendMessageResponse,
   ChatProvider,
+  UserIdentity,
 } from './types';
 import { getSecrets } from './secrets';
 import { publishChunk } from './appsync';
@@ -47,63 +48,57 @@ export function handler(
   // External user ID (Clerk) - used for subscription routing (must match frontend filter)
   const externalUserId = identity.sub;
 
-  let resolvedInternalUserId: string;
+  // Return STREAMING response to AppSync immediately to avoid the ~30s resolver timeout.
+  // Rate limits, secrets, and streaming all happen in the background.
+  // Any errors are published as error chunks via the subscription.
+  callback(null, {
+    requestId,
+    status: 'STREAMING',
+    message: 'Stream started',
+  });
 
-  // Resolve internal user ID from Clerk ID (creates mapping if first login)
-  // This ensures the user exists in our system and logs the internal ID for tracing.
-  // Note: Subscription routing uses externalUserId for frontend compatibility.
-  resolveInternalUserId(identity)
-    .then(async (internalUserId) => {
-      resolvedInternalUserId = internalUserId;
-      console.log(`Processing chat request: ${requestId} for provider: ${provider}, internalUser: ${internalUserId}, externalUser: ${externalUserId}`);
+  // Everything else runs in the background — Lambda stays alive until all promises complete
+  initAndStream(identity, requestId, provider, messages, model, externalUserId);
+}
 
-      // Check rate limits: token budget first (read-only), then request count (atomic write)
-      await checkTokenBudget(internalUserId);
-      await checkAndIncrementRequestCount(internalUserId);
+async function initAndStream(
+  identity: UserIdentity,
+  requestId: string,
+  provider: ChatProvider,
+  messages: { role: 'user' | 'assistant' | 'system'; content: string }[],
+  model: string | undefined,
+  externalUserId: string,
+): Promise<void> {
+  let internalUserId: string;
 
-      return getSecrets();
-    })
-    .then((secrets) => {
-      // Return response to AppSync immediately — don't wait for streaming to finish.
-      // This avoids the ~30s AppSync resolver timeout for long responses.
-      callback(null, {
-        requestId,
-        status: 'STREAMING',
-        message: 'Stream started',
-      });
+  try {
+    internalUserId = await resolveInternalUserId(identity);
+    console.log(`Processing chat request: ${requestId} for provider: ${provider}, internalUser: ${internalUserId}, externalUser: ${externalUserId}`);
 
-      // Stream in the background — Lambda stays alive until this completes
-      // Uses externalUserId for subscription routing (matches frontend filter)
-      return streamInBackground(secrets, provider, messages, requestId, externalUserId, resolvedInternalUserId, model);
-    })
-    .catch((error) => {
-      console.error('Error processing chat request:', error);
+    // Check rate limits: token budget first (read-only), then request count (atomic write)
+    await checkTokenBudget(internalUserId);
+    await checkAndIncrementRequestCount(internalUserId);
+  } catch (error) {
+    console.error('Error processing chat request:', error);
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    await publishChunk(requestId, externalUserId, '', true, 0, errorMessage);
+    return;
+  }
 
-      if (error instanceof RateLimitError) {
-        callback(null, {
-          requestId,
-          status: 'ERROR',
-          message: error.message,
-        });
-        return;
-      }
-
-      // Publish error to subscribers using external ID (matches frontend subscription filter)
-      publishChunk(
-        requestId,
-        externalUserId,
-        '',
-        true,
-        0,
-        error instanceof Error ? error.message : 'Unknown error'
-      ).finally(() => {
-        callback(null, {
-          requestId,
-          status: 'ERROR',
-          message: error instanceof Error ? error.message : 'Unknown error',
-        });
-      });
-    });
+  try {
+    const secrets = await getSecrets();
+    await streamInBackground(secrets, provider, messages, requestId, externalUserId, internalUserId, model);
+  } catch (error) {
+    console.error('Error processing chat request:', error);
+    await publishChunk(
+      requestId,
+      externalUserId,
+      '',
+      true,
+      0,
+      error instanceof Error ? error.message : 'Unknown error'
+    );
+  }
 }
 
 async function streamInBackground(
