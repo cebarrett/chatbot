@@ -422,6 +422,24 @@ function App() {
     setEditValue(null)
   }, [])
 
+  const handleRenameChat = useCallback(
+    (chatId: string, newTitle: string) => {
+      setChats((prev) =>
+        prev.map((chat) =>
+          chat.id === chatId ? { ...chat, title: newTitle } : chat
+        )
+      )
+
+      const chat = chats.find((c) => c.id === chatId)
+      if (!chat?.incognito) {
+        updateChatRemote({ chatId, title: newTitle }).catch((err) =>
+          console.error('Failed to rename chat:', err)
+        )
+      }
+    },
+    [chats]
+  )
+
   const handleChangeProvider = useCallback(
     (providerId: string) => {
       if (!activeChatId) {
@@ -791,6 +809,7 @@ function App() {
           onSelectChat={handleSelectChat}
           onNewChat={handleNewChat}
           onDeleteChat={handleDeleteChat}
+          onRenameChat={handleRenameChat}
           open={sidebarOpen}
           onClose={() => setSidebarOpen(false)}
         />
