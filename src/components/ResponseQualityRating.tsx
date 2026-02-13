@@ -1,18 +1,22 @@
 import { useState } from 'react'
-import { Box, Chip, Collapse, Typography, Paper, CircularProgress, Button, useTheme } from '@mui/material'
+import { Box, Chip, Collapse, Typography, Paper, CircularProgress, Button, IconButton, useTheme } from '@mui/material'
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore'
 import ExpandLessIcon from '@mui/icons-material/ExpandLess'
 import QuestionAnswerIcon from '@mui/icons-material/QuestionAnswer'
 import ReactMarkdown from 'react-markdown'
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter'
 import { oneDark, oneLight } from 'react-syntax-highlighter/dist/esm/styles/prism'
-import type { JudgeRatings, QualityRating, Message, JudgeFollowUp } from '../types'
+import CloseIcon from '@mui/icons-material/Close'
+import ErrorOutlineIcon from '@mui/icons-material/ErrorOutline'
+import type { JudgeRatings, QualityRating, Message, JudgeFollowUp, JudgeError } from '../types'
 import { getJudgeById } from '../services/judgeRegistry'
 import { JudgeFollowUpModal } from './JudgeFollowUpModal'
 
 interface ResponseQualityRatingProps {
   ratings: JudgeRatings
   loadingJudges?: string[]  // Judges actively loading for this message
+  failedJudges?: JudgeError[]  // Judges that failed for this message
+  onDismissJudgeError?: (judgeId: string) => void
   conversationHistory?: Message[]  // For follow-up context
   responseContent?: string  // The assistant response that was rated
   respondingProvider?: string  // Provider that generated the response
@@ -304,6 +308,8 @@ function RatingDetails({ judgeName, judgeColor, rating, canAskFollowUp, onAskFol
 export function ResponseQualityRating({
   ratings,
   loadingJudges = [],
+  failedJudges = [],
+  onDismissJudgeError,
   conversationHistory,
   responseContent,
   respondingProvider,
@@ -329,7 +335,7 @@ export function ResponseQualityRating({
     // Only show loading spinners for judges that are actively loading for this message
     .filter((item) => item.rating !== undefined || loadingJudges.includes(item.judgeId))
 
-  if (judgesWithRatings.length === 0) {
+  if (judgesWithRatings.length === 0 && failedJudges.length === 0) {
     return null
   }
 
@@ -366,6 +372,30 @@ export function ResponseQualityRating({
             rating={rating}
             expanded={expanded}
             onToggle={() => setExpanded(!expanded)}
+          />
+        ))}
+        {failedJudges.map((err) => (
+          <Chip
+            key={`error-${err.judgeId}`}
+            icon={<ErrorOutlineIcon sx={{ fontSize: 16 }} />}
+            label={
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                <Typography variant="caption" sx={{ fontWeight: 600 }}>
+                  {err.judgeName} evaluation failed
+                </Typography>
+              </Box>
+            }
+            color="default"
+            size="small"
+            variant="outlined"
+            onDelete={onDismissJudgeError ? () => onDismissJudgeError(err.judgeId) : undefined}
+            deleteIcon={<IconButton size="small" sx={{ p: 0 }}><CloseIcon sx={{ fontSize: 14 }} /></IconButton>}
+            sx={{
+              width: { xs: '100%', sm: 'auto' },
+              borderColor: 'error.main',
+              color: 'error.main',
+              opacity: 0.85,
+            }}
           />
         ))}
       </Box>

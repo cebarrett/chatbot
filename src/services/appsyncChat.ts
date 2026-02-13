@@ -66,6 +66,7 @@ function convertMessages(
 export interface StreamResponse {
   content: string
   cancelled: boolean
+  partial: boolean // True if WebSocket closed before stream completed
 }
 
 // Result type for streaming with cancellation support
@@ -154,7 +155,7 @@ export function sendMessageStream(
         streamDone = true;
         subscription?.close();
         if (!cancelled) {
-          deferred.resolve({ content: fullContent, cancelled: false });
+          deferred.resolve({ content: fullContent, cancelled: false, partial: false });
         }
         return;
       }
@@ -176,7 +177,7 @@ export function sendMessageStream(
     cancelled = true;
     clearStallTimer();
     subscription?.close();
-    deferred.resolve({ content: fullContent, cancelled: true });
+    deferred.resolve({ content: fullContent, cancelled: true, partial: false });
   };
 
   // Async initialization - set up subscription and send mutation
@@ -221,7 +222,7 @@ export function sendMessageStream(
             // rather than hanging forever.
             if (!subscriptionError && fullContent) {
               console.warn('WebSocket closed before done chunk received. Resolving with partial content.');
-              deferred.resolve({ content: fullContent, cancelled: false });
+              deferred.resolve({ content: fullContent, cancelled: false, partial: true });
             }
           },
         }

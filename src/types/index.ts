@@ -13,6 +13,13 @@ export interface QualityRating {
 // Dynamic judge ratings - keyed by judge ID
 export type JudgeRatings = Record<string, QualityRating>
 
+// Judge error info for displaying failure notices
+export interface JudgeError {
+  judgeId: string
+  judgeName: string
+  error: string
+}
+
 export interface Message {
   id: string
   content: string

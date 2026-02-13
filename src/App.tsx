@@ -12,7 +12,7 @@ import { ChatMessage } from './components/ChatMessage'
 import { ChatInput } from './components/ChatInput'
 import { ChatHistorySidebar } from './components/ChatHistorySidebar'
 import { ProviderSelector } from './components/ProviderSelector'
-import type { Message, Chat, JudgeFollowUp } from './types'
+import type { Message, Chat, JudgeFollowUp, JudgeError } from './types'
 import { getDummyResponse, generateId } from './utils/dummyResponses'
 import {
   listChats as fetchChatList,
@@ -46,10 +46,14 @@ function App() {
   const [isTyping, setIsTyping] = useState(false)
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [errorSeverity, setErrorSeverity] = useState<'error' | 'warning'>('error')
   const [enabledJudges, setEnabledJudges] = useState<string[]>(() => loadEnabledJudges())
   const [editValue, setEditValue] = useState<string | null>(null)
   const [judgingMessageId, setJudgingMessageId] = useState<string | null>(null)
   const [pendingJudges, setPendingJudges] = useState<string[]>([])
+  const [failedJudges, setFailedJudges] = useState<Map<string, JudgeError[]>>(new Map())
+  const [responseStalled, setResponseStalled] = useState(false)
+  const stallTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const messagesContainerRef = useRef<HTMLDivElement>(null)
   const isNearBottomRef = useRef(true)
@@ -288,6 +292,20 @@ function App() {
     })
   }, [])
 
+  const handleDismissJudgeError = useCallback((messageId: string, judgeId: string) => {
+    setFailedJudges((prev) => {
+      const next = new Map(prev)
+      const existing = next.get(messageId) || []
+      const filtered = existing.filter((e) => e.judgeId !== judgeId)
+      if (filtered.length === 0) {
+        next.delete(messageId)
+      } else {
+        next.set(messageId, filtered)
+      }
+      return next
+    })
+  }, [])
+
   const handleFollowUpComplete = useCallback(
     (chatId: string, messageId: string, messageTimestamp: Date, judgeId: string, followUp: JudgeFollowUp) => {
       setChats((prev) =>
@@ -458,6 +476,8 @@ function App() {
       setJudgingMessageId(null)
       setPendingJudges([])
     }
+    // Clear failed judges for the new message context
+    setFailedJudges(new Map())
 
     // Cancel any in-progress stream if editing
     if (streamCancelRef.current) {
@@ -603,7 +623,14 @@ function App() {
     }
 
     setIsTyping(true)
+    setResponseStalled(false)
     setError(null)
+
+    // Start a 30-second stall timer
+    if (stallTimerRef.current) clearTimeout(stallTimerRef.current)
+    stallTimerRef.current = setTimeout(() => {
+      setResponseStalled(true)
+    }, 30000)
 
     const chatIdForStream = currentChatId
 
@@ -628,12 +655,22 @@ function App() {
         const { promise, cancel } = provider.sendMessageStream(messagesForApi, SYSTEM_PROMPT, (streamedContent) => {
           finalResponse = streamedContent
           updateBotMessage(chatIdForStream, botMessageId, streamedContent)
+          // Reset stall timer on each chunk received
+          setResponseStalled(false)
+          if (stallTimerRef.current) clearTimeout(stallTimerRef.current)
+          stallTimerRef.current = setTimeout(() => setResponseStalled(true), 30000)
         })
         streamCancelRef.current = cancel
         const result = await promise
         finalResponse = result.content
         wasCancelled = result.cancelled
         streamCancelRef.current = null
+
+        // Show notice if WebSocket disconnected mid-stream
+        if (result.partial) {
+          setErrorSeverity('warning')
+          setError('Connection was interrupted. The response may be incomplete. You can try sending your message again.')
+        }
       } else {
         finalResponse = getDummyResponse()
         await streamDummyResponse(chatIdForStream, botMessageId, finalResponse)
@@ -666,12 +703,27 @@ function App() {
             updateMessageRating(chatIdForStream, botMessageId, botMessage.timestamp, judgeId, rating)
             // Remove this judge from pending list
             setPendingJudges((prev) => prev.filter((id) => id !== judgeId))
+          },
+          (judgeId, judgeName, errorMsg) => {
+            // Remove from pending and record failure
+            setPendingJudges((prev) => prev.filter((id) => id !== judgeId))
+            setFailedJudges((prev) => {
+              const next = new Map(prev)
+              const existing = next.get(botMessageId) || []
+              next.set(botMessageId, [...existing, { judgeId, judgeName, error: errorMsg }])
+              return next
+            })
           }
         )
         judgeCancelRef.current = cancelJudges
       }
     } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'An unexpected error occurred'
+      const providerName = activeProvider?.name || 'The AI provider'
+      const rawMessage = err instanceof Error ? err.message : ''
+      const errorMessage = rawMessage
+        ? `${providerName} is temporarily unavailable: ${rawMessage}. Try a different provider.`
+        : `${providerName} is temporarily unavailable. Try a different provider.`
+      setErrorSeverity('error')
       setError(errorMessage)
       // Remove the empty bot message on error
       setChats((prev) =>
@@ -687,6 +739,12 @@ function App() {
       )
     } finally {
       streamCancelRef.current = null
+      // Clear the stall timer
+      if (stallTimerRef.current) {
+        clearTimeout(stallTimerRef.current)
+        stallTimerRef.current = null
+      }
+      setResponseStalled(false)
       // Note: don't clear judgeCancelRef here - judges may still be running in background
       // They will be cleared on next send or if user cancels
       setIsTyping(false)
@@ -705,6 +763,12 @@ function App() {
       setJudgingMessageId(null)
       setPendingJudges([])
     }
+    // Clear stall timer
+    if (stallTimerRef.current) {
+      clearTimeout(stallTimerRef.current)
+      stallTimerRef.current = null
+    }
+    setResponseStalled(false)
     setIsTyping(false)
   }, [])
 
@@ -785,18 +849,21 @@ function App() {
             </Tooltip>
             <UserButton afterSignOutUrl="/" />
             {!providerConfigured && (
-              <Typography
-                variant="caption"
-                sx={{
-                  bgcolor: 'warning.light',
-                  color: 'warning.contrastText',
-                  px: 1,
-                  py: 0.5,
-                  borderRadius: 1,
-                }}
-              >
-                Demo Mode
-              </Typography>
+              <Tooltip title="The backend API is not configured. Set the VITE_APPSYNC_URL environment variable to connect to your AppSync backend.">
+                <Typography
+                  variant="caption"
+                  sx={{
+                    bgcolor: 'warning.light',
+                    color: 'warning.contrastText',
+                    px: 1,
+                    py: 0.5,
+                    borderRadius: 1,
+                    cursor: 'help',
+                  }}
+                >
+                  Not Connected
+                </Typography>
+              </Tooltip>
             )}
           </Box>
         </Paper>
@@ -837,7 +904,7 @@ function App() {
               <Typography variant="body2">
                 {providerConfigured
                   ? 'Send a message to start the conversation'
-                  : 'Running in demo mode. Configure AppSync backend to enable AI responses.'}
+                  : 'Backend not configured. Set the VITE_APPSYNC_URL environment variable to enable AI responses.'}
               </Typography>
               {!activeChatId && (
                 <Button
@@ -859,6 +926,8 @@ function App() {
                   key={message.id}
                   message={message}
                   loadingJudges={message.id === judgingMessageId ? pendingJudges : []}
+                  failedJudges={failedJudges.get(message.id) || []}
+                  onDismissJudgeError={(judgeId) => handleDismissJudgeError(message.id, judgeId)}
                   isLastUserMessage={message.id === lastUserMessageId && !isTyping}
                   onEdit={handleEditMessage}
                   onDelete={handleDeleteMessage}
@@ -876,9 +945,24 @@ function App() {
                 />
               ))}
               {isTyping && (
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, ml: 1, color: 'text.secondary' }}>
-                  <SmartToyIcon fontSize="small" />
-                  <Typography variant="body2">Typing...</Typography>
+                <Box sx={{ ml: 1 }}>
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, color: 'text.secondary' }}>
+                    <SmartToyIcon fontSize="small" />
+                    <Typography variant="body2">Typing...</Typography>
+                  </Box>
+                  {responseStalled && (
+                    <Alert
+                      severity="info"
+                      sx={{ mt: 1, maxWidth: 480 }}
+                      action={
+                        <Button color="inherit" size="small" onClick={handleStop}>
+                          Try again
+                        </Button>
+                      }
+                    >
+                      This is taking longer than expected. You can wait or try again.
+                    </Alert>
+                  )}
                 </Box>
               )}
               <div ref={messagesEndRef} />
@@ -896,8 +980,8 @@ function App() {
         />
       </Box>
 
-        <Snackbar open={!!error} autoHideDuration={6000} onClose={handleCloseError}>
-          <Alert onClose={handleCloseError} severity="error" sx={{ width: '100%' }}>
+        <Snackbar open={!!error} autoHideDuration={8000} onClose={handleCloseError}>
+          <Alert onClose={handleCloseError} severity={errorSeverity} sx={{ width: '100%' }}>
             {error}
           </Alert>
         </Snackbar>

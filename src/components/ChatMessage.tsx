@@ -8,7 +8,7 @@ import PsychologyAltIcon from '@mui/icons-material/PsychologyAlt'
 import ReactMarkdown from 'react-markdown'
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter'
 import { oneDark, oneLight } from 'react-syntax-highlighter/dist/esm/styles/prism'
-import type { Message, JudgeFollowUp } from '../types'
+import type { Message, JudgeFollowUp, JudgeError } from '../types'
 import { ResponseQualityRating } from './ResponseQualityRating'
 
 function parseThinkingBlocks(content: string): { thinking: string | null; visibleContent: string } {
@@ -35,6 +35,8 @@ function parseThinkingBlocks(content: string): { thinking: string | null; visibl
 interface ChatMessageProps {
   message: Message
   loadingJudges?: string[]  // Judges actively loading for this message
+  failedJudges?: JudgeError[]  // Judges that failed for this message
+  onDismissJudgeError?: (judgeId: string) => void
   isLastUserMessage?: boolean
   onEdit?: (content: string) => void
   onDelete?: (messageId: string) => void
@@ -46,6 +48,8 @@ interface ChatMessageProps {
 export function ChatMessage({
   message,
   loadingJudges = [],
+  failedJudges = [],
+  onDismissJudgeError,
   isLastUserMessage,
   onEdit,
   onDelete,
@@ -222,11 +226,13 @@ export function ChatMessage({
             {visibleContent}
           </ReactMarkdown>
         </Box>
-        {(message.judgeRatings || loadingJudges.length > 0) && (
+        {(message.judgeRatings || loadingJudges.length > 0 || failedJudges.length > 0) && (
           <Box sx={{ pl: { xs: 0, sm: 6 }, mt: 1 }}>
             <ResponseQualityRating
               ratings={message.judgeRatings || {}}
               loadingJudges={loadingJudges}
+              failedJudges={failedJudges}
+              onDismissJudgeError={onDismissJudgeError}
               conversationHistory={conversationHistory}
               responseContent={message.content}
               respondingProvider={respondingProvider}

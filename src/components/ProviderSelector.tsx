@@ -124,7 +124,7 @@ export function ProviderSelector({
             >
               {!isConfigured && (
                 <ListItemIcon sx={{ minWidth: 32 }}>
-                  <Tooltip title="Configure AppSync backend to enable">
+                  <Tooltip title="Backend not configured. Set VITE_APPSYNC_URL to enable.">
                     <ErrorOutlineIcon fontSize="small" sx={{ color: 'warning.main' }} />
                   </Tooltip>
                 </ListItemIcon>
@@ -138,15 +138,18 @@ export function ProviderSelector({
                         height: 8,
                         borderRadius: '50%',
                         bgcolor: provider.color,
+                        opacity: isConfigured ? 1 : 0.5,
                       }}
                     />
-                    <Typography variant="body2">{provider.name}</Typography>
+                    <Typography variant="body2" sx={{ opacity: isConfigured ? 1 : 0.6 }}>
+                      {provider.name}
+                    </Typography>
                   </Box>
                 }
                 secondary={
                   <Typography variant="caption" color="text.secondary">
                     {provider.description}
-                    {!isConfigured && ' (demo mode)'}
+                    {!isConfigured && ' (not configured)'}
                   </Typography>
                 }
               />
