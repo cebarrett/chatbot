@@ -78,6 +78,15 @@ export async function getQualityRating(
 
   const { score, explanation, problems } = response.judgeResponse;
 
+  // Backend returns score 0 for errors (valid scores are always 1.0-10.0).
+  // Detect this and throw so the error flows through the onError path
+  // instead of being displayed as a "0.0" rating.
+  if (score === 0) {
+    // Strip the "Error evaluating response: " prefix if present for a cleaner message
+    const detail = explanation.replace(/^Error evaluating response:\s*/i, '');
+    throw new AppSyncJudgeError(detail || 'Evaluation failed');
+  }
+
   return {
     score,
     explanation,

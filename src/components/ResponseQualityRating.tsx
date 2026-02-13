@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Alert, Box, Chip, Collapse, Typography, Paper, CircularProgress, Button, IconButton, useTheme } from '@mui/material'
+import { Alert, Box, Chip, Collapse, Typography, Paper, CircularProgress, Button, IconButton, Tooltip, useTheme } from '@mui/material'
 import BalanceIcon from '@mui/icons-material/Balance'
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore'
 import ExpandLessIcon from '@mui/icons-material/ExpandLess'
@@ -386,28 +386,29 @@ export function ResponseQualityRating({
           />
         ))}
         {failedJudges.map((err) => (
-          <Chip
-            key={`error-${err.judgeId}`}
-            icon={<ErrorOutlineIcon sx={{ fontSize: 16 }} />}
-            label={
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                <Typography variant="caption" sx={{ fontWeight: 600 }}>
-                  {err.judgeName} evaluation failed
-                </Typography>
-              </Box>
-            }
-            color="default"
-            size="small"
-            variant="outlined"
-            onDelete={onDismissJudgeError ? () => onDismissJudgeError(err.judgeId) : undefined}
-            deleteIcon={<IconButton size="small" sx={{ p: 0 }}><CloseIcon sx={{ fontSize: 14 }} /></IconButton>}
-            sx={{
-              width: { xs: '100%', sm: 'auto' },
-              borderColor: 'error.main',
-              color: 'error.main',
-              opacity: 0.85,
-            }}
-          />
+          <Tooltip key={`error-${err.judgeId}`} title={err.error} arrow placement="top">
+            <Chip
+              icon={<ErrorOutlineIcon sx={{ fontSize: 16 }} />}
+              label={
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                  <Typography variant="caption" sx={{ fontWeight: 600 }}>
+                    {err.judgeName} evaluation failed
+                  </Typography>
+                </Box>
+              }
+              color="default"
+              size="small"
+              variant="outlined"
+              onDelete={onDismissJudgeError ? () => onDismissJudgeError(err.judgeId) : undefined}
+              deleteIcon={<IconButton size="small" sx={{ p: 0 }}><CloseIcon sx={{ fontSize: 14 }} /></IconButton>}
+              sx={{
+                width: { xs: '100%', sm: 'auto' },
+                borderColor: 'error.main',
+                color: 'error.main',
+                opacity: 0.85,
+              }}
+            />
+          </Tooltip>
         ))}
         {showDisagreement && (
           <Chip
