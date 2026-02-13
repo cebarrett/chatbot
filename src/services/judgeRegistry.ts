@@ -109,7 +109,8 @@ export function fetchRatingsFromJudges(
   conversationHistory: Message[],
   latestResponse: string,
   respondingProvider: string,
-  onRating: (judgeId: string, rating: QualityRating) => void
+  onRating: (judgeId: string, rating: QualityRating) => void,
+  onError?: (judgeId: string, judgeName: string, error: string) => void
 ): JudgeFetchResult {
   const abortController = new AbortController()
 
@@ -124,9 +125,13 @@ export function fetchRatingsFromJudges(
             onRating(judgeId, rating)
           }
         } catch (error) {
-          // Ignore abort errors, log other errors
+          // Ignore abort errors, report other errors
           if (error instanceof Error && error.name !== 'AbortError') {
             console.error(`Error fetching rating from ${judge.name}:`, error)
+            if (!abortController.signal.aborted && onError) {
+              const errorMsg = error.message || 'Evaluation failed'
+              onError(judgeId, judge.name, errorMsg)
+            }
           }
         }
       }

@@ -1,12 +1,8 @@
 const responses = [
-  "That's an interesting question! I'm currently running in demo mode, so I can't provide a real answer yet.",
-  "Thanks for your message! Once I'm connected to an LLM API, I'll be able to give you a proper response.",
-  "I appreciate you testing out this chat interface! Real AI responses coming soon.",
-  "Hello! I'm a placeholder chatbot. My real intelligence is still being connected.",
-  "Great question! In the future, I'll be powered by an AI model to give you helpful answers.",
-  "I'm just a demo bot for now, but soon I'll be able to have real conversations with you!",
-  "Thanks for chatting! This is a test response while the AI backend is being set up.",
-  "I received your message! When the LLM integration is complete, I'll provide meaningful responses.",
+  "The AI backend is not configured yet. Please set the VITE_APPSYNC_URL environment variable to connect to your AppSync backend.",
+  "This chatbot needs a backend connection to respond. Ask your administrator to configure the AppSync endpoint.",
+  "No AI provider is connected. To enable real responses, the backend API must be set up first.",
+  "The backend service is not available. Once it's configured, you'll be able to chat with AI providers like Claude, ChatGPT, and Gemini.",
 ]
 
 export function getDummyResponse(): string {
