@@ -1,0 +1,14 @@
+#if($ctx.error)
+  $util.error($ctx.error.message, $ctx.error.type)
+#end
+
+## Return the updated chat metadata
+#set($meta = $ctx.stash.updatedMeta)
+{
+  "chatId": "$meta.chatId",
+  "title": $util.toJson($meta.title),
+  "providerId": $util.toJson($meta.providerId),
+  "createdAt": "$meta.createdAt",
+  "updatedAt": "$meta.updatedAt",
+  "messageCount": $meta.messageCount
+}

@@ -376,6 +376,7 @@ resource "aws_appsync_resolver" "update_chat" {
     functions = [
       aws_appsync_function.update_chat_auth.function_id,
       aws_appsync_function.update_chat_update.function_id,
+      aws_appsync_function.update_chat_update_index.function_id,
     ]
   }
 
@@ -399,6 +400,15 @@ resource "aws_appsync_function" "update_chat_update" {
 
   request_mapping_template  = file("${path.module}/resolvers/updateChat.update.req.vtl")
   response_mapping_template = file("${path.module}/resolvers/updateChat.update.res.vtl")
+}
+
+resource "aws_appsync_function" "update_chat_update_index" {
+  api_id      = aws_appsync_graphql_api.chatbot.id
+  data_source = aws_appsync_datasource.dynamodb_chats.name
+  name        = "updateChatUpdateIndex"
+
+  request_mapping_template  = replace(file("${path.module}/resolvers/updateChat.updateIndex.req.vtl"), "$${tableName}", aws_dynamodb_table.chats.name)
+  response_mapping_template = file("${path.module}/resolvers/updateChat.updateIndex.res.vtl")
 }
 
 # ==========================================

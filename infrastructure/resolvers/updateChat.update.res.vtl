@@ -1,11 +1,6 @@
 #if($ctx.error)
   $util.error($ctx.error.message, $ctx.error.type)
 #end
-{
-  "chatId": "$ctx.result.chatId",
-  "title": $util.toJson($ctx.result.title),
-  "providerId": $util.toJson($ctx.result.providerId),
-  "createdAt": "$ctx.result.createdAt",
-  "updatedAt": "$ctx.result.updatedAt",
-  "messageCount": $ctx.result.messageCount
-}
+
+$util.qr($ctx.stash.put("updatedMeta", $ctx.result))
+{}

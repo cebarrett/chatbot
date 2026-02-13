@@ -1,3 +1,4 @@
+#set($now = $util.time.nowISO8601())
 #set($expNames = {})
 #set($expValues = {})
 #set($setClauses = "")
@@ -21,6 +22,11 @@
 #if($setClauses == "")
   $util.error("No fields to update", "BAD_REQUEST")
 #end
+
+## Always update the updatedAt timestamp
+$util.qr($expNames.put("#updatedAt", "updatedAt"))
+$util.qr($expValues.put(":updatedAt", $util.dynamodb.toDynamoDB($now)))
+#set($setClauses = "${setClauses}, #updatedAt = :updatedAt")
 
 {
   "version": "2017-02-28",
