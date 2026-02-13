@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import {
   Box,
   List,
@@ -7,6 +8,12 @@ import {
   IconButton,
   Divider,
   Drawer,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogContentText,
+  DialogActions,
+  Button,
   useMediaQuery,
   useTheme,
 } from '@mui/material'
@@ -39,6 +46,22 @@ export function ChatHistorySidebar({
 }: ChatHistorySidebarProps) {
   const muiTheme = useTheme()
   const isMobile = useMediaQuery(muiTheme.breakpoints.down('md'))
+  const [deleteConfirmChatId, setDeleteConfirmChatId] = useState<string | null>(null)
+
+  const handleDeleteClick = (chatId: string) => {
+    setDeleteConfirmChatId(chatId)
+  }
+
+  const handleDeleteConfirm = () => {
+    if (deleteConfirmChatId) {
+      onDeleteChat(deleteConfirmChatId)
+    }
+    setDeleteConfirmChatId(null)
+  }
+
+  const handleDeleteCancel = () => {
+    setDeleteConfirmChatId(null)
+  }
   const formatDate = (date: Date) => {
     const now = new Date()
     const diffDays = Math.floor((now.getTime() - date.getTime()) / (1000 * 60 * 60 * 24))
@@ -58,6 +81,26 @@ export function ChatHistorySidebar({
     onNewChat()
     if (isMobile) onClose()
   }
+
+  const deleteConfirmDialog = (
+    <Dialog
+      open={deleteConfirmChatId !== null}
+      onClose={handleDeleteCancel}
+    >
+      <DialogTitle>Delete chat?</DialogTitle>
+      <DialogContent>
+        <DialogContentText>
+          This will permanently delete this chat and all its messages. This can't be undone.
+        </DialogContentText>
+      </DialogContent>
+      <DialogActions>
+        <Button onClick={handleDeleteCancel}>Cancel</Button>
+        <Button onClick={handleDeleteConfirm} color="error">
+          Delete
+        </Button>
+      </DialogActions>
+    </Dialog>
+  )
 
   const sidebarContent = (
     <Box
@@ -147,7 +190,7 @@ export function ChatHistorySidebar({
                   size="small"
                   onClick={(e) => {
                     e.stopPropagation()
-                    onDeleteChat(chat.id)
+                    handleDeleteClick(chat.id)
                   }}
                   sx={{
                     opacity: 0.5,
@@ -166,22 +209,30 @@ export function ChatHistorySidebar({
 
   if (isMobile) {
     return (
-      <Drawer
-        variant="temporary"
-        open={open}
-        onClose={onClose}
-        ModalProps={{ keepMounted: true }}
-        sx={{
-          '& .MuiDrawer-paper': {
-            width: SIDEBAR_WIDTH,
-            boxSizing: 'border-box',
-          },
-        }}
-      >
-        {sidebarContent}
-      </Drawer>
+      <>
+        <Drawer
+          variant="temporary"
+          open={open}
+          onClose={onClose}
+          ModalProps={{ keepMounted: true }}
+          sx={{
+            '& .MuiDrawer-paper': {
+              width: SIDEBAR_WIDTH,
+              boxSizing: 'border-box',
+            },
+          }}
+        >
+          {sidebarContent}
+        </Drawer>
+        {deleteConfirmDialog}
+      </>
     )
   }
 
-  return sidebarContent
+  return (
+    <>
+      {sidebarContent}
+      {deleteConfirmDialog}
+    </>
+  )
 }
