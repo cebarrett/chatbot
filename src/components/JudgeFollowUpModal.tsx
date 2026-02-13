@@ -16,6 +16,9 @@ import {
 import CloseIcon from '@mui/icons-material/Close'
 import SendIcon from '@mui/icons-material/Send'
 import ReactMarkdown from 'react-markdown'
+import remarkMath from 'remark-math'
+import rehypeKatex from 'rehype-katex'
+import 'katex/dist/katex.min.css'
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter'
 import { oneDark, oneLight } from 'react-syntax-highlighter/dist/esm/styles/prism'
 import type { QualityRating, Message, JudgeFollowUp } from '../types'
@@ -199,7 +202,7 @@ export function JudgeFollowUpModal({
             Original Rating: {rating.score.toFixed(1)}/10
           </Typography>
           <Box sx={{ ...mdSx, fontSize: '0.875rem', mb: rating.problems.length > 0 ? 1 : 0 }}>
-            <ReactMarkdown components={markdownComponents}>
+            <ReactMarkdown remarkPlugins={[remarkMath]} rehypePlugins={[rehypeKatex]} components={markdownComponents}>
               {rating.explanation}
             </ReactMarkdown>
           </Box>
@@ -259,7 +262,7 @@ export function JudgeFollowUpModal({
                 <Typography variant="subtitle2">{judgeName}'s response:</Typography>
               </Box>
               <Box sx={{ ...mdSx, fontSize: '0.875rem' }}>
-                <ReactMarkdown components={markdownComponents}>
+                <ReactMarkdown remarkPlugins={[remarkMath]} rehypePlugins={[rehypeKatex]} components={markdownComponents}>
                   {answer}
                 </ReactMarkdown>
               </Box>

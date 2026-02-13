@@ -6,6 +6,9 @@ import EditIcon from '@mui/icons-material/Edit'
 import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline'
 import PsychologyAltIcon from '@mui/icons-material/PsychologyAlt'
 import ReactMarkdown from 'react-markdown'
+import remarkMath from 'remark-math'
+import rehypeKatex from 'rehype-katex'
+import 'katex/dist/katex.min.css'
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter'
 import { oneDark, oneLight } from 'react-syntax-highlighter/dist/esm/styles/prism'
 import type { Message, JudgeFollowUp, JudgeError } from '../types'
@@ -189,12 +192,14 @@ export function ChatMessage({
                     '& p': { m: 0, mb: 1, '&:last-child': { mb: 0 } },
                   }}
                 >
-                  <ReactMarkdown>{thinking}</ReactMarkdown>
+                  <ReactMarkdown remarkPlugins={[remarkMath]} rehypePlugins={[rehypeKatex]}>{thinking}</ReactMarkdown>
                 </Box>
               </Collapse>
             </Box>
           )}
           <ReactMarkdown
+            remarkPlugins={[remarkMath]}
+            rehypePlugins={[rehypeKatex]}
             components={{
               code({ className, children, ...rest }) {
                 const match = /language-(\w+)/.exec(className || '')

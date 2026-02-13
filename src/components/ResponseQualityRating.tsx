@@ -5,6 +5,9 @@ import ExpandMoreIcon from '@mui/icons-material/ExpandMore'
 import ExpandLessIcon from '@mui/icons-material/ExpandLess'
 import QuestionAnswerIcon from '@mui/icons-material/QuestionAnswer'
 import ReactMarkdown from 'react-markdown'
+import remarkMath from 'remark-math'
+import rehypeKatex from 'rehype-katex'
+import 'katex/dist/katex.min.css'
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter'
 import { oneDark, oneLight } from 'react-syntax-highlighter/dist/esm/styles/prism'
 import CloseIcon from '@mui/icons-material/Close'
@@ -243,7 +246,7 @@ function RatingDetails({ judgeName, judgeColor, rating, canAskFollowUp, onAskFol
         )}
       </Box>
       <Box sx={{ ...mdSx, fontSize: '0.875rem', mb: rating.problems.length > 0 || rating.followUp ? 1.5 : 0 }}>
-        <ReactMarkdown components={markdownComponents}>
+        <ReactMarkdown remarkPlugins={[remarkMath]} rehypePlugins={[rehypeKatex]} components={markdownComponents}>
           {rating.explanation}
         </ReactMarkdown>
       </Box>
@@ -304,7 +307,7 @@ function RatingDetails({ judgeName, judgeColor, rating, canAskFollowUp, onAskFol
             A:
           </Typography>
           <Box sx={{ ...mdSx, fontSize: '0.75rem' }}>
-            <ReactMarkdown components={markdownComponents}>
+            <ReactMarkdown remarkPlugins={[remarkMath]} rehypePlugins={[rehypeKatex]} components={markdownComponents}>
               {rating.followUp.answer}
             </ReactMarkdown>
           </Box>
