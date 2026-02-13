@@ -1,0 +1,19 @@
+#set($now = $util.time.nowISO8601())
+#set($chatId = $ctx.args.input.chatId)
+{
+  "version": "2017-02-28",
+  "operation": "UpdateItem",
+  "key": {
+    "PK": $util.dynamodb.toDynamoDBJson("CHAT#${chatId}"),
+    "SK": $util.dynamodb.toDynamoDBJson("META")
+  },
+  "update": {
+    "expression": "SET #updatedAt = :updatedAt",
+    "expressionNames": {
+      "#updatedAt": "updatedAt"
+    },
+    "expressionValues": {
+      ":updatedAt": $util.dynamodb.toDynamoDBJson($now)
+    }
+  }
+}

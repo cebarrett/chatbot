@@ -1,0 +1,38 @@
+## Atomically delete old user-chat index entry and write new one with updated timestamp
+#set($meta = $ctx.stash.chatMeta)
+#set($updatedMeta = $ctx.stash.updatedMeta)
+## Use internalUserId for the USER# partition key (decoupled from auth provider)
+#set($internalUserId = $meta.internalUserId)
+#set($chatId = $ctx.args.input.chatId)
+#set($newUpdatedAt = $updatedMeta.updatedAt)
+#set($oldUpdatedAt = $meta.updatedAt)
+{
+  "version": "2018-05-29",
+  "operation": "TransactWriteItems",
+  "transactItems": [
+    {
+      "table": "${tableName}",
+      "operation": "DeleteItem",
+      "key": {
+        "PK": $util.dynamodb.toDynamoDBJson("USER#${internalUserId}"),
+        "SK": $util.dynamodb.toDynamoDBJson("CHAT#${oldUpdatedAt}#${chatId}")
+      }
+    },
+    {
+      "table": "${tableName}",
+      "operation": "PutItem",
+      "key": {
+        "PK": $util.dynamodb.toDynamoDBJson("USER#${internalUserId}"),
+        "SK": $util.dynamodb.toDynamoDBJson("CHAT#${newUpdatedAt}#${chatId}")
+      },
+      "attributeValues": $util.dynamodb.toMapValuesJson({
+        "chatId": "${chatId}",
+        "title": "$updatedMeta.title",
+        "providerId": $util.defaultIfNull($updatedMeta.providerId, "claude"),
+        "createdAt": "$updatedMeta.createdAt",
+        "updatedAt": "${newUpdatedAt}",
+        "messageCount": $updatedMeta.messageCount
+      })
+    }
+  ]
+}

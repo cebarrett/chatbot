@@ -514,6 +514,8 @@ resource "aws_appsync_resolver" "update_message" {
     functions = [
       aws_appsync_function.update_message_auth.function_id,
       aws_appsync_function.update_message_update.function_id,
+      aws_appsync_function.update_message_update_meta.function_id,
+      aws_appsync_function.update_message_update_index.function_id,
     ]
   }
 
@@ -537,6 +539,24 @@ resource "aws_appsync_function" "update_message_update" {
 
   request_mapping_template  = file("${path.module}/resolvers/updateMessage.update.req.vtl")
   response_mapping_template = file("${path.module}/resolvers/updateMessage.update.res.vtl")
+}
+
+resource "aws_appsync_function" "update_message_update_meta" {
+  api_id      = aws_appsync_graphql_api.chatbot.id
+  data_source = aws_appsync_datasource.dynamodb_chats.name
+  name        = "updateMessageUpdateMeta"
+
+  request_mapping_template  = file("${path.module}/resolvers/updateMessage.updateMeta.req.vtl")
+  response_mapping_template = file("${path.module}/resolvers/updateMessage.updateMeta.res.vtl")
+}
+
+resource "aws_appsync_function" "update_message_update_index" {
+  api_id      = aws_appsync_graphql_api.chatbot.id
+  data_source = aws_appsync_datasource.dynamodb_chats.name
+  name        = "updateMessageUpdateIndex"
+
+  request_mapping_template  = replace(file("${path.module}/resolvers/updateMessage.updateIndex.req.vtl"), "$${tableName}", aws_dynamodb_table.chats.name)
+  response_mapping_template = file("${path.module}/resolvers/updateMessage.updateIndex.res.vtl")
 }
 
 # ==========================================

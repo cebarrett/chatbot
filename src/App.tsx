@@ -66,6 +66,12 @@ function App() {
   const [incognitoMode, setIncognitoMode] = useState(false)
   const [newChatProviderId, setNewChatProviderId] = useState(DEFAULT_PROVIDER_ID)
 
+  // Sort chats by updatedAt descending so most recently active chats appear first
+  const sortedChats = useMemo(
+    () => [...chats].sort((a, b) => b.updatedAt.getTime() - a.updatedAt.getTime()),
+    [chats]
+  )
+
   const activeChat = chats.find((c) => c.id === activeChatId) || null
   const activeProviderId = activeChat?.providerId || newChatProviderId
   const activeProvider = getProviderById(activeProviderId)
@@ -247,6 +253,7 @@ function App() {
           if (chat.id === chatId) {
             return {
               ...chat,
+              updatedAt: new Date(),
               messages: chat.messages.map((msg) => {
                 if (msg.id === messageId) {
                   const updatedRatings = {
@@ -313,6 +320,7 @@ function App() {
           if (chat.id === chatId) {
             return {
               ...chat,
+              updatedAt: new Date(),
               messages: chat.messages.map((msg) => {
                 if (msg.id === messageId && msg.judgeRatings?.[judgeId]) {
                   const updatedRatings = {
@@ -426,7 +434,7 @@ function App() {
     (chatId: string, newTitle: string) => {
       setChats((prev) =>
         prev.map((chat) =>
-          chat.id === chatId ? { ...chat, title: newTitle } : chat
+          chat.id === chatId ? { ...chat, title: newTitle, updatedAt: new Date() } : chat
         )
       )
 
@@ -811,7 +819,7 @@ function App() {
         }}
       >
         <ChatHistorySidebar
-          chats={chats}
+          chats={sortedChats}
           activeChatId={activeChatId}
           onSelectChat={handleSelectChat}
           onNewChat={handleNewChat}
