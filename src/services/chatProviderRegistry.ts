@@ -34,12 +34,12 @@ function createProviderStream(providerId: string) {
 // Now all providers use AppSync backend - no direct API calls
 export const chatProviderRegistry: ChatProviderConfig[] = [
   {
-    id: 'perplexity',
-    name: 'Perplexity',
-    description: 'Perplexity Sonar Reasoning Pro',
-    color: '#20808D', // Perplexity teal
+    id: 'claude',
+    name: 'Claude',
+    description: 'Anthropic Claude Opus 4.6',
+    color: '#D97706', // Amber/orange
     isConfigured: isAppSyncConfigured,
-    sendMessageStream: createProviderStream('perplexity'),
+    sendMessageStream: createProviderStream('claude'),
   },
   {
     id: 'gemini',
@@ -48,14 +48,6 @@ export const chatProviderRegistry: ChatProviderConfig[] = [
     color: '#4285F4', // Google blue
     isConfigured: isAppSyncConfigured,
     sendMessageStream: createProviderStream('gemini'),
-  },
-  {
-    id: 'claude',
-    name: 'Claude',
-    description: 'Anthropic Claude Opus 4.6',
-    color: '#D97706', // Amber/orange
-    isConfigured: isAppSyncConfigured,
-    sendMessageStream: createProviderStream('claude'),
   },
   {
     id: 'openai',
@@ -73,10 +65,18 @@ export const chatProviderRegistry: ChatProviderConfig[] = [
     isConfigured: isAppSyncConfigured,
     sendMessageStream: createProviderStream('grok'),
   },
+  {
+    id: 'perplexity',
+    name: 'Perplexity',
+    description: 'Perplexity Sonar Reasoning Pro',
+    color: '#20808D', // Perplexity teal
+    isConfigured: isAppSyncConfigured,
+    sendMessageStream: createProviderStream('perplexity'),
+  },
 ]
 
 // Default provider ID
-export const DEFAULT_PROVIDER_ID = 'gemini'
+export const DEFAULT_PROVIDER_ID = 'claude'
 
 // Helper to get a provider by ID
 export function getProviderById(id: string): ChatProviderConfig | undefined {
