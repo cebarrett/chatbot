@@ -7,4 +7,6 @@
   $util.unauthorized()
 #end
 
+## Stash chat metadata for downstream updateMeta and updateIndex steps
+$util.qr($ctx.stash.put("chatMeta", $ctx.result))
 {}
