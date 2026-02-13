@@ -5,8 +5,8 @@ const client = new DynamoDBClient({});
 const docClient = DynamoDBDocumentClient.from(client);
 const TABLE_NAME = process.env.DYNAMODB_TABLE_NAME!;
 
-const MAX_DAILY_REQUESTS = parseInt(process.env.RATE_LIMIT_DAILY_REQUESTS || '50', 10);
-const MAX_DAILY_TOKENS = parseInt(process.env.RATE_LIMIT_DAILY_TOKENS || '500000', 10);
+const MAX_DAILY_REQUESTS = parseInt(process.env.RATE_LIMIT_DAILY_REQUESTS || '200', 10);
+const MAX_DAILY_TOKENS = parseInt(process.env.RATE_LIMIT_DAILY_TOKENS || '2000000', 10);
 
 export class RateLimitError extends Error {
   readonly code = 'RATE_LIMIT_EXCEEDED';

@@ -63,6 +63,54 @@ resource "aws_cloudwatch_metric_alarm" "judge_high_invocations" {
   }
 }
 
+# High error rate alarm — judge Lambda
+resource "aws_cloudwatch_metric_alarm" "judge_high_errors" {
+  alarm_name          = "${var.project_name}-${var.environment}-judge-high-errors"
+  comparison_operator = "GreaterThanThreshold"
+  evaluation_periods  = 1
+  metric_name         = "Errors"
+  namespace           = "AWS/Lambda"
+  period              = 3600
+  statistic           = "Sum"
+  threshold           = 50
+  alarm_description   = "Judge Lambda errors exceeded 50/hour"
+  alarm_actions       = [aws_sns_topic.alarm_notifications.arn]
+
+  dimensions = {
+    FunctionName = aws_lambda_function.judge.function_name
+  }
+
+  tags = {
+    Name        = "${var.project_name}-judge-high-errors"
+    Environment = var.environment
+  }
+}
+
+# AWS estimated charges alarm — triggers when monthly bill exceeds threshold.
+# Requires billing alerts enabled in the AWS account (only works in us-east-1).
+resource "aws_cloudwatch_metric_alarm" "billing_alarm" {
+  count               = var.billing_alarm_threshold > 0 ? 1 : 0
+  alarm_name          = "${var.project_name}-${var.environment}-billing-alarm"
+  comparison_operator = "GreaterThanThreshold"
+  evaluation_periods  = 1
+  metric_name         = "EstimatedCharges"
+  namespace           = "AWS/Billing"
+  period              = 21600 # 6 hours
+  statistic           = "Maximum"
+  threshold           = var.billing_alarm_threshold
+  alarm_description   = "AWS estimated charges exceeded $${var.billing_alarm_threshold}"
+  alarm_actions       = [aws_sns_topic.alarm_notifications.arn]
+
+  dimensions = {
+    Currency = "USD"
+  }
+
+  tags = {
+    Name        = "${var.project_name}-billing-alarm"
+    Environment = var.environment
+  }
+}
+
 # High error rate alarm — chat Lambda
 resource "aws_cloudwatch_metric_alarm" "chat_high_errors" {
   alarm_name          = "${var.project_name}-${var.environment}-chat-high-errors"

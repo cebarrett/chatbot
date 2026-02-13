@@ -718,12 +718,19 @@ function App() {
         judgeCancelRef.current = cancelJudges
       }
     } catch (err) {
-      const providerName = activeProvider?.name || 'The AI provider'
       const rawMessage = err instanceof Error ? err.message : ''
-      const errorMessage = rawMessage
-        ? `${providerName} is temporarily unavailable: ${rawMessage}. Try a different provider.`
-        : `${providerName} is temporarily unavailable. Try a different provider.`
-      setErrorSeverity('error')
+      const isRateLimit = rawMessage.includes("reached today's limit") || rawMessage.includes("reached today's usage limit")
+      let errorMessage: string
+      if (isRateLimit) {
+        errorMessage = rawMessage
+        setErrorSeverity('warning')
+      } else {
+        const providerName = activeProvider?.name || 'The AI provider'
+        errorMessage = rawMessage
+          ? `${providerName} is temporarily unavailable: ${rawMessage}. Try a different provider.`
+          : `${providerName} is temporarily unavailable. Try a different provider.`
+        setErrorSeverity('error')
+      }
       setError(errorMessage)
       // Remove the empty bot message on error
       setChats((prev) =>
@@ -981,7 +988,7 @@ function App() {
       </Box>
 
         <Snackbar open={!!error} autoHideDuration={8000} onClose={handleCloseError}>
-          <Alert onClose={handleCloseError} severity={error?.includes("reached today's limit") ? 'info' : errorSeverity} sx={{ width: '100%' }}>
+          <Alert onClose={handleCloseError} severity={errorSeverity} sx={{ width: '100%' }}>
             {error}
           </Alert>
         </Snackbar>

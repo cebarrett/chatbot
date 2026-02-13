@@ -43,13 +43,13 @@ variable "clerk_client_id" {
 variable "rate_limit_daily_requests" {
   description = "Maximum number of LLM API requests per user per day"
   type        = number
-  default     = 50
+  default     = 200
 }
 
 variable "rate_limit_daily_tokens" {
   description = "Maximum number of tokens per user per day (soft limit)"
   type        = number
-  default     = 500000
+  default     = 2000000
 }
 
 # CloudWatch alarm configuration
@@ -69,4 +69,10 @@ variable "alarm_judge_invocations_per_hour" {
   description = "Threshold for judge Lambda invocations per hour alarm"
   type        = number
   default     = 2000
+}
+
+variable "billing_alarm_threshold" {
+  description = "Monthly AWS estimated charges threshold in USD for billing alarm (0 to disable)"
+  type        = number
+  default     = 100
 }
