@@ -78,7 +78,7 @@ export async function streamPerplexity(
   requestId: string,
   userId: string,
   model?: string
-): Promise<void> {
+): Promise<number> {
   const perplexityMessages: PerplexityMessage[] = messages.map((msg) => ({
     role: msg.role,
     content: msg.content,
@@ -94,6 +94,7 @@ export async function streamPerplexity(
       model: model || DEFAULT_MODEL,
       messages: perplexityMessages,
       stream: true,
+      max_tokens: 4096,
     }),
   });
 
@@ -111,6 +112,7 @@ export async function streamPerplexity(
   let buffer = '';
   const batcher = new ChunkBatcher(requestId, userId);
   const sourceFilter = new SourceReferenceFilter();
+  let totalTokens = 0;
 
   try {
     while (true) {
@@ -136,11 +138,14 @@ export async function streamPerplexity(
             batcher.add(sourceRemaining);
           }
           await batcher.done();
-          return;
+          return totalTokens;
         }
 
         try {
           const parsed = JSON.parse(data);
+          if (parsed.usage?.total_tokens) {
+            totalTokens = parsed.usage.total_tokens;
+          }
           const content = parsed.choices?.[0]?.delta?.content;
           if (content) {
             const filtered = sourceFilter.filter(content);
@@ -163,6 +168,9 @@ export async function streamPerplexity(
         if (data !== '[DONE]') {
           try {
             const parsed = JSON.parse(data);
+            if (parsed.usage?.total_tokens) {
+              totalTokens = parsed.usage.total_tokens;
+            }
             const content = parsed.choices?.[0]?.delta?.content;
             if (content) {
               const filtered = sourceFilter.filter(content);
@@ -185,6 +193,7 @@ export async function streamPerplexity(
 
     // Send final done signal
     await batcher.done();
+    return totalTokens;
   } finally {
     reader.releaseLock();
   }
@@ -195,7 +204,7 @@ export async function judgePerplexity(
   systemPrompt: string,
   userPrompt: string,
   model?: string
-): Promise<string> {
+): Promise<{ text: string; tokenCount: number }> {
   const response = await fetch(PERPLEXITY_API_URL, {
     method: 'POST',
     headers: {
@@ -208,6 +217,7 @@ export async function judgePerplexity(
         { role: 'system', content: systemPrompt },
         { role: 'user', content: userPrompt }
       ],
+      max_tokens: 4096,
     }),
   });
 
@@ -219,8 +229,10 @@ export async function judgePerplexity(
   const data: any = await response.json();
   const content = data.choices?.[0]?.message?.content || '';
   // Remove any <think>...</think> blocks and source references [1], [2], etc. from the response
-  return content
+  const text = content
     .replace(/<think>[\s\S]*?<\/think>/g, '')
     .replace(/\[\d+\]/g, '')
     .trim();
+  const tokenCount = data.usage?.total_tokens || Math.ceil(text.length / 4);
+  return { text, tokenCount };
 }

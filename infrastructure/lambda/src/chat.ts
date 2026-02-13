@@ -9,6 +9,7 @@ import { publishChunk } from './appsync';
 import { streamOpenAI, streamAnthropic, streamGemini, streamPerplexity, streamGrok } from './providers';
 import { validateSendMessageInput, ValidationError } from './validation';
 import { resolveInternalUserId } from './userService';
+import { checkTokenBudget, checkAndIncrementRequestCount, recordTokenUsage, RateLimitError } from './rateLimiter';
 
 interface ChatEventArgs {
   input: SendMessageInput;
@@ -46,12 +47,20 @@ export function handler(
   // External user ID (Clerk) - used for subscription routing (must match frontend filter)
   const externalUserId = identity.sub;
 
+  let resolvedInternalUserId: string;
+
   // Resolve internal user ID from Clerk ID (creates mapping if first login)
   // This ensures the user exists in our system and logs the internal ID for tracing.
   // Note: Subscription routing uses externalUserId for frontend compatibility.
   resolveInternalUserId(identity)
-    .then((internalUserId) => {
+    .then(async (internalUserId) => {
+      resolvedInternalUserId = internalUserId;
       console.log(`Processing chat request: ${requestId} for provider: ${provider}, internalUser: ${internalUserId}, externalUser: ${externalUserId}`);
+
+      // Check rate limits: token budget first (read-only), then request count (atomic write)
+      await checkTokenBudget(internalUserId);
+      await checkAndIncrementRequestCount(internalUserId);
+
       return getSecrets();
     })
     .then((secrets) => {
@@ -65,10 +74,19 @@ export function handler(
 
       // Stream in the background — Lambda stays alive until this completes
       // Uses externalUserId for subscription routing (matches frontend filter)
-      return streamInBackground(secrets, provider, messages, requestId, externalUserId, model);
+      return streamInBackground(secrets, provider, messages, requestId, externalUserId, resolvedInternalUserId, model);
     })
     .catch((error) => {
       console.error('Error processing chat request:', error);
+
+      if (error instanceof RateLimitError) {
+        callback(null, {
+          requestId,
+          status: 'ERROR',
+          message: error.message,
+        });
+        return;
+      }
 
       // Publish error to subscribers using external ID (matches frontend subscription filter)
       publishChunk(
@@ -94,27 +112,35 @@ async function streamInBackground(
   messages: { role: 'user' | 'assistant' | 'system'; content: string }[],
   requestId: string,
   userId: string,
+  internalUserId: string,
   model?: string
 ): Promise<void> {
   try {
+    let tokenCount = 0;
     switch (provider) {
       case 'OPENAI':
-        await streamOpenAI(secrets.OPENAI_API_KEY, messages, requestId, userId, model);
+        tokenCount = await streamOpenAI(secrets.OPENAI_API_KEY, messages, requestId, userId, model);
         break;
       case 'ANTHROPIC':
-        await streamAnthropic(secrets.ANTHROPIC_API_KEY, messages, requestId, userId, model);
+        tokenCount = await streamAnthropic(secrets.ANTHROPIC_API_KEY, messages, requestId, userId, model);
         break;
       case 'GEMINI':
-        await streamGemini(secrets.GEMINI_API_KEY, messages, requestId, userId, model);
+        tokenCount = await streamGemini(secrets.GEMINI_API_KEY, messages, requestId, userId, model);
         break;
       case 'PERPLEXITY':
-        await streamPerplexity(secrets.PERPLEXITY_API_KEY, messages, requestId, userId, model);
+        tokenCount = await streamPerplexity(secrets.PERPLEXITY_API_KEY, messages, requestId, userId, model);
         break;
       case 'GROK':
-        await streamGrok(secrets.GROK_API_KEY, messages, requestId, userId, model);
+        tokenCount = await streamGrok(secrets.GROK_API_KEY, messages, requestId, userId, model);
         break;
       default:
         throw new Error(`Unknown provider: ${provider}`);
+    }
+
+    try {
+      await recordTokenUsage(internalUserId, tokenCount);
+    } catch (err) {
+      console.error('Failed to record token usage:', err);
     }
   } catch (error) {
     console.error(`Streaming error for ${provider}:`, error);
