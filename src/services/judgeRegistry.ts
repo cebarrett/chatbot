@@ -44,14 +44,6 @@ export const judgeRegistry: JudgeConfig[] = [
     getRating: createJudgeRating('openai'),
   },
   {
-    id: 'perplexity',
-    name: 'Perplexity',
-    description: 'Perplexity Sonar Reasoning Pro',
-    color: '#20808D', // Perplexity teal
-    isConfigured: isAppSyncConfigured,
-    getRating: createJudgeRating('perplexity'),
-  },
-  {
     id: 'grok',
     name: 'Grok',
     description: 'xAI Grok 4',
@@ -88,8 +80,8 @@ export function loadEnabledJudges(): string[] {
   } catch {
     // Ignore parse errors
   }
-  // Default: Claude, ChatGPT, and Grok judges enabled
-  return ['claude', 'openai', 'grok']
+  // Default: ChatGPT, Gemini, and Grok judges enabled
+  return ['openai', 'gemini', 'grok']
 }
 
 // Save enabled judges to localStorage
