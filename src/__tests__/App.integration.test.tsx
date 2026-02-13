@@ -429,6 +429,15 @@ describe('App integration tests', () => {
     const deleteButton = within(chatItem).getByTestId('DeleteIcon').closest('button')!
     await user.click(deleteButton)
 
+    // Confirmation dialog should appear
+    await waitFor(() => {
+      expect(screen.getByText('Delete chat?')).toBeInTheDocument()
+    })
+
+    // Click the confirm "Delete" button in the dialog
+    const confirmButton = screen.getByRole('button', { name: 'Delete' })
+    await user.click(confirmButton)
+
     // Chat should be removed from list
     await waitFor(() => {
       expect(screen.queryByText('Chat to Delete')).not.toBeInTheDocument()

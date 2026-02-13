@@ -1,5 +1,6 @@
 import { useState } from 'react'
-import { Box, Chip, Collapse, Typography, Paper, CircularProgress, Button, IconButton, useTheme } from '@mui/material'
+import { Alert, Box, Chip, Collapse, Typography, Paper, CircularProgress, Button, IconButton, useTheme } from '@mui/material'
+import BalanceIcon from '@mui/icons-material/Balance'
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore'
 import ExpandLessIcon from '@mui/icons-material/ExpandLess'
 import QuestionAnswerIcon from '@mui/icons-material/QuestionAnswer'
@@ -35,6 +36,14 @@ function getRatingLabel(score: number): string {
   if (score >= 5.0) return 'Fair'
   if (score >= 3.0) return 'Poor'
   return 'Very Poor'
+}
+
+const DISAGREEMENT_THRESHOLD = 2.5
+
+function hasJudgeDisagreement(ratings: JudgeRatings): boolean {
+  const scores = Object.values(ratings).map((r) => r.score)
+  if (scores.length < 2) return false
+  return Math.max(...scores) - Math.min(...scores) >= DISAGREEMENT_THRESHOLD
 }
 
 function getMarkdownSx(isDark: boolean) {
@@ -339,6 +348,8 @@ export function ResponseQualityRating({
     return null
   }
 
+  const showDisagreement = loadingJudges.length === 0 && hasJudgeDisagreement(ratings)
+
   const canAskFollowUp = !!(conversationHistory && responseContent && respondingProvider && onFollowUpComplete)
 
   const handleAskFollowUp = (judgeId: string) => {
@@ -398,9 +409,38 @@ export function ResponseQualityRating({
             }}
           />
         ))}
+        {showDisagreement && (
+          <Chip
+            icon={<BalanceIcon sx={{ fontSize: 16 }} />}
+            label="Judges disagree"
+            color="info"
+            size="small"
+            variant="outlined"
+            onClick={() => setExpanded(!expanded)}
+            sx={{
+              cursor: 'pointer',
+              width: { xs: '100%', sm: 'auto' },
+              '&:hover': { filter: 'brightness(0.95)' },
+            }}
+          />
+        )}
       </Box>
 
       <Collapse in={expanded}>
+        {showDisagreement && (
+          <Alert
+            severity="info"
+            variant="outlined"
+            icon={<BalanceIcon />}
+            sx={{ mt: 1, mb: 1 }}
+          >
+            <Typography variant="body2">
+              These AI judges evaluated this response differently. This is normal — AI systems
+              have different strengths and biases. Consider reading each judge's explanation to
+              decide for yourself.
+            </Typography>
+          </Alert>
+        )}
         <Box
           sx={{
             display: 'flex',

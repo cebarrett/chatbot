@@ -10,7 +10,7 @@ export async function streamOpenAI(
   requestId: string,
   userId: string,
   model?: string
-): Promise<void> {
+): Promise<number> {
   const openaiMessages: OpenAIMessage[] = messages.map((msg) => ({
     role: msg.role,
     content: msg.content,
@@ -26,7 +26,9 @@ export async function streamOpenAI(
       model: model || DEFAULT_MODEL,
       messages: openaiMessages,
       stream: true,
+      stream_options: { include_usage: true },
       temperature: 0.7,
+      max_tokens: 4096,
     }),
   });
 
@@ -43,6 +45,7 @@ export async function streamOpenAI(
   const decoder = new TextDecoder();
   let buffer = '';
   const batcher = new ChunkBatcher(requestId, userId);
+  let totalTokens = 0;
 
   try {
     while (true) {
@@ -63,11 +66,14 @@ export async function streamOpenAI(
         const data = trimmed.slice(6);
         if (data === '[DONE]') {
           await batcher.done();
-          return;
+          return totalTokens;
         }
 
         try {
           const parsed = JSON.parse(data);
+          if (parsed.usage?.total_tokens) {
+            totalTokens = parsed.usage.total_tokens;
+          }
           const content = parsed.choices?.[0]?.delta?.content;
           if (content) {
             batcher.add(content);
@@ -87,6 +93,9 @@ export async function streamOpenAI(
         if (data !== '[DONE]') {
           try {
             const parsed = JSON.parse(data);
+            if (parsed.usage?.total_tokens) {
+              totalTokens = parsed.usage.total_tokens;
+            }
             const content = parsed.choices?.[0]?.delta?.content;
             if (content) {
               batcher.add(content);
@@ -100,6 +109,7 @@ export async function streamOpenAI(
 
     // Send final done signal
     await batcher.done();
+    return totalTokens;
   } finally {
     reader.releaseLock();
   }
@@ -110,7 +120,7 @@ export async function judgeOpenAI(
   systemPrompt: string,
   userPrompt: string,
   model?: string
-): Promise<string> {
+): Promise<{ text: string; tokenCount: number }> {
   const response = await fetch(OPENAI_API_URL, {
     method: 'POST',
     headers: {
@@ -124,6 +134,7 @@ export async function judgeOpenAI(
         { role: 'user', content: userPrompt }
       ],
       temperature: 0.3,
+      max_tokens: 4096,
     }),
   });
 
@@ -133,5 +144,7 @@ export async function judgeOpenAI(
   }
 
   const data: any = await response.json();
-  return data.choices?.[0]?.message?.content || '';
+  const text = data.choices?.[0]?.message?.content || '';
+  const tokenCount = data.usage?.total_tokens || Math.ceil(text.length / 4);
+  return { text, tokenCount };
 }

@@ -7,6 +7,7 @@ import { getSecrets } from './secrets';
 import { judgeOpenAI, judgeAnthropic, judgeGemini, judgePerplexity, judgeGrok } from './providers';
 import { validateJudgeFollowUpInput, ValidationError } from './validation';
 import { resolveInternalUserId } from './userService';
+import { checkTokenBudget, checkAndIncrementRequestCount, recordTokenUsage, RateLimitError } from './rateLimiter';
 
 interface JudgeFollowUpEventArgs {
   input: JudgeFollowUpInput;
@@ -120,6 +121,20 @@ export async function handler(
   const internalUserId = await resolveInternalUserId(identity);
   console.log(`Processing judge follow-up request with provider: ${judgeProvider}, internalUser: ${internalUserId}`);
 
+  // Check rate limits: token budget first (read-only), then request count (atomic write)
+  try {
+    await checkTokenBudget(internalUserId);
+    await checkAndIncrementRequestCount(internalUserId);
+  } catch (error) {
+    if (error instanceof RateLimitError) {
+      return {
+        answer: `Error: ${error.message}`,
+        judgeProvider: judgeProvider,
+      };
+    }
+    throw error;
+  }
+
   try {
     // Get API keys from Secrets Manager
     const secrets = await getSecrets();
@@ -138,25 +153,47 @@ export async function handler(
 
     // Call the appropriate provider
     let responseText: string;
+    let tokenCount = 0;
 
     switch (judgeProvider) {
-      case 'OPENAI':
-        responseText = await judgeOpenAI(secrets.OPENAI_API_KEY, FOLLOW_UP_SYSTEM_PROMPT, userPrompt, model);
+      case 'OPENAI': {
+        const result = await judgeOpenAI(secrets.OPENAI_API_KEY, FOLLOW_UP_SYSTEM_PROMPT, userPrompt, model);
+        responseText = result.text;
+        tokenCount = result.tokenCount;
         break;
-      case 'ANTHROPIC':
-        responseText = await judgeAnthropic(secrets.ANTHROPIC_API_KEY, FOLLOW_UP_SYSTEM_PROMPT, userPrompt, model);
+      }
+      case 'ANTHROPIC': {
+        const result = await judgeAnthropic(secrets.ANTHROPIC_API_KEY, FOLLOW_UP_SYSTEM_PROMPT, userPrompt, model);
+        responseText = result.text;
+        tokenCount = result.tokenCount;
         break;
-      case 'GEMINI':
-        responseText = await judgeGemini(secrets.GEMINI_API_KEY, FOLLOW_UP_SYSTEM_PROMPT, userPrompt, model);
+      }
+      case 'GEMINI': {
+        const result = await judgeGemini(secrets.GEMINI_API_KEY, FOLLOW_UP_SYSTEM_PROMPT, userPrompt, model);
+        responseText = result.text;
+        tokenCount = result.tokenCount;
         break;
-      case 'PERPLEXITY':
-        responseText = await judgePerplexity(secrets.PERPLEXITY_API_KEY, FOLLOW_UP_SYSTEM_PROMPT, userPrompt, model);
+      }
+      case 'PERPLEXITY': {
+        const result = await judgePerplexity(secrets.PERPLEXITY_API_KEY, FOLLOW_UP_SYSTEM_PROMPT, userPrompt, model);
+        responseText = result.text;
+        tokenCount = result.tokenCount;
         break;
-      case 'GROK':
-        responseText = await judgeGrok(secrets.GROK_API_KEY, FOLLOW_UP_SYSTEM_PROMPT, userPrompt, model);
+      }
+      case 'GROK': {
+        const result = await judgeGrok(secrets.GROK_API_KEY, FOLLOW_UP_SYSTEM_PROMPT, userPrompt, model);
+        responseText = result.text;
+        tokenCount = result.tokenCount;
         break;
+      }
       default:
         throw new Error(`Unknown judge provider: ${judgeProvider}`);
+    }
+
+    try {
+      await recordTokenUsage(internalUserId, tokenCount);
+    } catch (err) {
+      console.error('Failed to record token usage:', err);
     }
 
     return {

@@ -17,7 +17,7 @@ export async function streamGemini(
   requestId: string,
   userId: string,
   model?: string
-): Promise<void> {
+): Promise<number> {
   const modelName = model || DEFAULT_MODEL;
 
   // Extract system instruction if present
@@ -82,6 +82,7 @@ export async function streamGemini(
   let buffer = '';
   const batcher = new ChunkBatcher(requestId, userId);
   let inThinking = false;
+  let totalTokens = 0;
 
   try {
     while (true) {
@@ -103,6 +104,9 @@ export async function streamGemini(
 
         try {
           const parsed = JSON.parse(data);
+          if (parsed.usageMetadata?.totalTokenCount) {
+            totalTokens = parsed.usageMetadata.totalTokenCount;
+          }
           const parts = parsed.candidates?.[0]?.content?.parts;
           if (parts && Array.isArray(parts)) {
             for (const part of parts) {
@@ -137,6 +141,9 @@ export async function streamGemini(
         const data = trimmed.slice(6);
         try {
           const parsed = JSON.parse(data);
+          if (parsed.usageMetadata?.totalTokenCount) {
+            totalTokens = parsed.usageMetadata.totalTokenCount;
+          }
           const parts = parsed.candidates?.[0]?.content?.parts;
           if (parts && Array.isArray(parts)) {
             for (const part of parts) {
@@ -170,6 +177,7 @@ export async function streamGemini(
 
     // Send final done signal
     await batcher.done();
+    return totalTokens;
   } finally {
     reader.releaseLock();
   }
@@ -180,7 +188,7 @@ export async function judgeGemini(
   systemPrompt: string,
   userPrompt: string,
   model?: string
-): Promise<string> {
+): Promise<{ text: string; tokenCount: number }> {
   const modelName = model || DEFAULT_MODEL;
   const url = `${GEMINI_API_BASE}/${modelName}:generateContent?key=${apiKey}`;
 
@@ -210,5 +218,7 @@ export async function judgeGemini(
   }
 
   const data: any = await response.json();
-  return data.candidates?.[0]?.content?.parts?.[0]?.text || '';
+  const text = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
+  const tokenCount = data.usageMetadata?.totalTokenCount || Math.ceil(text.length / 4);
+  return { text, tokenCount };
 }

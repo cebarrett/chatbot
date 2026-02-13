@@ -18,7 +18,7 @@ export async function streamAnthropic(
   requestId: string,
   userId: string,
   model?: string
-): Promise<void> {
+): Promise<number> {
   // Extract system message if present
   let systemPrompt: string | undefined;
   const anthropicMessages: AnthropicMessage[] = [];
@@ -79,6 +79,7 @@ export async function streamAnthropic(
   let buffer = '';
   const batcher = new ChunkBatcher(requestId, userId);
   let currentBlockType: string | null = null;
+  let totalTokens = 0;
 
   try {
     while (true) {
@@ -101,7 +102,11 @@ export async function streamAnthropic(
         try {
           const parsed = JSON.parse(data);
 
-          if (parsed.type === 'content_block_start') {
+          if (parsed.type === 'message_start' && parsed.message?.usage) {
+            totalTokens += parsed.message.usage.input_tokens || 0;
+          } else if (parsed.type === 'message_delta' && parsed.usage) {
+            totalTokens += parsed.usage.output_tokens || 0;
+          } else if (parsed.type === 'content_block_start') {
             currentBlockType = parsed.content_block?.type || null;
             if (currentBlockType === 'thinking') {
               batcher.add('<think>');
@@ -125,7 +130,7 @@ export async function streamAnthropic(
             currentBlockType = null;
           } else if (parsed.type === 'message_stop') {
             await batcher.done();
-            return;
+            return totalTokens;
           }
         } catch {
           // Skip malformed JSON
@@ -162,6 +167,7 @@ export async function streamAnthropic(
 
     // Send final done signal
     await batcher.done();
+    return totalTokens;
   } finally {
     reader.releaseLock();
   }
@@ -172,7 +178,7 @@ export async function judgeAnthropic(
   systemPrompt: string,
   userPrompt: string,
   model?: string
-): Promise<string> {
+): Promise<{ text: string; tokenCount: number }> {
   const response = await fetch(ANTHROPIC_API_URL, {
     method: 'POST',
     headers: {
@@ -194,5 +200,7 @@ export async function judgeAnthropic(
   }
 
   const data: any = await response.json();
-  return data.content?.[0]?.text || '';
+  const text = data.content?.[0]?.text || '';
+  const tokenCount = ((data.usage?.input_tokens || 0) + (data.usage?.output_tokens || 0)) || Math.ceil(text.length / 4);
+  return { text, tokenCount };
 }
