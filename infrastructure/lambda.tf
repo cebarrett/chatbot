@@ -253,3 +253,75 @@ resource "aws_cloudwatch_log_group" "list_chats" {
     Name = "${var.project_name}-list-chats-logs"
   }
 }
+
+# Get User Preferences Lambda function
+resource "aws_lambda_function" "get_user_preferences" {
+  filename         = data.archive_file.lambda_package.output_path
+  function_name    = "${var.project_name}-${var.environment}-get-user-preferences"
+  role             = aws_iam_role.lambda_execution.arn
+  handler          = "getUserPreferences.handler"
+  source_code_hash = data.archive_file.lambda_package.output_base64sha256
+  runtime          = "nodejs22.x"
+  timeout          = 30
+  memory_size      = 256
+
+  environment {
+    variables = {
+      DYNAMODB_TABLE_NAME = aws_dynamodb_table.chats.name
+    }
+  }
+
+  depends_on = [
+    aws_iam_role_policy_attachment.lambda_basic_execution,
+    aws_iam_role_policy.lambda_dynamodb_access,
+  ]
+
+  tags = {
+    Name = "${var.project_name}-get-user-preferences"
+  }
+}
+
+resource "aws_cloudwatch_log_group" "get_user_preferences" {
+  name              = "/aws/lambda/${aws_lambda_function.get_user_preferences.function_name}"
+  retention_in_days = 14
+
+  tags = {
+    Name = "${var.project_name}-get-user-preferences-logs"
+  }
+}
+
+# Update User Preferences Lambda function
+resource "aws_lambda_function" "update_user_preferences" {
+  filename         = data.archive_file.lambda_package.output_path
+  function_name    = "${var.project_name}-${var.environment}-update-user-preferences"
+  role             = aws_iam_role.lambda_execution.arn
+  handler          = "updateUserPreferences.handler"
+  source_code_hash = data.archive_file.lambda_package.output_base64sha256
+  runtime          = "nodejs22.x"
+  timeout          = 30
+  memory_size      = 256
+
+  environment {
+    variables = {
+      DYNAMODB_TABLE_NAME = aws_dynamodb_table.chats.name
+    }
+  }
+
+  depends_on = [
+    aws_iam_role_policy_attachment.lambda_basic_execution,
+    aws_iam_role_policy.lambda_dynamodb_access,
+  ]
+
+  tags = {
+    Name = "${var.project_name}-update-user-preferences"
+  }
+}
+
+resource "aws_cloudwatch_log_group" "update_user_preferences" {
+  name              = "/aws/lambda/${aws_lambda_function.update_user_preferences.function_name}"
+  retention_in_days = 14
+
+  tags = {
+    Name = "${var.project_name}-update-user-preferences-logs"
+  }
+}

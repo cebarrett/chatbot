@@ -168,6 +168,26 @@ export const DELETE_MESSAGE_MUTATION = `
   }
 `;
 
+// User Preferences operations
+
+export const GET_USER_PREFERENCES_QUERY = `
+  query GetUserPreferences {
+    getUserPreferences {
+      preferences
+      updatedAt
+    }
+  }
+`;
+
+export const UPDATE_USER_PREFERENCES_MUTATION = `
+  mutation UpdateUserPreferences($input: UpdateUserPreferencesInput!) {
+    updateUserPreferences(input: $input) {
+      preferences
+      updatedAt
+    }
+  }
+`;
+
 // Types matching the GraphQL schema
 export type ChatProvider = 'OPENAI' | 'ANTHROPIC' | 'GEMINI' | 'PERPLEXITY' | 'GROK';
 
@@ -308,4 +328,15 @@ export interface DeleteMessageInput {
 export interface DeleteMessageResult {
   messageId: string;
   success: boolean;
+}
+
+// User Preferences types
+
+export interface UserPreferencesResult {
+  preferences: string; // AWSJSON - serialized JSON string
+  updatedAt: string;
+}
+
+export interface UpdateUserPreferencesInput {
+  preferences: string; // AWSJSON
 }
