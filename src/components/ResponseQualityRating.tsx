@@ -208,7 +208,7 @@ function RatingDetails({ judgeName, judgeColor, rating, canAskFollowUp, onAskFol
         bgcolor: 'background.paper',
         borderColor: `${color}.main`,
         flex: 1,
-        minWidth: 200,
+        minWidth: 300,
       }}
     >
       <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 0.5 }}>
