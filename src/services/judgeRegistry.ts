@@ -46,7 +46,7 @@ export const judgeRegistry: JudgeConfig[] = [
   {
     id: 'grok',
     name: 'Grok',
-    description: 'xAI Grok 4',
+    description: 'xAI Grok 4.1',
     color: '#EF4444', // xAI red
     isConfigured: isAppSyncConfigured,
     getRating: createJudgeRating('grok'),
