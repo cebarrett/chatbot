@@ -8,6 +8,7 @@ import { judgeOpenAI, judgeAnthropic, judgeGemini, judgePerplexity, judgeGrok } 
 import { validateJudgeFollowUpInput, ValidationError } from './validation';
 import { resolveInternalUserId } from './userService';
 import { checkTokenBudget, checkAndIncrementRequestCount, recordTokenUsage, RateLimitError } from './rateLimiter';
+import { getJudgeSystemPrompt } from './judgeInstructions';
 
 interface JudgeFollowUpEventArgs {
   input: JudgeFollowUpInput;
@@ -151,37 +152,40 @@ export async function handler(
       followUpQuestion
     );
 
+    // Build the full system prompt (base + any provider-specific instructions)
+    const systemPrompt = getJudgeSystemPrompt(FOLLOW_UP_SYSTEM_PROMPT, judgeProvider);
+
     // Call the appropriate provider
     let responseText: string;
     let tokenCount = 0;
 
     switch (judgeProvider) {
       case 'OPENAI': {
-        const result = await judgeOpenAI(secrets.OPENAI_API_KEY, FOLLOW_UP_SYSTEM_PROMPT, userPrompt, model);
+        const result = await judgeOpenAI(secrets.OPENAI_API_KEY, systemPrompt, userPrompt, model);
         responseText = result.text;
         tokenCount = result.tokenCount;
         break;
       }
       case 'ANTHROPIC': {
-        const result = await judgeAnthropic(secrets.ANTHROPIC_API_KEY, FOLLOW_UP_SYSTEM_PROMPT, userPrompt, model);
+        const result = await judgeAnthropic(secrets.ANTHROPIC_API_KEY, systemPrompt, userPrompt, model);
         responseText = result.text;
         tokenCount = result.tokenCount;
         break;
       }
       case 'GEMINI': {
-        const result = await judgeGemini(secrets.GEMINI_API_KEY, FOLLOW_UP_SYSTEM_PROMPT, userPrompt, model);
+        const result = await judgeGemini(secrets.GEMINI_API_KEY, systemPrompt, userPrompt, model);
         responseText = result.text;
         tokenCount = result.tokenCount;
         break;
       }
       case 'PERPLEXITY': {
-        const result = await judgePerplexity(secrets.PERPLEXITY_API_KEY, FOLLOW_UP_SYSTEM_PROMPT, userPrompt, model);
+        const result = await judgePerplexity(secrets.PERPLEXITY_API_KEY, systemPrompt, userPrompt, model);
         responseText = result.text;
         tokenCount = result.tokenCount;
         break;
       }
       case 'GROK': {
-        const result = await judgeGrok(secrets.GROK_API_KEY, FOLLOW_UP_SYSTEM_PROMPT, userPrompt, model);
+        const result = await judgeGrok(secrets.GROK_API_KEY, systemPrompt, userPrompt, model);
         responseText = result.text;
         tokenCount = result.tokenCount;
         break;

@@ -8,6 +8,7 @@ import { judgeOpenAI, judgeAnthropic, judgeGemini, judgePerplexity, judgeGrok } 
 import { validateJudgeInput, ValidationError } from './validation';
 import { resolveInternalUserId } from './userService';
 import { checkTokenBudget, checkAndIncrementRequestCount, recordTokenUsage, RateLimitError } from './rateLimiter';
+import { getJudgeSystemPrompt } from './judgeInstructions';
 
 interface JudgeEventArgs {
   input: JudgeInput;
@@ -39,18 +40,6 @@ You MUST respond with valid JSON in exactly this format:
 If there are no problems, use an empty array: "problems": []
 
 Respond ONLY with the JSON object, no additional text.`;
-
-// Perplexity models are web-search-augmented and inherently bias toward valuing
-// citations/sources and treating search results as the sole source of truth.
-// This addendum prevents unfair penalization of responses based on the
-// limitations of Perplexity's own web search results.
-const PERPLEXITY_JUDGE_ADDENDUM = `
-
-IMPORTANT EVALUATION GUIDELINES:
-- Do NOT penalize responses for lacking citations, references, or source links. The AI assistants being evaluated are not expected to provide citations or URLs.
-- Do NOT penalize or flag factual claims simply because they do not appear in your web search results. Your search results are limited and may not cover everything. A claim is not wrong just because you couldn't find it in a search.
-- Use your own knowledge and reasoning to evaluate accuracy, not just your search results. Only flag claims as inaccurate if you have strong evidence they are actually wrong, not merely because they are unverified by your search.
-- Evaluate responses purely on accuracy, helpfulness, completeness, and clarity of the content itself, the same way any other AI evaluator would.`;
 
 /**
  * Strips <think>...</think> blocks from response content so that
@@ -164,37 +153,40 @@ export async function handler(
       respondingProvider
     );
 
+    // Build the full system prompt (base + any provider-specific instructions)
+    const systemPrompt = getJudgeSystemPrompt(JUDGE_SYSTEM_PROMPT, judgeProvider);
+
     // Call the appropriate provider with system/user message separation
     let responseText: string;
     let tokenCount = 0;
 
     switch (judgeProvider) {
       case 'OPENAI': {
-        const result = await judgeOpenAI(secrets.OPENAI_API_KEY, JUDGE_SYSTEM_PROMPT, userPrompt, model);
+        const result = await judgeOpenAI(secrets.OPENAI_API_KEY, systemPrompt, userPrompt, model);
         responseText = result.text;
         tokenCount = result.tokenCount;
         break;
       }
       case 'ANTHROPIC': {
-        const result = await judgeAnthropic(secrets.ANTHROPIC_API_KEY, JUDGE_SYSTEM_PROMPT, userPrompt, model);
+        const result = await judgeAnthropic(secrets.ANTHROPIC_API_KEY, systemPrompt, userPrompt, model);
         responseText = result.text;
         tokenCount = result.tokenCount;
         break;
       }
       case 'GEMINI': {
-        const result = await judgeGemini(secrets.GEMINI_API_KEY, JUDGE_SYSTEM_PROMPT, userPrompt, model);
+        const result = await judgeGemini(secrets.GEMINI_API_KEY, systemPrompt, userPrompt, model);
         responseText = result.text;
         tokenCount = result.tokenCount;
         break;
       }
       case 'PERPLEXITY': {
-        const result = await judgePerplexity(secrets.PERPLEXITY_API_KEY, JUDGE_SYSTEM_PROMPT + PERPLEXITY_JUDGE_ADDENDUM, userPrompt, model);
+        const result = await judgePerplexity(secrets.PERPLEXITY_API_KEY, systemPrompt, userPrompt, model);
         responseText = result.text;
         tokenCount = result.tokenCount;
         break;
       }
       case 'GROK': {
-        const result = await judgeGrok(secrets.GROK_API_KEY, JUDGE_SYSTEM_PROMPT, userPrompt, model);
+        const result = await judgeGrok(secrets.GROK_API_KEY, systemPrompt, userPrompt, model);
         responseText = result.text;
         tokenCount = result.tokenCount;
         break;
