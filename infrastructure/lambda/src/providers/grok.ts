@@ -2,7 +2,7 @@ import { ChatMessageInput, OpenAIMessage } from '../types';
 import { ChunkBatcher } from '../chunkBatcher';
 
 const GROK_API_URL = 'https://api.x.ai/v1/chat/completions';
-const DEFAULT_MODEL = 'grok-4-0709';
+const DEFAULT_MODEL = 'grok-4';
 
 export async function streamGrok(
   apiKey: string,
