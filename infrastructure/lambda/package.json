@@ -7,6 +7,7 @@
     "build": "tsc",
     "clean": "rm -rf dist",
     "prebuild": "npm run clean",
+    "postbuild": "cp -r node_modules dist/",
     "test": "vitest run",
     "test:watch": "vitest"
   },

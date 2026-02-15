@@ -18,7 +18,7 @@ resource "null_resource" "lambda_build" {
   }
 
   provisioner "local-exec" {
-    command     = "npm ci && npm run build && cp -r node_modules dist/"
+    command     = "npm ci && npm run build"
     working_dir = "${path.module}/lambda"
   }
 }
