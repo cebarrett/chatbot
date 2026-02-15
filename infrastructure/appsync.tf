@@ -597,3 +597,81 @@ resource "aws_appsync_function" "delete_message_delete" {
   request_mapping_template  = file("${path.module}/resolvers/deleteMessage.delete.req.vtl")
   response_mapping_template = file("${path.module}/resolvers/deleteMessage.delete.res.vtl")
 }
+
+# ==========================================
+# User Preferences - Lambda Data Sources & Resolvers
+# ==========================================
+
+resource "aws_appsync_datasource" "get_user_preferences_lambda" {
+  api_id           = aws_appsync_graphql_api.chatbot.id
+  name             = "GetUserPreferencesLambda"
+  type             = "AWS_LAMBDA"
+  service_role_arn = aws_iam_role.appsync_lambda.arn
+
+  lambda_config {
+    function_arn = aws_lambda_function.get_user_preferences.arn
+  }
+}
+
+resource "aws_appsync_datasource" "update_user_preferences_lambda" {
+  api_id           = aws_appsync_graphql_api.chatbot.id
+  name             = "UpdateUserPreferencesLambda"
+  type             = "AWS_LAMBDA"
+  service_role_arn = aws_iam_role.appsync_lambda.arn
+
+  lambda_config {
+    function_arn = aws_lambda_function.update_user_preferences.arn
+  }
+}
+
+resource "aws_appsync_resolver" "get_user_preferences" {
+  api_id      = aws_appsync_graphql_api.chatbot.id
+  type        = "Query"
+  field       = "getUserPreferences"
+  data_source = aws_appsync_datasource.get_user_preferences_lambda.name
+
+  request_template = <<-EOF
+{
+  "version": "2017-02-28",
+  "operation": "Invoke",
+  "payload": {
+    "arguments": $util.toJson($context.arguments),
+    "identity": {
+      "sub": "$context.identity.sub",
+      "issuer": "$context.identity.issuer",
+      "claims": $util.toJson($context.identity.claims)
+    }
+  }
+}
+EOF
+
+  response_template = <<-EOF
+$util.toJson($context.result)
+EOF
+}
+
+resource "aws_appsync_resolver" "update_user_preferences" {
+  api_id      = aws_appsync_graphql_api.chatbot.id
+  type        = "Mutation"
+  field       = "updateUserPreferences"
+  data_source = aws_appsync_datasource.update_user_preferences_lambda.name
+
+  request_template = <<-EOF
+{
+  "version": "2017-02-28",
+  "operation": "Invoke",
+  "payload": {
+    "arguments": $util.toJson($context.arguments),
+    "identity": {
+      "sub": "$context.identity.sub",
+      "issuer": "$context.identity.issuer",
+      "claims": $util.toJson($context.identity.claims)
+    }
+  }
+}
+EOF
+
+  response_template = <<-EOF
+$util.toJson($context.result)
+EOF
+}

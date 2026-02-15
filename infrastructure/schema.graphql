@@ -155,6 +155,15 @@ type DeleteMessageResult @aws_oidc {
   success: Boolean!
 }
 
+type UserPreferences @aws_oidc {
+  preferences: AWSJSON!
+  updatedAt: String!
+}
+
+input UpdateUserPreferencesInput {
+  preferences: AWSJSON!
+}
+
 # Queries
 type Query {
   # Health check endpoint
@@ -167,6 +176,10 @@ type Query {
 
   # Get a single chat with its messages
   getChat(chatId: String!, messageLimit: Int, messageNextToken: String): ChatDetail
+    @aws_oidc
+
+  # Get current user's preferences
+  getUserPreferences: UserPreferences!
     @aws_oidc
 }
 
@@ -218,6 +231,10 @@ type Mutation {
 
   # Delete a message from a chat
   deleteMessage(input: DeleteMessageInput!): DeleteMessageResult!
+    @aws_oidc
+
+  # Update current user's preferences
+  updateUserPreferences(input: UpdateUserPreferencesInput!): UserPreferences!
     @aws_oidc
 }
 
