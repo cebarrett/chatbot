@@ -45,6 +45,7 @@ function App() {
   const [activeChatId, setActiveChatId] = useState<string | null>(null)
   const [isTyping, setIsTyping] = useState(false)
   const [isLoading, setIsLoading] = useState(true)
+  const [isLoadingChat, setIsLoadingChat] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [errorSeverity, setErrorSeverity] = useState<'error' | 'warning'>('error')
   const [enabledJudges, setEnabledJudges] = useState<string[]>(() => loadEnabledJudges())
@@ -123,6 +124,7 @@ function App() {
     if (chat && chat.messages.length > 0) return
 
     let cancelled = false
+    setIsLoadingChat(true)
 
     async function loadChatMessages() {
       try {
@@ -139,6 +141,10 @@ function App() {
       } catch (err) {
         if (cancelled) return
         console.error('Failed to load chat messages:', err)
+      } finally {
+        if (!cancelled) {
+          setIsLoadingChat(false)
+        }
       }
     }
 
@@ -911,7 +917,7 @@ function App() {
             p: { xs: 1, sm: 2 },
           }}
         >
-          {isLoading ? (
+          {isLoading || isLoadingChat ? (
             <Box
               sx={{
                 height: '100%',
