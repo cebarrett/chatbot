@@ -18,19 +18,25 @@ export class AppSyncChatError extends Error {
   }
 }
 
-// Map frontend provider IDs to GraphQL enum values
-function mapProviderToEnum(providerId: string): ChatProvider {
+// Map frontend provider IDs to GraphQL enum + optional model override
+function mapProviderAndModel(providerId: string): { provider: ChatProvider; model?: string } {
   switch (providerId) {
     case 'openai':
-      return 'OPENAI';
+      return { provider: 'OPENAI' };
     case 'claude':
-      return 'ANTHROPIC';
+      return { provider: 'ANTHROPIC' };
+    case 'claude-sonnet':
+      return { provider: 'ANTHROPIC', model: 'claude-sonnet-4-5-20250929' };
+    case 'claude-haiku':
+      return { provider: 'ANTHROPIC', model: 'claude-haiku-4-5-20251001' };
     case 'gemini':
-      return 'GEMINI';
+      return { provider: 'GEMINI' };
+    case 'gemini-flash':
+      return { provider: 'GEMINI', model: 'gemini-3-flash-preview' };
     case 'perplexity':
-      return 'PERPLEXITY';
+      return { provider: 'PERPLEXITY' };
     case 'grok':
-      return 'GROK';
+      return { provider: 'GROK' };
     default:
       throw new AppSyncChatError(`Unknown provider: ${providerId}`);
   }
@@ -93,7 +99,7 @@ export function sendMessageStream(
   }
 
   const requestId = crypto.randomUUID();
-  const provider = mapProviderToEnum(providerId);
+  const { provider, model } = mapProviderAndModel(providerId);
   const graphqlMessages = convertMessages(messages, systemPrompt);
 
   let fullContent = '';
@@ -239,6 +245,7 @@ export function sendMessageStream(
         requestId,
         provider,
         messages: graphqlMessages,
+        ...(model && { model }),
       };
 
       const response = await executeGraphQL<{ sendMessage: SendMessageResponse }>(

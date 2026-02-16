@@ -11,6 +11,7 @@ import { streamOpenAI, streamAnthropic, streamGemini, streamPerplexity, streamGr
 import { validateSendMessageInput, ValidationError } from './validation';
 import { resolveInternalUserId } from './userService';
 import { checkTokenBudget, checkAndIncrementRequestCount, recordTokenUsage, RateLimitError } from './rateLimiter';
+import { resolveModel, weightedTokens } from './modelCosts';
 
 interface ChatEventArgs {
   input: SendMessageInput;
@@ -133,7 +134,10 @@ async function streamInBackground(
     }
 
     try {
-      await recordTokenUsage(internalUserId, tokenCount);
+      const effectiveModel = resolveModel(provider, model);
+      const weighted = weightedTokens(tokenCount, effectiveModel);
+      console.log(`Token usage: ${tokenCount} raw, ${weighted} weighted (model: ${effectiveModel})`);
+      await recordTokenUsage(internalUserId, weighted);
     } catch (err) {
       console.error('Failed to record token usage:', err);
     }

@@ -8,6 +8,7 @@ import { judgeOpenAI, judgeAnthropic, judgeGemini, judgePerplexity, judgeGrok } 
 import { validateJudgeFollowUpInput, ValidationError } from './validation';
 import { resolveInternalUserId } from './userService';
 import { checkTokenBudget, checkAndIncrementRequestCount, recordTokenUsage, RateLimitError } from './rateLimiter';
+import { resolveModel, weightedTokens } from './modelCosts';
 import { getJudgeSystemPrompt } from './judgeInstructions';
 
 interface JudgeFollowUpEventArgs {
@@ -195,7 +196,9 @@ export async function handler(
     }
 
     try {
-      await recordTokenUsage(internalUserId, tokenCount);
+      const effectiveModel = resolveModel(judgeProvider, model);
+      const weighted = weightedTokens(tokenCount, effectiveModel);
+      await recordTokenUsage(internalUserId, weighted);
     } catch (err) {
       console.error('Failed to record token usage:', err);
     }
