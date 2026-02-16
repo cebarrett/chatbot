@@ -179,6 +179,23 @@ export async function judgeAnthropic(
   userPrompt: string,
   model?: string
 ): Promise<{ text: string; tokenCount: number }> {
+  const selectedModel = model || DEFAULT_MODEL;
+  const useThinking = THINKING_CAPABLE_MODELS.has(selectedModel);
+
+  const requestBody: Record<string, unknown> = {
+    model: selectedModel,
+    system: systemPrompt,
+    messages: [{ role: 'user', content: userPrompt }],
+    max_tokens: useThinking ? 16000 : 4096,
+  };
+
+  if (useThinking) {
+    requestBody.thinking = {
+      type: 'enabled',
+      budget_tokens: 10000,
+    };
+  }
+
   const response = await fetch(ANTHROPIC_API_URL, {
     method: 'POST',
     headers: {
@@ -186,12 +203,7 @@ export async function judgeAnthropic(
       'x-api-key': apiKey,
       'anthropic-version': ANTHROPIC_VERSION,
     },
-    body: JSON.stringify({
-      model: model || DEFAULT_MODEL,
-      system: systemPrompt,
-      messages: [{ role: 'user', content: userPrompt }],
-      max_tokens: 4096,
-    }),
+    body: JSON.stringify(requestBody),
   });
 
   if (!response.ok) {
@@ -200,7 +212,20 @@ export async function judgeAnthropic(
   }
 
   const data: any = await response.json();
-  const text = data.content?.[0]?.text || '';
+
+  // With thinking enabled, content has thinking + text blocks — extract only text
+  let text = '';
+  if (data.content && Array.isArray(data.content)) {
+    for (const block of data.content) {
+      if (block.type === 'text' && block.text) {
+        text += block.text;
+      }
+    }
+  }
+  if (!text) {
+    text = data.content?.[0]?.text || '';
+  }
+
   const tokenCount = ((data.usage?.input_tokens || 0) + (data.usage?.output_tokens || 0)) || Math.ceil(text.length / 4);
   return { text, tokenCount };
 }
