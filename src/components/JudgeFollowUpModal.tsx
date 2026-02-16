@@ -159,7 +159,7 @@ export function JudgeFollowUpModal({
       maxWidth="sm"
       fullWidth
       PaperProps={{
-        sx: { maxHeight: '80vh' },
+        sx: { maxHeight: '80dvh' },
       }}
     >
       <DialogTitle
