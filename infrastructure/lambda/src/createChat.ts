@@ -79,12 +79,13 @@ export async function handler(
           },
           // User-chat index item (for listing user's chats)
           // Uses internal user ID for partition key (decoupled from auth provider)
+          // SK uses chatId only (not timestamp) so concurrent updates don't create orphaned entries
           {
             Put: {
               TableName: TABLE_NAME,
               Item: {
                 PK: `USER#${internalUserId}`,
-                SK: `CHAT#${now}#${chatId}`,
+                SK: `CHAT#${chatId}`,
                 chatId,
                 title,
                 providerId,
