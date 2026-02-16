@@ -81,8 +81,19 @@ export async function listChats(
     { limit, nextToken }
   );
 
+  // Deduplicate by chatId — the backend should already handle this, but
+  // guard against legacy duplicate index entries during the transition period
+  const seen = new Set<string>();
+  const uniqueChats: Chat[] = [];
+  for (const summary of data.listChats.chats) {
+    if (!seen.has(summary.chatId)) {
+      seen.add(summary.chatId);
+      uniqueChats.push(chatSummaryToChat(summary));
+    }
+  }
+
   return {
-    chats: data.listChats.chats.map(chatSummaryToChat),
+    chats: uniqueChats,
     nextToken: data.listChats.nextToken,
   };
 }
