@@ -192,6 +192,26 @@ export async function judgeGemini(
   const modelName = model || DEFAULT_MODEL;
   const url = `${GEMINI_API_BASE}/${modelName}:generateContent?key=${apiKey}`;
 
+  const useThinking = THINKING_CAPABLE_MODELS.has(modelName);
+
+  const generationConfig: Record<string, unknown> = {
+    maxOutputTokens: 4096,
+    temperature: 0.3,
+  };
+
+  if (useThinking) {
+    // Gemini 3 uses thinkingLevel; Gemini 2.5 uses thinkingBudget (incompatible)
+    if (modelName.startsWith('gemini-3')) {
+      generationConfig.thinkingConfig = {
+        thinkingLevel: 'HIGH',
+      };
+    } else {
+      generationConfig.thinkingConfig = {
+        thinkingBudget: 8192,
+      };
+    }
+  }
+
   const response = await fetch(url, {
     method: 'POST',
     headers: {
@@ -205,10 +225,7 @@ export async function judgeGemini(
           parts: [{ text: userPrompt }],
         },
       ],
-      generationConfig: {
-        maxOutputTokens: 4096,
-        temperature: 0.3,
-      },
+      generationConfig,
     }),
   });
 
@@ -218,7 +235,21 @@ export async function judgeGemini(
   }
 
   const data: any = await response.json();
-  const text = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
+
+  // When thinking is enabled, response parts include thought parts — extract only non-thought text
+  const parts = data.candidates?.[0]?.content?.parts;
+  let text = '';
+  if (parts && Array.isArray(parts)) {
+    for (const part of parts) {
+      if (!part.thought && part.text) {
+        text += part.text;
+      }
+    }
+  }
+  if (!text) {
+    text = parts?.[0]?.text || '';
+  }
+
   const tokenCount = data.usageMetadata?.totalTokenCount || Math.ceil(text.length / 4);
   return { text, tokenCount };
 }
