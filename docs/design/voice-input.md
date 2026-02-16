@@ -143,12 +143,10 @@ Add a new mutation and response type:
 input TranscribeAudioInput {
   audio: String!       # Base64-encoded audio data
   mimeType: String!    # e.g. "audio/webm;codecs=opus"
-  language: String     # Optional BCP-47 hint (e.g. "en"), improves accuracy
 }
 
 type TranscriptionResult @aws_oidc {
   text: String!
-  language: String     # Detected language code
   duration: Float      # Audio duration in seconds (from Whisper response)
 }
 
@@ -172,13 +170,12 @@ interface TranscribeEventArgs {
   input: {
     audio: string      // base64
     mimeType: string
-    language?: string
   }
 }
 
 export async function handler(
   event: AppSyncEvent<TranscribeEventArgs>
-): Promise<{ text: string; language: string; duration: number }>
+): Promise<{ text: string; duration: number }>
 ```
 
 **Flow:**
@@ -189,9 +186,8 @@ export async function handler(
 4. Call the Whisper API (`POST https://api.openai.com/v1/audio/transcriptions`) with:
    - `model: "whisper-1"`
    - `file`: audio buffer as a file upload
-   - `response_format: "verbose_json"` (to get language and duration)
-   - `language`: pass through if provided (optional hint)
-5. Return `{ text, language, duration }`.
+   - `response_format: "verbose_json"` (to get duration metadata)
+5. Return `{ text, duration }`.
 
 **Validation rules:**
 
@@ -213,7 +209,7 @@ Add a `validateTranscribeInput` function:
 export function validateTranscribeInput(input: TranscribeEventArgs['input']): void
 ```
 
-Checks audio size, MIME type allowlist, and language code format.
+Checks audio size and MIME type allowlist.
 
 #### 5.3.3 Lambda Handler Export (`infrastructure/lambda/src/index.ts`)
 
@@ -338,19 +334,11 @@ The MediaRecorder API is supported in all modern browsers:
 - Test concurrent voice and text input (start typing, switch to voice, verify text is preserved and transcript is appended).
 - Test network disconnection during transcription (verify error message).
 
-## 10. Rollout
-
-1. **Backend first.** Deploy the transcribe Lambda, GraphQL schema changes, and IAM roles. The new mutation is available but unused until the frontend ships.
-2. **Frontend behind feature flag.** Add the mic button gated on a `VITE_ENABLE_VOICE_INPUT` environment variable. Deploy to production with the flag disabled.
-3. **Enable for testing.** Turn on the flag in a staging environment for internal testing.
-4. **GA.** Enable the flag in production. Once stable, remove the flag and the conditional rendering.
-
-## 11. Future Considerations
+## 10. Future Considerations
 
 These are explicitly out of scope but worth noting for future work:
 
 - **Streaming transcription.** OpenAI does not currently offer a streaming Whisper API. If they do in the future, partial transcripts could be displayed in real time as the user speaks.
 - **Voice output.** Pair with OpenAI TTS to read assistant responses aloud.
 - **Audio message storage.** Save the original audio in S3 and link it to the message for playback.
-- **Language selection UI.** Let users pick their language to improve Whisper accuracy instead of relying on auto-detection.
 - **Whisper model upgrades.** When newer Whisper models are released, the `model` parameter in the Lambda can be updated without frontend changes.
