@@ -12,7 +12,7 @@ import {
   Chip,
   Divider,
 } from '@mui/material'
-import GavelIcon from '@mui/icons-material/Gavel'
+import RateReviewIcon from '@mui/icons-material/RateReview'
 import CheckCircleIcon from '@mui/icons-material/CheckCircle'
 import ErrorOutlineIcon from '@mui/icons-material/ErrorOutline'
 import { judgeRegistry } from '../services/judgeRegistry'
@@ -42,7 +42,7 @@ export function JudgeSelector({ enabledJudges, onToggleJudge }: JudgeSelectorPro
 
   return (
     <>
-      <Tooltip title="Select judges for response evaluation">
+      <Tooltip title="Select reviewers for response evaluation">
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
           <IconButton
             onClick={handleClick}
@@ -51,7 +51,7 @@ export function JudgeSelector({ enabledJudges, onToggleJudge }: JudgeSelectorPro
               color: enabledCount > 0 ? 'primary.main' : 'text.secondary',
             }}
           >
-            <GavelIcon fontSize="small" />
+            <RateReviewIcon fontSize="small" />
           </IconButton>
           <Chip
             label={enabledCount}
@@ -87,7 +87,7 @@ export function JudgeSelector({ enabledJudges, onToggleJudge }: JudgeSelectorPro
       >
         <Box sx={{ px: 2, py: 1 }}>
           <Typography variant="subtitle2" color="text.secondary">
-            Response Quality Judges
+            Response Reviewers
           </Typography>
           <Typography variant="caption" color="text.secondary">
             Select which AI models evaluate responses
@@ -150,8 +150,8 @@ export function JudgeSelector({ enabledJudges, onToggleJudge }: JudgeSelectorPro
         <Box sx={{ px: 2, py: 1 }}>
           <Typography variant="caption" color="text.secondary">
             {enabledCount === 0
-              ? 'No judges selected - responses will not be evaluated'
-              : `${enabledCount} judge${enabledCount !== 1 ? 's' : ''} will evaluate each response`}
+              ? 'No reviewers selected - responses will not be evaluated'
+              : `${enabledCount} reviewer${enabledCount !== 1 ? 's' : ''} will evaluate each response`}
           </Typography>
         </Box>
       </Menu>
