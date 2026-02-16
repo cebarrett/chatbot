@@ -813,7 +813,7 @@ function App() {
     <AuthLayout>
       <Box
         sx={{
-          height: '100vh',
+          height: '100%',
           display: 'flex',
           bgcolor: 'background.default',
         }}
