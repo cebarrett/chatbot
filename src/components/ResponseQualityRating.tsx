@@ -416,7 +416,7 @@ export function ResponseQualityRating({
         {showDisagreement && (
           <Chip
             icon={<BalanceIcon sx={{ fontSize: 16 }} />}
-            label="Judges disagree"
+            label="Reviewers disagree"
             color="info"
             size="small"
             variant="outlined"
@@ -439,8 +439,8 @@ export function ResponseQualityRating({
             sx={{ mt: 1, mb: 1 }}
           >
             <Typography variant="body2">
-              These AI judges evaluated this response differently. This is normal — AI systems
-              have different strengths and biases. Consider reading each judge's explanation to
+              These AI reviewers evaluated this response differently. This is normal — AI systems
+              have different strengths and biases. Consider reading each reviewer's explanation to
               decide for yourself.
             </Typography>
           </Alert>
