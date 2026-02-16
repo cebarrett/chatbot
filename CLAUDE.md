@@ -4,7 +4,7 @@ This file provides guidance for Claude Code when working with this repository.
 
 ## Project Overview
 
-This is a multi-provider LLM chatbot application with a React + TypeScript frontend and AWS serverless backend. Users can chat with multiple LLM providers (OpenAI, Anthropic Claude, Google Gemini, Perplexity) and have responses evaluated by an AI judge system. The frontend is built with Vite and Material-UI, uses Clerk for authentication, and communicates with an AWS AppSync GraphQL API. The backend uses Lambda functions that securely call LLM APIs with keys stored in Secrets Manager, and persists chat history in DynamoDB.
+This is a multi-provider LLM chatbot application with a React + TypeScript frontend and AWS serverless backend. Users can chat with multiple LLM providers (OpenAI, Anthropic Claude, Google Gemini, Perplexity, Grok) and have responses evaluated by an AI judge system. The frontend is built with Vite and Material-UI, uses Clerk for authentication, and communicates with an AWS AppSync GraphQL API. The backend uses Lambda functions that securely call LLM APIs with keys stored in Secrets Manager, and persists chat history in DynamoDB. Additional features include voice input via audio transcription, judge follow-up conversations, per-user preferences backed by DynamoDB, and per-user rate limiting.
 
 ## Commands
 
@@ -13,6 +13,8 @@ This is a multi-provider LLM chatbot application with a React + TypeScript front
 - `npm run build` - TypeScript compile and Vite production build
 - `npm run lint` - Run ESLint
 - `npm run preview` - Preview production build
+- `npm test` - Run Vitest tests
+- `npm run test:watch` - Run Vitest in watch mode
 - `npm run deploy` - Deploy frontend to S3 (requires S3_BUCKET env var)
 - `npm run deploy:prod` - Deploy using S3_BUCKET from environment
 
@@ -40,23 +42,30 @@ This is a multi-provider LLM chatbot application with a React + TypeScript front
 ### Components (`src/components/`)
 - `AuthLayout.tsx` - Clerk sign-in/sign-out UI with theme support
 - `ChatMessage.tsx` - Message display with markdown rendering and code syntax highlighting
-- `ChatInput.tsx` - Message input form
+- `ChatInput.tsx` - Message input form with voice recording support
 - `ChatHistorySidebar.tsx` - Chat list, creation, and deletion
 - `ProviderSelector.tsx` - LLM provider selection dropdown
 - `JudgeSelector.tsx` - Judge enable/disable checkboxes
+- `JudgeFollowUpModal.tsx` - Modal dialog for follow-up questions about judge evaluations
 - `ResponseQualityRating.tsx` - Judge quality ratings display for assistant messages
 
 ### Contexts (`src/contexts/`)
 - `AuthContext.tsx` - Clerk auth integration, sets up AppSync JWT token provider
 - `ThemeContext.tsx` - Light/dark/system theme mode with MUI theming
+- `UserPreferencesContext.tsx` - DynamoDB-backed user preferences with localStorage cache
+
+### Hooks (`src/hooks/`)
+- `useVoiceRecorder.ts` - MediaRecorder-based voice recording with transcription via AppSync
 
 ### Services (`src/services/`)
 - `appsyncClient.ts` - GraphQL client with JWT auth and WebSocket subscriptions
 - `appsyncChat.ts` - Chat streaming via AppSync mutations and subscriptions
-- `appsyncJudge.ts` - Judge quality evaluations via AppSync
+- `appsyncJudge.ts` - Judge quality evaluations and follow-up questions via AppSync
 - `chatHistoryService.ts` - Chat CRUD operations (create, list, delete, save/update messages) via AppSync/DynamoDB
-- `chatProviderRegistry.ts` - Provider registry (OpenAI, Claude, Gemini, Perplexity)
+- `chatProviderRegistry.ts` - Provider registry (OpenAI, Claude, Gemini, Perplexity, Grok)
 - `judgeRegistry.ts` - Judge registry with localStorage persistence for enabled judges
+- `transcriptionService.ts` - Audio transcription via AppSync (Whisper API)
+- `userPreferencesService.ts` - User preferences CRUD with localStorage write-through cache
 
 ### GraphQL
 - `src/graphql/operations.ts` - Queries, mutations, subscriptions, and TypeScript types
@@ -69,23 +78,36 @@ This is a multi-provider LLM chatbot application with a React + TypeScript front
 
 ### Backend (`infrastructure/`)
 - **AppSync API** (`appsync.tf`): GraphQL API with OIDC auth (Clerk) and IAM auth (Lambda), real-time WebSocket subscriptions
-- **Lambda Functions** (`lambda.tf`): Node.js 22 TypeScript handlers for chat streaming and judge evaluation
+- **Lambda Functions** (`lambda.tf`): Node.js 22 TypeScript handlers for chat streaming, judge evaluation, and audio transcription
 - **DynamoDB** (`dynamodb.tf`): Single-table design for chat history persistence
 - **Secrets Manager** (`secrets.tf`): Secure storage for LLM API keys
 - **IAM Roles** (`iam.tf`): Least-privilege policies for Lambda execution and AppSync access
-- **VTL Resolvers** (`resolvers/`): ~28 Velocity Template Language files for AppSync resolver mapping
+- **VTL Resolvers** (`resolvers/`): ~34 Velocity Template Language files for AppSync resolver mapping
 
 ### Lambda Functions (`infrastructure/lambda/src/`)
-- `index.ts` - Handler exports (chat, judge)
+- `index.ts` - Handler exports (chat, judge, transcribe)
 - `chat.ts` - Chat handler with streaming response
 - `judge.ts` - Judge handler with prompt injection protection
+- `judgeFollowUp.ts` - Follow-up question handler for judge evaluations
+- `judgeInstructions.ts` - Per-provider judge instruction addenda
+- `transcribe.ts` - Audio transcription handler (Whisper API)
 - `validation.ts` - Input validation and model allowlists
 - `secrets.ts` - Secrets Manager client for LLM API keys
 - `appsync.ts` - AppSync client for publishing streaming chunks
 - `userService.ts` - User ID resolution (Clerk to internal mapping)
 - `chunkBatcher.ts` - Streaming response chunk batching
+- `rateLimiter.ts` - Per-user daily request and token rate limiting
+- `types.ts` - Shared TypeScript types for Lambda handlers
 - `createChat.ts`, `deleteChat.ts`, `listChats.ts` - Chat CRUD resolvers
-- `providers/` - LLM provider implementations: `openai.ts`, `anthropic.ts`, `gemini.ts`, `perplexity.ts`
+- `getUserPreferences.ts`, `updateUserPreferences.ts`, `userPreferences.ts` - User preferences CRUD resolvers
+- `providers/` - LLM provider implementations: `openai.ts`, `anthropic.ts`, `gemini.ts`, `perplexity.ts`, `grok.ts`
+
+## Testing
+
+- Frontend: Vitest + Testing Library (`npm test`, `npm run test:watch`)
+- Lambda: Vitest (`cd infrastructure/lambda && npx vitest run`)
+- Test files: `*.test.ts` / `*.test.tsx` colocated with source, plus `src/__tests__/` for integration tests
+- Test setup: `src/test/setup.ts`
 
 ## Code Style
 
