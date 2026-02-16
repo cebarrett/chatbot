@@ -325,3 +325,43 @@ resource "aws_cloudwatch_log_group" "update_user_preferences" {
     Name = "${var.project_name}-update-user-preferences-logs"
   }
 }
+
+# Transcribe Audio Lambda function
+resource "aws_lambda_function" "transcribe" {
+  filename         = data.archive_file.lambda_package.output_path
+  function_name    = "${var.project_name}-${var.environment}-transcribe"
+  role             = aws_iam_role.lambda_execution.arn
+  handler          = "transcribe.handler"
+  source_code_hash = data.archive_file.lambda_package.output_base64sha256
+  runtime          = "nodejs22.x"
+  timeout          = 30
+  memory_size      = 256
+
+  environment {
+    variables = {
+      SECRETS_NAME               = aws_secretsmanager_secret.llm_api_keys.name
+      DYNAMODB_TABLE_NAME        = aws_dynamodb_table.chats.name
+      RATE_LIMIT_DAILY_REQUESTS  = tostring(var.rate_limit_daily_requests)
+      RATE_LIMIT_DAILY_TOKENS    = tostring(var.rate_limit_daily_tokens)
+    }
+  }
+
+  depends_on = [
+    aws_iam_role_policy_attachment.lambda_basic_execution,
+    aws_iam_role_policy.lambda_secrets_access,
+    aws_iam_role_policy.lambda_dynamodb_access,
+  ]
+
+  tags = {
+    Name = "${var.project_name}-transcribe"
+  }
+}
+
+resource "aws_cloudwatch_log_group" "transcribe" {
+  name              = "/aws/lambda/${aws_lambda_function.transcribe.function_name}"
+  retention_in_days = 14
+
+  tags = {
+    Name = "${var.project_name}-transcribe-logs"
+  }
+}

@@ -1,4 +1,4 @@
-import { ChatProvider, ChatMessageInput, SendMessageInput, JudgeInput, JudgeFollowUpInput } from './types';
+import { ChatProvider, ChatMessageInput, SendMessageInput, JudgeInput, JudgeFollowUpInput, TranscribeAudioInput } from './types';
 
 // Validation constants
 export const VALIDATION_LIMITS = {
@@ -9,7 +9,16 @@ export const VALIDATION_LIMITS = {
   MAX_REQUEST_ID_LENGTH: 100,
   MAX_PROVIDER_NAME_LENGTH: 50,
   MAX_FOLLOW_UP_QUESTION_BYTES: 4 * 1024, // 4KB for follow-up questions
+  MAX_AUDIO_DECODED_BYTES: 25 * 1024 * 1024, // 25MB Whisper API limit
 } as const;
+
+const ALLOWED_AUDIO_MIME_TYPES = [
+  'audio/webm',
+  'audio/webm;codecs=opus',
+  'audio/mp4',
+  'audio/mpeg',
+  'audio/wav',
+] as const;
 
 export class ValidationError extends Error {
   constructor(message: string) {
@@ -177,6 +186,39 @@ export function validateJudgeInput(input: JudgeInput): void {
 /**
  * Validates complete JudgeFollowUpInput
  */
+/**
+ * Validates TranscribeAudioInput
+ */
+export function validateTranscribeInput(input: TranscribeAudioInput): void {
+  if (!input || typeof input !== 'object') {
+    throw new ValidationError('Input is required');
+  }
+
+  if (typeof input.audio !== 'string' || input.audio.length === 0) {
+    throw new ValidationError('Audio data is required and must be a non-empty string');
+  }
+
+  if (typeof input.mimeType !== 'string' || input.mimeType.length === 0) {
+    throw new ValidationError('MIME type is required');
+  }
+
+  // Normalize MIME type for comparison (lowercase, trim whitespace around semicolons)
+  const normalizedMime = input.mimeType.toLowerCase().replace(/\s*;\s*/g, ';');
+  if (!ALLOWED_AUDIO_MIME_TYPES.includes(normalizedMime as typeof ALLOWED_AUDIO_MIME_TYPES[number])) {
+    throw new ValidationError(
+      `Unsupported audio MIME type: ${input.mimeType}. Allowed: ${ALLOWED_AUDIO_MIME_TYPES.join(', ')}`
+    );
+  }
+
+  // Check decoded audio size (base64 is ~4/3 the size of the original)
+  const estimatedDecodedSize = Math.ceil(input.audio.length * 3 / 4);
+  if (estimatedDecodedSize > VALIDATION_LIMITS.MAX_AUDIO_DECODED_BYTES) {
+    throw new ValidationError(
+      `Audio data exceeds maximum size of ${VALIDATION_LIMITS.MAX_AUDIO_DECODED_BYTES} bytes`
+    );
+  }
+}
+
 export function validateJudgeFollowUpInput(input: JudgeFollowUpInput): void {
   if (!input || typeof input !== 'object') {
     throw new ValidationError('Input is required');
