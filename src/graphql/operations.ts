@@ -188,6 +188,15 @@ export const UPDATE_USER_PREFERENCES_MUTATION = `
   }
 `;
 
+export const TRANSCRIBE_AUDIO_MUTATION = `
+  mutation TranscribeAudio($input: TranscribeAudioInput!) {
+    transcribeAudio(input: $input) {
+      text
+      duration
+    }
+  }
+`;
+
 // Types matching the GraphQL schema
 export type ChatProvider = 'OPENAI' | 'ANTHROPIC' | 'GEMINI' | 'PERPLEXITY' | 'GROK';
 
@@ -339,4 +348,16 @@ export interface UserPreferencesResult {
 
 export interface UpdateUserPreferencesInput {
   preferences: string; // AWSJSON
+}
+
+// Voice transcription types
+
+export interface TranscribeAudioInput {
+  audio: string;
+  mimeType: string;
+}
+
+export interface TranscriptionResult {
+  text: string;
+  duration: number | null;
 }

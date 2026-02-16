@@ -85,6 +85,17 @@ export interface LLMSecrets {
   GROK_API_KEY: string;
 }
 
+// Voice transcription types
+export interface TranscribeAudioInput {
+  audio: string;
+  mimeType: string;
+}
+
+export interface TranscriptionResult {
+  text: string;
+  duration: number | null;
+}
+
 // Provider-specific message formats
 export interface OpenAIMessage {
   role: 'user' | 'assistant' | 'system';

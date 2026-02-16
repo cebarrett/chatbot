@@ -675,3 +675,44 @@ EOF
 $util.toJson($context.result)
 EOF
 }
+
+# ==========================================
+# Voice Transcription - Lambda Data Source & Resolver
+# ==========================================
+
+resource "aws_appsync_datasource" "transcribe_lambda" {
+  api_id           = aws_appsync_graphql_api.chatbot.id
+  name             = "TranscribeLambda"
+  type             = "AWS_LAMBDA"
+  service_role_arn = aws_iam_role.appsync_lambda.arn
+
+  lambda_config {
+    function_arn = aws_lambda_function.transcribe.arn
+  }
+}
+
+resource "aws_appsync_resolver" "transcribe_audio" {
+  api_id      = aws_appsync_graphql_api.chatbot.id
+  type        = "Mutation"
+  field       = "transcribeAudio"
+  data_source = aws_appsync_datasource.transcribe_lambda.name
+
+  request_template = <<-EOF
+{
+  "version": "2017-02-28",
+  "operation": "Invoke",
+  "payload": {
+    "arguments": $util.toJson($context.arguments),
+    "identity": {
+      "sub": "$context.identity.sub",
+      "issuer": "$context.identity.issuer",
+      "claims": $util.toJson($context.identity.claims)
+    }
+  }
+}
+EOF
+
+  response_template = <<-EOF
+$util.toJson($context.result)
+EOF
+}

@@ -1011,6 +1011,7 @@ function App() {
           isTyping={isTyping}
           editValue={editValue}
           onEditClear={handleEditClear}
+          onVoiceError={(msg) => { setErrorSeverity('error'); setError(msg) }}
         />
       </Box>
 

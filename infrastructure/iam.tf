@@ -99,7 +99,8 @@ resource "aws_iam_role_policy" "appsync_lambda_invoke" {
           aws_lambda_function.create_chat.arn,
           aws_lambda_function.list_chats.arn,
           aws_lambda_function.get_user_preferences.arn,
-          aws_lambda_function.update_user_preferences.arn
+          aws_lambda_function.update_user_preferences.arn,
+          aws_lambda_function.transcribe.arn
         ]
       }
     ]
