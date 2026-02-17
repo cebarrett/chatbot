@@ -4,6 +4,7 @@ import { ChatProvider, ChatMessageInput, SendMessageInput, JudgeInput, JudgeFoll
 export const VALIDATION_LIMITS = {
   MAX_MESSAGES: 100,
   MAX_MESSAGE_SIZE_BYTES: 32 * 1024, // 32KB per message
+  MAX_RESPONSE_SIZE_BYTES: 128 * 1024, // 128KB for LLM responses sent to judges
   MAX_TOTAL_PAYLOAD_BYTES: 200 * 1024, // 200KB total
   MAX_TITLE_LENGTH: 500,
   MAX_REQUEST_ID_LENGTH: 100,
@@ -169,7 +170,7 @@ export function validateJudgeInput(input: JudgeInput): void {
   validateStringField(
     input.responseToJudge,
     'responseToJudge',
-    VALIDATION_LIMITS.MAX_MESSAGE_SIZE_BYTES
+    VALIDATION_LIMITS.MAX_RESPONSE_SIZE_BYTES
   );
   validateStringField(
     input.respondingProvider,
@@ -235,7 +236,7 @@ export function validateJudgeFollowUpInput(input: JudgeFollowUpInput): void {
   validateStringField(
     input.responseToJudge,
     'responseToJudge',
-    VALIDATION_LIMITS.MAX_MESSAGE_SIZE_BYTES
+    VALIDATION_LIMITS.MAX_RESPONSE_SIZE_BYTES
   );
   validateStringField(
     input.respondingProvider,
