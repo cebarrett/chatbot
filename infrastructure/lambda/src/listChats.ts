@@ -34,7 +34,8 @@ interface ChatListResult {
 export async function handler(
   event: AppSyncEvent<ListChatsArgs>
 ): Promise<ChatListResult> {
-  const { limit = 50, nextToken } = event.arguments;
+  const { limit: rawLimit, nextToken } = event.arguments;
+  const limit = rawLimit ?? 50;
 
   // Resolve internal user ID from Clerk ID (creates mapping if first login)
   const internalUserId = await resolveInternalUserId(event.identity);
