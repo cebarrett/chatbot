@@ -189,11 +189,20 @@ describe('validateJudgeInput', () => {
     ).toThrow(ValidationError);
   });
 
+  it('accepts responseToJudge up to MAX_RESPONSE_SIZE_BYTES', () => {
+    expect(() =>
+      validateJudgeInput({
+        ...validInput,
+        responseToJudge: 'x'.repeat(VALIDATION_LIMITS.MAX_RESPONSE_SIZE_BYTES),
+      })
+    ).not.toThrow();
+  });
+
   it('rejects oversized responseToJudge', () => {
     expect(() =>
       validateJudgeInput({
         ...validInput,
-        responseToJudge: 'x'.repeat(VALIDATION_LIMITS.MAX_MESSAGE_SIZE_BYTES + 1),
+        responseToJudge: 'x'.repeat(VALIDATION_LIMITS.MAX_RESPONSE_SIZE_BYTES + 1),
       })
     ).toThrow(ValidationError);
   });
