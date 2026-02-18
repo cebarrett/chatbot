@@ -89,8 +89,12 @@ export function JudgeSelector({ enabledJudges, onToggleJudge }: JudgeSelectorPro
           <Typography variant="subtitle2" color="text.secondary">
             Response Reviewers
           </Typography>
-          <Typography variant="caption" color="text.secondary">
+          <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 0.5 }}>
             Select which AI models evaluate responses
+          </Typography>
+          <Typography variant="caption" color="text.secondary" sx={{ display: 'block', fontStyle: 'italic' }}>
+            Different AI models catch different problems. Using multiple
+            reviewers gives you a more complete picture.
           </Typography>
         </Box>
 

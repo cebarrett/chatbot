@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, useCallback, useMemo } from 'react'
+import { useState, useRef, useEffect, useCallback, useMemo, useImperativeHandle, forwardRef } from 'react'
 import { useAuth } from '@clerk/clerk-react'
 import { Box, Typography, Paper, Alert, Snackbar, IconButton, Tooltip, CircularProgress, useMediaQuery, useTheme as useMuiTheme, Chip, Button } from '@mui/material'
 import SmartToyIcon from '@mui/icons-material/SmartToy'
@@ -6,12 +6,15 @@ import LightModeIcon from '@mui/icons-material/LightMode'
 import DarkModeIcon from '@mui/icons-material/DarkMode'
 import MenuIcon from '@mui/icons-material/Menu'
 import VisibilityOffIcon from '@mui/icons-material/VisibilityOff'
+import HelpOutlineIcon from '@mui/icons-material/HelpOutline'
 import { useTheme } from './contexts/ThemeContext'
 import { AuthLayout, UserButton } from './components/AuthLayout'
 import { ChatMessage } from './components/ChatMessage'
 import { ChatInput } from './components/ChatInput'
 import { ChatHistorySidebar } from './components/ChatHistorySidebar'
 import { ProviderSelector } from './components/ProviderSelector'
+import { OnboardingModal } from './components/OnboardingModal'
+import { useUserPreferences } from './contexts/UserPreferencesContext'
 import type { Message, Chat, JudgeFollowUp, JudgeError, ContentBlock } from './types'
 import { getDummyResponse, generateId } from './utils/dummyResponses'
 import {
@@ -87,6 +90,38 @@ function parseImageStreamContent(raw: string): ContentBlock[] {
   return blocks
 }
 
+interface OnboardingControllerHandle {
+  open: () => void
+}
+
+/**
+ * Self-contained onboarding controller rendered inside the UserPreferencesProvider tree.
+ * Uses a ref so the parent (App) can trigger the modal from the help button.
+ */
+const OnboardingController = forwardRef<OnboardingControllerHandle>(function OnboardingController(_props, ref) {
+  const { get, set, loading } = useUserPreferences()
+  const completed = get<boolean>('onboarding_completed', false)
+  const [dismissed, setDismissed] = useState(false)
+  const [helpRequested, setHelpRequested] = useState(false)
+
+  // Derive visibility: show on first visit (not completed, not loading), or when help is requested
+  const show = helpRequested || (!loading && !completed && !dismissed)
+
+  useImperativeHandle(ref, () => ({
+    open: () => setHelpRequested(true),
+  }))
+
+  const handleComplete = useCallback(() => {
+    setDismissed(true)
+    setHelpRequested(false)
+    if (!completed) {
+      set({ onboarding_completed: true })
+    }
+  }, [set, completed])
+
+  return <OnboardingModal open={show} onComplete={handleComplete} />
+})
+
 function App() {
   const { isLoaded, isSignedIn } = useAuth()
   const [chats, setChats] = useState<Chat[]>([])
@@ -114,6 +149,7 @@ function App() {
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [incognitoMode, setIncognitoMode] = useState(false)
   const [newChatProviderId, setNewChatProviderId] = useState(DEFAULT_PROVIDER_ID)
+  const onboardingRef = useRef<OnboardingControllerHandle>(null)
 
   // Sort chats by updatedAt descending so most recently active chats appear first
   const sortedChats = useMemo(
@@ -968,6 +1004,11 @@ function App() {
               disabled={isTyping}
             />
             <JudgeSelector enabledJudges={enabledJudges} onToggleJudge={handleToggleJudge} />
+            <Tooltip title="Help &amp; tour">
+              <IconButton onClick={() => onboardingRef.current?.open()} size="small">
+                <HelpOutlineIcon fontSize="small" />
+              </IconButton>
+            </Tooltip>
             <Tooltip title={resolvedMode === 'light' ? 'Switch to dark mode' : 'Switch to light mode'}>
               <IconButton onClick={toggleMode} size="small">
                 {resolvedMode === 'light' ? <DarkModeIcon /> : <LightModeIcon />}
@@ -1114,6 +1155,8 @@ function App() {
             {error}
           </Alert>
         </Snackbar>
+
+        <OnboardingController ref={onboardingRef} />
       </Box>
     </AuthLayout>
   )

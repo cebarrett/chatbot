@@ -139,6 +139,8 @@ describe('App integration tests', () => {
       cancel: vi.fn(),
     }))
     localStorage.clear()
+    // Mark onboarding as completed so the modal doesn't block test interactions
+    localStorage.setItem('chatbot_user_preferences', JSON.stringify({ onboarding_completed: true }))
   })
 
   afterEach(() => {
