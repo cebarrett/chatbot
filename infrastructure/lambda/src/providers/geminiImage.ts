@@ -3,7 +3,7 @@ import { ChunkBatcher } from '../chunkBatcher';
 import { uploadImage, buildImageChunkPayload } from '../imageStorage';
 
 const GEMINI_API_BASE = 'https://generativelanguage.googleapis.com/v1beta/models';
-const IMAGE_MODEL = 'gemini-3-pro-image';
+const IMAGE_MODEL = 'gemini-3-pro-image-preview';
 
 /**
  * Generate images using Gemini's generateContent API with responseModalities: ["TEXT", "IMAGE"].
