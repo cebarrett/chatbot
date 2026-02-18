@@ -65,6 +65,7 @@ vi.mock('../services/chatProviderRegistry', () => {
   return {
     chatProviderRegistry: providers,
     DEFAULT_PROVIDER_ID: 'gemini',
+    IMAGE_PROVIDER_IDS: new Set(['gemini-image', 'openai-image']),
     getProviderById: (id: string) => providers.find((p) => p.id === id),
     getDefaultProvider: () => providers[0],
     getAllProviderIds: () => providers.map((p) => p.id),

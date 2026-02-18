@@ -41,6 +41,7 @@ resource "aws_lambda_function" "chat" {
       DYNAMODB_TABLE_NAME        = aws_dynamodb_table.chats.name
       RATE_LIMIT_DAILY_REQUESTS  = tostring(var.rate_limit_daily_requests)
       RATE_LIMIT_DAILY_TOKENS    = tostring(var.rate_limit_daily_tokens)
+      IMAGE_BUCKET_NAME          = aws_s3_bucket.generated_images.id
     }
   }
 
@@ -49,6 +50,7 @@ resource "aws_lambda_function" "chat" {
     aws_iam_role_policy.lambda_secrets_access,
     aws_iam_role_policy.lambda_appsync_access,
     aws_iam_role_policy.lambda_dynamodb_access,
+    aws_iam_role_policy.lambda_s3_images_access,
   ]
 
   tags = {

@@ -94,6 +94,7 @@ export const GET_CHAT_QUERY = `
         content
         timestamp
         judgeRatings
+        contentBlocks
       }
       nextToken
     }
@@ -143,6 +144,7 @@ export const SAVE_MESSAGE_MUTATION = `
       content
       timestamp
       judgeRatings
+      contentBlocks
     }
   }
 `;
@@ -198,7 +200,7 @@ export const TRANSCRIBE_AUDIO_MUTATION = `
 `;
 
 // Types matching the GraphQL schema
-export type ChatProvider = 'OPENAI' | 'ANTHROPIC' | 'GEMINI' | 'PERPLEXITY' | 'GROK';
+export type ChatProvider = 'OPENAI' | 'ANTHROPIC' | 'GEMINI' | 'PERPLEXITY' | 'GROK' | 'GEMINI_IMAGE' | 'OPENAI_IMAGE';
 
 export interface ChatMessageInput {
   role: 'user' | 'assistant' | 'system';
@@ -210,6 +212,8 @@ export interface SendMessageInput {
   provider: ChatProvider;
   messages: ChatMessageInput[];
   model?: string;
+  imageSize?: string;
+  imageQuality?: string;
 }
 
 export interface SendMessageResponse {
@@ -278,6 +282,7 @@ export interface StoredMessage {
   content: string;
   timestamp: string;
   judgeRatings: string | null; // AWSJSON - serialized JSON string
+  contentBlocks: string | null; // AWSJSON - serialized ContentBlock[]
 }
 
 export interface ChatDetail {
@@ -312,6 +317,7 @@ export interface SaveMessageInput {
   role: 'user' | 'assistant';
   content: string;
   timestamp: string;
+  contentBlocks?: string; // AWSJSON
 }
 
 export interface UpdateMessageInput {

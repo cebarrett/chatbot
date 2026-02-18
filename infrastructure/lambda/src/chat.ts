@@ -7,7 +7,7 @@ import {
 } from './types';
 import { getSecrets } from './secrets';
 import { publishChunk } from './appsync';
-import { streamOpenAI, streamAnthropic, streamGemini, streamPerplexity, streamGrok } from './providers';
+import { streamOpenAI, streamAnthropic, streamGemini, streamPerplexity, streamGrok, streamGeminiImage, streamOpenAIImage } from './providers';
 import { validateSendMessageInput, ValidationError } from './validation';
 import { resolveInternalUserId } from './userService';
 import { checkTokenBudget, checkAndIncrementRequestCount, recordTokenUsage, RateLimitError } from './rateLimiter';
@@ -44,7 +44,7 @@ export function handler(
     return;
   }
 
-  const { requestId, provider, messages, model } = input;
+  const { requestId, provider, messages, model, imageSize, imageQuality } = input;
   // External user ID (Clerk) - used for subscription routing (must match frontend filter)
   const externalUserId = identity.sub;
 
@@ -58,7 +58,7 @@ export function handler(
   });
 
   // Everything else runs in the background — Lambda stays alive until all promises complete
-  initAndStream(identity, requestId, provider, messages, model, externalUserId);
+  initAndStream(identity, requestId, provider, messages, model, externalUserId, imageSize, imageQuality);
 }
 
 async function initAndStream(
@@ -68,6 +68,8 @@ async function initAndStream(
   messages: { role: 'user' | 'assistant' | 'system'; content: string }[],
   model: string | undefined,
   externalUserId: string,
+  imageSize?: string,
+  imageQuality?: string,
 ): Promise<void> {
   let internalUserId: string;
 
@@ -87,7 +89,7 @@ async function initAndStream(
 
   try {
     const secrets = await getSecrets();
-    await streamInBackground(secrets, provider, messages, requestId, externalUserId, internalUserId, model);
+    await streamInBackground(secrets, provider, messages, requestId, externalUserId, internalUserId, model, imageSize, imageQuality);
   } catch (error) {
     console.error('Error processing chat request:', error);
     await publishChunk(
@@ -108,10 +110,15 @@ async function streamInBackground(
   requestId: string,
   userId: string,
   internalUserId: string,
-  model?: string
+  model?: string,
+  imageSize?: string,
+  imageQuality?: string,
 ): Promise<void> {
   try {
     let tokenCount = 0;
+    // Extract the last user message as the image prompt for image providers
+    const lastUserMessage = [...messages].reverse().find(m => m.role === 'user')?.content || '';
+
     switch (provider) {
       case 'OPENAI':
         tokenCount = await streamOpenAI(secrets.OPENAI_API_KEY, messages, requestId, userId, model);
@@ -127,6 +134,12 @@ async function streamInBackground(
         break;
       case 'GROK':
         tokenCount = await streamGrok(secrets.GROK_API_KEY, messages, requestId, userId, model);
+        break;
+      case 'GEMINI_IMAGE':
+        tokenCount = await streamGeminiImage(secrets.GEMINI_API_KEY, lastUserMessage, requestId, userId, requestId);
+        break;
+      case 'OPENAI_IMAGE':
+        tokenCount = await streamOpenAIImage(secrets.OPENAI_API_KEY, lastUserMessage, requestId, userId, requestId, { size: imageSize, quality: imageQuality });
         break;
       default:
         throw new Error(`Unknown provider: ${provider}`);

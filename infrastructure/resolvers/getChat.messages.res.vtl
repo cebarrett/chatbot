@@ -10,7 +10,8 @@
     "role": "$item.role",
     "content": $util.toJson($item.content),
     "timestamp": "$item.timestamp",
-    "judgeRatings": $util.toJson($item.judgeRatings)
+    "judgeRatings": $util.toJson($item.judgeRatings),
+    "contentBlocks": $util.toJson($item.contentBlocks)
   }#if($foreach.hasNext),#end#end],
   "nextToken": $util.toJson($util.defaultIfNull($ctx.result.nextToken, null))
 }

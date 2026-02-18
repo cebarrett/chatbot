@@ -31,6 +31,10 @@ function mapProviderToEnum(providerId: string): ChatProvider {
       return 'PERPLEXITY';
     case 'grok':
       return 'GROK';
+    case 'gemini-image':
+      return 'GEMINI_IMAGE';
+    case 'openai-image':
+      return 'OPENAI_IMAGE';
     default:
       throw new AppSyncChatError(`Unknown provider: ${providerId}`);
   }

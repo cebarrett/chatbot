@@ -25,7 +25,7 @@ import type {
   DeleteMessageInput,
   DeleteMessageResult,
 } from '../graphql/operations';
-import type { Chat, Message, JudgeRatings } from '../types';
+import type { Chat, Message, JudgeRatings, ContentBlock } from '../types';
 
 // Convert GraphQL ChatSummary to frontend Chat (without messages)
 function chatSummaryToChat(summary: ChatSummary): Chat {
@@ -50,9 +50,19 @@ function storedMessageToMessage(stored: StoredMessage): Message {
     }
   }
 
+  let contentBlocks: ContentBlock[] | undefined;
+  if (stored.contentBlocks) {
+    try {
+      contentBlocks = JSON.parse(stored.contentBlocks);
+    } catch {
+      // Ignore parse errors for content blocks
+    }
+  }
+
   return {
     id: stored.messageId,
     content: stored.content,
+    contentBlocks,
     role: stored.role,
     timestamp: new Date(stored.timestamp),
     judgeRatings,
