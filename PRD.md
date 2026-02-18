@@ -38,18 +38,7 @@ Non-technical users (friends and family) who:
 
 ## P0: Must-Have (Before Sharing)
 
-### 1. Confirmation for Message Deletion and Editing
-
-**Status:** Partially complete. Chat deletion from the sidebar has a confirmation dialog. Message deletion and message editing do not.
-
-**Problem:** Deleting a message permanently removes it and its AI response with no confirmation. Editing the last message silently replaces the previous AI response. Non-technical users will lose content by accident.
-
-**Remaining requirements:**
-- Add a confirmation dialog before deleting a message ("Delete this message and its response? This can't be undone.")
-- When editing a message, warn that the previous AI response will be replaced
-- Consider adding soft-delete with a 30-day retention period
-
-### 2. First-Visit Onboarding with AI Literacy Framing
+### 1. First-Visit Onboarding with AI Literacy Framing
 
 **Status:** Not started. User preferences infrastructure (backend + frontend with localStorage caching and DynamoDB persistence) is in place to support storing onboarding completion state.
 
@@ -72,7 +61,7 @@ Non-technical users (friends and family) who:
 
 ## P1: Should-Have (First Week)
 
-### 3. Visible Scoring Rubric
+### 2. Visible Scoring Rubric
 
 **Status:** Not started.
 
@@ -85,7 +74,7 @@ Non-technical users (friends and family) who:
 - Keep it brief -- a single compact card, not a wall of text
 - This helps users internalize the criteria and develop their own evaluation instincts over time
 
-### 4. Copy Button on Code Blocks
+### 3. Copy Button on Code Blocks
 
 **Status:** Not started.
 
@@ -96,7 +85,7 @@ Non-technical users (friends and family) who:
 - Show brief "Copied!" confirmation feedback
 - Works on both desktop and mobile
 
-### 5. Content Moderation
+### 4. Content Moderation
 
 **Status:** Not started.
 
@@ -108,7 +97,7 @@ Non-technical users (friends and family) who:
 - At minimum, log flagged content for review
 - Consider age-gating or usage agreements if minors may have access
 
-### 6. Multi-Model Comparison View
+### 5. Multi-Model Comparison View
 
 **Status:** Not started.
 
@@ -127,7 +116,7 @@ Non-technical users (friends and family) who:
 
 ## P2: Nice-to-Have (First Month)
 
-### 7. Hallucination-Specific Evaluation
+### 6. Hallucination-Specific Evaluation
 
 **Problem:** The current reviewer system evaluates general quality (accuracy, helpfulness, completeness, clarity) but doesn't specifically flag hallucinated content. The `problems` array can contain anything. If teaching users to watch for hallucinations is a core goal, the reviewer system needs to call this out explicitly.
 
@@ -140,7 +129,7 @@ Non-technical users (friends and family) who:
 - Consider a simple "Confidence" indicator alongside the quality score: "The reviewer thinks some claims in this response may need verification"
 - This should complement, not replace, the existing general quality evaluation
 
-### 8. Suggested Follow-Up Questions for Reviewers
+### 7. Suggested Follow-Up Questions for Reviewers
 
 **Problem:** The follow-up question feature (asking a reviewer "why did you rate this a 7?") is one of the most valuable AI literacy tools in the app, but it requires users to know what to ask. Non-technical users may not engage with it because they don't have a question in mind.
 
@@ -153,7 +142,7 @@ Non-technical users (friends and family) who:
 - Tapping a chip submits it immediately (same as typing and sending a follow-up)
 - This dramatically lowers the barrier to engaging with the reviewer system
 
-### 9. Persistent AI Literacy Nudges
+### 8. Persistent AI Literacy Nudges
 
 **Problem:** Even with good onboarding, users will forget the critical evaluation mindset after a few sessions. The app needs subtle, ongoing reminders that AI responses should be questioned.
 
@@ -163,7 +152,7 @@ Non-technical users (friends and family) who:
 - These nudges should be dismissible per-session and respect a "don't show again" preference
 - The tone should be helpful and empowering, never condescending: "Here's how to get more out of this" rather than "Be careful, AI is dangerous"
 
-### 10. Example Conversations
+### 9. Example Conversations
 
 **Problem:** Non-technical users landing in an empty chat may not know what to ask, and won't see the reviewer system in action until they send a message. Pre-loaded examples could demonstrate the app's value immediately.
 
@@ -175,7 +164,7 @@ Non-technical users (friends and family) who:
 - These should be clearly labeled as examples ("See how it works") and not mixed into the user's chat history
 - Users can dismiss them and start fresh at any time
 
-### 11. File & Image Upload
+### 10. File & Image Upload
 
 **Problem:** ChatGPT supports uploading PDFs, images, and documents. This is one of its most-used features for casual users ("read this menu", "what's this error screenshot"). The app is text-only.
 
@@ -186,7 +175,7 @@ Non-technical users (friends and family) who:
 - Show clear errors for unsupported file types or sizes
 - Set file size limits (e.g. 10MB images, 20MB PDFs)
 
-### 12. Web Search Integration
+### 11. Web Search Integration
 
 **Problem:** Perplexity has built-in search capabilities but citations are stripped out. Users asking about current events get stale or incorrect answers from other providers.
 
@@ -195,7 +184,7 @@ Non-technical users (friends and family) who:
 - Consider adding a "Search" toggle or auto-detecting queries that need current information
 - Show a visual indicator when a response includes web search results
 
-### 13. Improved Mobile Experience
+### 12. Improved Mobile Experience
 
 **Status:** Partially addressed. iPhone Safari viewport height and page scroll issues have been fixed. Mobile layout for reviewer ratings and assistant messages has been improved.
 
@@ -205,7 +194,7 @@ Non-technical users (friends and family) who:
 - Test on small phones (320px), tablets, and landscape orientations
 - Ensure touch targets are at least 44x44px per accessibility guidelines
 
-### 14. Chat Sharing & Export
+### 13. Chat Sharing & Export
 
 **Problem:** No way to share an interesting conversation or export chat history.
 
@@ -219,11 +208,11 @@ Non-technical users (friends and family) who:
 
 ## P3: Future Considerations
 
-### 15. Custom System Prompts
+### 14. Custom System Prompts
 
 Allow users to set a persistent system prompt ("You are a helpful cooking assistant") per chat or globally.
 
-### 16. Prompt Library with AI Literacy Templates
+### 15. Prompt Library with AI Literacy Templates
 
 Pre-built prompt templates, but framed around critical thinking rather than just productivity:
 - **"Test the AI"** prompts that are known to produce hallucinations or inconsistencies (e.g., asking for fake citations, asking about very recent events, asking for medical/legal advice)
@@ -231,15 +220,15 @@ Pre-built prompt templates, but framed around critical thinking rather than just
 - **Everyday tasks:** summarize, translate, explain like I'm 5, proofread -- with tips on verifying the output
 - Each template should include a brief note on what to watch out for ("AI translations can miss cultural nuance -- have a native speaker check important translations")
 
-### 17. Judge Calibration Transparency
+### 16. Judge Calibration Transparency
 
 Show aggregate statistics on how reviewers typically score: "Claude's average score is 7.8, Gemini's is 6.9." This helps users understand that reviewer scores are relative, not absolute, and that some reviewers are systematically harsher or more lenient. This kind of meta-information builds genuine AI literacy.
 
-### 18. Mobile App (PWA)
+### 17. Mobile App (PWA)
 
 Convert to a Progressive Web App with offline support, push notifications for shared chats, and home screen installation.
 
-### 19. Admin Dashboard
+### 18. Admin Dashboard
 
 Web-based dashboard for the app operator showing per-user usage, costs, error rates, and the ability to manage user limits.
 
