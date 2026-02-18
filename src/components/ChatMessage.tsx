@@ -12,8 +12,9 @@ import rehypeKatex from 'rehype-katex'
 import 'katex/dist/katex.min.css'
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter'
 import { oneDark, oneLight } from 'react-syntax-highlighter/dist/esm/styles/prism'
-import type { Message, JudgeFollowUp, JudgeError } from '../types'
+import type { Message, JudgeFollowUp, JudgeError, ContentBlock } from '../types'
 import { ResponseQualityRating } from './ResponseQualityRating'
+import { ImageGallery } from './ImageGallery'
 
 function parseThinkingBlocks(content: string): { thinking: string | null; visibleContent: string } {
   // Match completed think blocks
@@ -66,8 +67,19 @@ export function ChatMessage({
   const isDark = theme.palette.mode === 'dark'
   const showEditButton = isUser && isLastUserMessage && onEdit
 
+  const hasContentBlocks = !isUser && message.contentBlocks && message.contentBlocks.length > 0
+  const imageBlocks = hasContentBlocks
+    ? message.contentBlocks!.filter((b: ContentBlock) => b.type === 'image')
+    : []
+  const textContent = hasContentBlocks
+    ? message.contentBlocks!
+        .filter((b: ContentBlock) => b.type === 'text')
+        .map((b: ContentBlock) => b.text || '')
+        .join('')
+    : message.content
+
   const { thinking, visibleContent } = !isUser
-    ? parseThinkingBlocks(message.content)
+    ? parseThinkingBlocks(textContent)
     : { thinking: null, visibleContent: message.content }
   const [showThinking, setShowThinking] = useState(false)
 
@@ -198,39 +210,44 @@ export function ChatMessage({
               </Collapse>
             </Box>
           )}
-          <ReactMarkdown
-            remarkPlugins={[remarkGfm, remarkMath]}
-            rehypePlugins={[rehypeKatex]}
-            components={{
-              code({ className, children, ...rest }) {
-                const match = /language-(\w+)/.exec(className || '')
-                const codeString = String(children).replace(/\n$/, '')
-                if (match) {
+          {visibleContent && (
+            <ReactMarkdown
+              remarkPlugins={[remarkGfm, remarkMath]}
+              rehypePlugins={[rehypeKatex]}
+              components={{
+                code({ className, children, ...rest }) {
+                  const match = /language-(\w+)/.exec(className || '')
+                  const codeString = String(children).replace(/\n$/, '')
+                  if (match) {
+                    return (
+                      <SyntaxHighlighter
+                        style={isDark ? oneDark : oneLight}
+                        language={match[1]}
+                        PreTag="div"
+                        customStyle={{
+                          margin: 0,
+                          borderRadius: '4px',
+                          fontSize: '0.875em',
+                        }}
+                      >
+                        {codeString}
+                      </SyntaxHighlighter>
+                    )
+                  }
                   return (
-                    <SyntaxHighlighter
-                      style={isDark ? oneDark : oneLight}
-                      language={match[1]}
-                      PreTag="div"
-                      customStyle={{
-                        margin: 0,
-                        borderRadius: '4px',
-                        fontSize: '0.875em',
-                      }}
-                    >
-                      {codeString}
-                    </SyntaxHighlighter>
+                    <code className={className} {...rest}>
+                      {children}
+                    </code>
                   )
-                }
-                return (
-                  <code className={className} {...rest}>
-                    {children}
-                  </code>
-                )
-              },
-            }}
-          >
-            {visibleContent}
-          </ReactMarkdown>
+                },
+              }}
+            >
+              {visibleContent}
+            </ReactMarkdown>
+          )}
+          {imageBlocks.length > 0 && (
+            <ImageGallery images={imageBlocks} />
+          )}
         </Box>
         {(message.judgeRatings || loadingJudges.length > 0 || failedJudges.length > 0) && (
           <Box sx={{ pl: { xs: 0, sm: 6 }, mt: 1 }}>

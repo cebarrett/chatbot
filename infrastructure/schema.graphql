@@ -7,6 +7,8 @@ input SendMessageInput {
   provider: ChatProvider!
   messages: [ChatMessageInput!]!
   model: String
+  imageSize: String       # "1024x1024", "1024x1536", "1536x1024"
+  imageQuality: String    # "low", "medium", "high"
 }
 
 input ChatMessageInput {
@@ -48,6 +50,7 @@ input SaveMessageInput {
   role: MessageRole!
   content: String!
   timestamp: String!
+  contentBlocks: AWSJSON  # Structured content with images
 }
 
 input UpdateMessageInput {
@@ -82,6 +85,8 @@ enum ChatProvider {
   GEMINI
   PERPLEXITY
   GROK
+  GEMINI_IMAGE
+  OPENAI_IMAGE
 }
 
 enum MessageRole {
@@ -143,6 +148,7 @@ type StoredMessage @aws_oidc {
   content: String!
   timestamp: String!
   judgeRatings: AWSJSON
+  contentBlocks: AWSJSON
 }
 
 type ChatListResult @aws_oidc {

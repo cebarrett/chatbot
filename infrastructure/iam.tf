@@ -144,6 +144,24 @@ resource "aws_iam_role_policy" "appsync_dynamodb_access" {
   })
 }
 
+# Policy for Lambda S3 access (generated images)
+resource "aws_iam_role_policy" "lambda_s3_images_access" {
+  name = "${var.project_name}-${var.environment}-s3-images-access"
+  role = aws_iam_role.lambda_execution.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [{
+      Effect = "Allow"
+      Action = [
+        "s3:PutObject",
+        "s3:GetObject"
+      ]
+      Resource = "${aws_s3_bucket.generated_images.arn}/*"
+    }]
+  })
+}
+
 # Policy for Lambda DynamoDB access (used by deleteChat, chat, judge, createChat, listChats)
 resource "aws_iam_role_policy" "lambda_dynamodb_access" {
   name = "${var.project_name}-${var.environment}-lambda-dynamodb-access"

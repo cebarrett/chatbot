@@ -20,9 +20,21 @@ export interface JudgeError {
   error: string
 }
 
+// Structured content block for messages with mixed text/image content
+export interface ContentBlock {
+  type: 'text' | 'image'
+  text?: string           // For type: 'text'
+  imageUrl?: string       // For type: 'image' — S3 presigned URL or data URI
+  mimeType?: string       // For type: 'image' — e.g. 'image/png'
+  alt?: string            // For type: 'image' — accessibility text / prompt used
+  width?: number
+  height?: number
+}
+
 export interface Message {
   id: string
-  content: string
+  content: string                    // Plain text / markdown (always populated for search, history)
+  contentBlocks?: ContentBlock[]     // Structured content with images (when present)
   role: 'user' | 'assistant'
   timestamp: Date
   judgeRatings?: JudgeRatings

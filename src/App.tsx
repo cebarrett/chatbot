@@ -12,7 +12,7 @@ import { ChatMessage } from './components/ChatMessage'
 import { ChatInput } from './components/ChatInput'
 import { ChatHistorySidebar } from './components/ChatHistorySidebar'
 import { ProviderSelector } from './components/ProviderSelector'
-import type { Message, Chat, JudgeFollowUp, JudgeError } from './types'
+import type { Message, Chat, JudgeFollowUp, JudgeError, ContentBlock } from './types'
 import { getDummyResponse, generateId } from './utils/dummyResponses'
 import {
   listChats as fetchChatList,
@@ -28,6 +28,7 @@ import {
 import {
   getProviderById,
   DEFAULT_PROVIDER_ID,
+  IMAGE_PROVIDER_IDS,
 } from './services/chatProviderRegistry'
 import {
   loadEnabledJudges,
@@ -38,6 +39,53 @@ import { JudgeSelector } from './components/JudgeSelector'
 import type { QualityRating } from './types'
 
 const SYSTEM_PROMPT = `You are a helpful, friendly assistant. Be concise and clear in your responses.`
+
+/**
+ * Parse raw streamed content from an image provider into ContentBlocks.
+ * The Lambda publishes image chunks as JSON objects like:
+ *   {"type":"image","url":"...","mimeType":"image/png","alt":"...","width":1024,"height":1024}
+ * These may be interleaved with plain text (e.g., Gemini returns text + images).
+ */
+function parseImageStreamContent(raw: string): ContentBlock[] {
+  const blocks: ContentBlock[] = []
+  // Match JSON image chunk objects in the raw stream
+  const regex = /\{[^{}]*"type"\s*:\s*"image"[^{}]*\}/g
+  let lastEnd = 0
+  let match: RegExpExecArray | null
+
+  while ((match = regex.exec(raw)) !== null) {
+    // Capture any text before this image chunk
+    const textBefore = raw.slice(lastEnd, match.index).trim()
+    if (textBefore) {
+      blocks.push({ type: 'text', text: textBefore })
+    }
+
+    try {
+      const parsed = JSON.parse(match[0])
+      blocks.push({
+        type: 'image',
+        imageUrl: parsed.url,
+        mimeType: parsed.mimeType || 'image/png',
+        alt: parsed.alt || 'Generated image',
+        width: parsed.width,
+        height: parsed.height,
+      })
+    } catch {
+      // If parsing fails, treat as text
+      blocks.push({ type: 'text', text: match[0] })
+    }
+
+    lastEnd = match.index + match[0].length
+  }
+
+  // Capture any trailing text
+  const trailing = raw.slice(lastEnd).trim()
+  if (trailing) {
+    blocks.push({ type: 'text', text: trailing })
+  }
+
+  return blocks
+}
 
 function App() {
   const { isLoaded, isSignedIn } = useAuth()
@@ -708,6 +756,43 @@ function App() {
         await streamDummyResponse(chatIdForStream, botMessageId, finalResponse)
       }
 
+      // For image providers, parse contentBlocks from the streamed response
+      const currentProviderId = currentChat?.providerId || newChatProviderId
+      const isImageProvider = IMAGE_PROVIDER_IDS.has(currentProviderId)
+      let contentBlocks: ContentBlock[] | undefined
+
+      if (isImageProvider && finalResponse) {
+        contentBlocks = parseImageStreamContent(finalResponse)
+        // Build a plain-text summary for the content field (used for search/history)
+        const textSummary = contentBlocks
+          .filter((b) => b.type === 'text')
+          .map((b) => b.text)
+          .join(' ')
+        const imageCount = contentBlocks.filter((b) => b.type === 'image').length
+        const contentForStorage = textSummary || (imageCount > 0 ? `[Generated ${imageCount} image${imageCount > 1 ? 's' : ''}]` : finalResponse)
+
+        // Update the bot message with contentBlocks
+        setChats((prev) =>
+          prev.map((chat) => {
+            if (chat.id === chatIdForStream) {
+              return {
+                ...chat,
+                messages: chat.messages.map((msg) =>
+                  msg.id === botMessageId
+                    ? { ...msg, content: contentForStorage, contentBlocks }
+                    : msg
+                ),
+                updatedAt: new Date(),
+              }
+            }
+            return chat
+          })
+        )
+
+        // Use contentForStorage as the persisted content field
+        finalResponse = contentForStorage
+      }
+
       // Save completed assistant message to DynamoDB (non-blocking)
       if (!isIncognito) {
         saveMessageRemote({
@@ -716,12 +801,13 @@ function App() {
           role: 'assistant',
           content: finalResponse,
           timestamp: botMessage.timestamp.toISOString(),
+          ...(contentBlocks ? { contentBlocks: JSON.stringify(contentBlocks) } : {}),
         }).catch((err) => console.error('Failed to save assistant message:', err))
       }
 
       // Fetch quality ratings from enabled judges in parallel (async, non-blocking)
-      // Skip judging if the request was cancelled or response is empty (e.g., timeout before first token)
-      if (enabledJudges.length > 0 && !wasCancelled && finalResponse.trim()) {
+      // Skip judging if the request was cancelled, response is empty, or this is an image provider
+      if (enabledJudges.length > 0 && !wasCancelled && finalResponse.trim() && !isImageProvider) {
         const respondingProviderId = currentChat?.providerId || newChatProviderId
         // Track which message is being judged and which judges are pending
         setJudgingMessageId(botMessageId)
@@ -988,7 +1074,9 @@ function App() {
                 <Box sx={{ ml: 1 }}>
                   <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, color: 'text.secondary' }}>
                     <SmartToyIcon fontSize="small" />
-                    <Typography variant="body2">Typing...</Typography>
+                    <Typography variant="body2">
+                      {IMAGE_PROVIDER_IDS.has(activeProviderId) ? 'Generating image...' : 'Typing...'}
+                    </Typography>
                   </Box>
                   {responseStalled && (
                     <Alert

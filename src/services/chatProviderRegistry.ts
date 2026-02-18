@@ -73,7 +73,26 @@ export const chatProviderRegistry: ChatProviderConfig[] = [
     isConfigured: isAppSyncConfigured,
     sendMessageStream: createProviderStream('perplexity'),
   },
+  {
+    id: 'gemini-image',
+    name: 'Gemini Image',
+    description: 'Google Nano Banana Pro',
+    color: '#E37400', // Google amber for image
+    isConfigured: isAppSyncConfigured,
+    sendMessageStream: createProviderStream('gemini-image'),
+  },
+  {
+    id: 'openai-image',
+    name: 'GPT Image',
+    description: 'OpenAI GPT Image 1.5',
+    color: '#6B4EFF', // Purple for image
+    isConfigured: isAppSyncConfigured,
+    sendMessageStream: createProviderStream('openai-image'),
+  },
 ]
+
+// Image providers - used to detect when to skip judges and show image UI
+export const IMAGE_PROVIDER_IDS = new Set(['gemini-image', 'openai-image'])
 
 // Default provider ID
 export const DEFAULT_PROVIDER_ID = 'claude'

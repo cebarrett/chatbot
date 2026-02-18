@@ -32,7 +32,7 @@ export class ValidationError extends Error {
  * Validates that the provider is one of the allowed values
  */
 export function validateProvider(provider: string): asserts provider is ChatProvider {
-  const validProviders: ChatProvider[] = ['OPENAI', 'ANTHROPIC', 'GEMINI', 'PERPLEXITY', 'GROK'];
+  const validProviders: ChatProvider[] = ['OPENAI', 'ANTHROPIC', 'GEMINI', 'PERPLEXITY', 'GROK', 'GEMINI_IMAGE', 'OPENAI_IMAGE'];
   if (!validProviders.includes(provider as ChatProvider)) {
     throw new ValidationError(`Invalid provider: ${provider}. Must be one of: ${validProviders.join(', ')}`);
   }

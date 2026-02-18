@@ -4,6 +4,8 @@ export interface SendMessageInput {
   provider: ChatProvider;
   messages: ChatMessageInput[];
   model?: string;
+  imageSize?: string;       // "1024x1024", "1024x1536", "1536x1024"
+  imageQuality?: string;    // "low", "medium", "high"
 }
 
 export interface ChatMessageInput {
@@ -33,7 +35,7 @@ export interface JudgeFollowUpInput {
   model?: string;
 }
 
-export type ChatProvider = 'OPENAI' | 'ANTHROPIC' | 'GEMINI' | 'PERPLEXITY' | 'GROK';
+export type ChatProvider = 'OPENAI' | 'ANTHROPIC' | 'GEMINI' | 'PERPLEXITY' | 'GROK' | 'GEMINI_IMAGE' | 'OPENAI_IMAGE';
 
 // GraphQL output types
 export interface SendMessageResponse {
@@ -110,4 +112,14 @@ export interface AnthropicMessage {
 export interface GeminiContent {
   role: 'user' | 'model';
   parts: { text: string }[];
+}
+
+// Image generation types
+export interface ImageChunkPayload {
+  type: 'image';
+  url: string;
+  mimeType: string;
+  alt: string;
+  width?: number;
+  height?: number;
 }
