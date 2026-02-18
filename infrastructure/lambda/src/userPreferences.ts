@@ -61,7 +61,7 @@ export async function getHandler(
 
 interface UpdatePreferencesArgs {
   input: {
-    preferences: string; // AWSJSON
+    preferences: string | Record<string, unknown>; // AWSJSON – may arrive as object after AppSync deserialization
   };
 }
 
@@ -69,12 +69,23 @@ export async function updateHandler(
   event: AppSyncEvent<UpdatePreferencesArgs>
 ): Promise<UserPreferencesResult> {
   const internalUserId = await resolveInternalUserId(event.identity);
-  const { preferences } = event.arguments.input;
+  const raw = event.arguments.input.preferences;
 
-  // Validate that preferences is valid JSON
-  try {
-    JSON.parse(preferences);
-  } catch {
+  // AppSync deserializes AWSJSON inputs into native objects before the VTL
+  // template forwards them to Lambda, so `raw` may already be an object.
+  // Normalise to a JSON string for storage.
+  let preferences: string;
+  if (typeof raw === 'string') {
+    // Validate that the string is valid JSON
+    try {
+      JSON.parse(raw);
+    } catch {
+      throw new Error('Invalid JSON in preferences');
+    }
+    preferences = raw;
+  } else if (raw !== null && typeof raw === 'object') {
+    preferences = JSON.stringify(raw);
+  } else {
     throw new Error('Invalid JSON in preferences');
   }
 
