@@ -154,7 +154,7 @@ describe('judgePerplexity', () => {
       })
     );
     const result = await judgePerplexity('key', 'sys', 'user');
-    expect(result).toBe('The answer is 42.');
+    expect(result).toEqual({ text: 'The answer is 42.', tokenCount: Math.ceil('The answer is 42.'.length / 4) });
   });
 
   it('strips source reference markers from response', async () => {
@@ -164,7 +164,7 @@ describe('judgePerplexity', () => {
       })
     );
     const result = await judgePerplexity('key', 'sys', 'user');
-    expect(result).toBe('Answer  with refs .');
+    expect(result).toEqual({ text: 'Answer  with refs .', tokenCount: Math.ceil('Answer  with refs .'.length / 4) });
   });
 
   it('handles response with both think blocks and source references', async () => {
@@ -174,7 +174,7 @@ describe('judgePerplexity', () => {
       })
     );
     const result = await judgePerplexity('key', 'sys', 'user');
-    expect(result).toBe('Result  here .');
+    expect(result).toEqual({ text: 'Result  here .', tokenCount: Math.ceil('Result  here .'.length / 4) });
   });
 
   it('trims whitespace', async () => {
@@ -184,7 +184,7 @@ describe('judgePerplexity', () => {
       })
     );
     const result = await judgePerplexity('key', 'sys', 'user');
-    expect(result).toBe('result');
+    expect(result).toEqual({ text: 'result', tokenCount: Math.ceil('result'.length / 4) });
   });
 
   it('sends system and user messages', async () => {

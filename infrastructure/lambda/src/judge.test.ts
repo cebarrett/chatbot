@@ -22,6 +22,13 @@ vi.mock('./providers', () => ({
   judgePerplexity: vi.fn(),
 }));
 
+vi.mock('./rateLimiter', () => ({
+  checkTokenBudget: vi.fn().mockResolvedValue(undefined),
+  checkAndIncrementRequestCount: vi.fn().mockResolvedValue(undefined),
+  recordTokenUsage: vi.fn().mockResolvedValue(undefined),
+  RateLimitError: class RateLimitError extends Error {},
+}));
+
 import { handler } from './judge';
 import { judgeOpenAI, judgeAnthropic, judgeGemini, judgePerplexity } from './providers';
 
@@ -71,27 +78,27 @@ describe('judge handler - validation', () => {
 
 describe('judge handler - provider routing', () => {
   it('routes to ANTHROPIC judge', async () => {
-    mockJudgeAnthropic.mockResolvedValue('{"score": 8, "explanation": "Good", "problems": []}');
+    mockJudgeAnthropic.mockResolvedValue({ text: '{"score": 8, "explanation": "Good", "problems": []}', tokenCount: 10 });
     const result = await handler(makeEvent(validInput));
     expect(mockJudgeAnthropic).toHaveBeenCalled();
     expect(result.judgeProvider).toBe('ANTHROPIC');
   });
 
   it('routes to OPENAI judge', async () => {
-    mockJudgeOpenAI.mockResolvedValue('{"score": 7, "explanation": "OK", "problems": []}');
+    mockJudgeOpenAI.mockResolvedValue({ text: '{"score": 7, "explanation": "OK", "problems": []}', tokenCount: 10 });
     const result = await handler(makeEvent({ ...validInput, judgeProvider: 'OPENAI' }));
     expect(mockJudgeOpenAI).toHaveBeenCalled();
     expect(result.judgeProvider).toBe('OPENAI');
   });
 
   it('routes to GEMINI judge', async () => {
-    mockJudgeGemini.mockResolvedValue('{"score": 9, "explanation": "Great", "problems": []}');
+    mockJudgeGemini.mockResolvedValue({ text: '{"score": 9, "explanation": "Great", "problems": []}', tokenCount: 10 });
     const result = await handler(makeEvent({ ...validInput, judgeProvider: 'GEMINI' }));
     expect(mockJudgeGemini).toHaveBeenCalled();
   });
 
   it('routes to PERPLEXITY judge', async () => {
-    mockJudgePerplexity.mockResolvedValue('{"score": 6, "explanation": "OK", "problems": []}');
+    mockJudgePerplexity.mockResolvedValue({ text: '{"score": 6, "explanation": "OK", "problems": []}', tokenCount: 10 });
     const result = await handler(makeEvent({ ...validInput, judgeProvider: 'PERPLEXITY' }));
     expect(mockJudgePerplexity).toHaveBeenCalled();
   });
@@ -100,7 +107,7 @@ describe('judge handler - provider routing', () => {
 describe('judge handler - response parsing', () => {
   it('parses valid JSON response', async () => {
     mockJudgeAnthropic.mockResolvedValue(
-      '{"score": 8.5, "explanation": "Good answer", "problems": ["Minor issue"]}'
+      { text: '{"score": 8.5, "explanation": "Good answer", "problems": ["Minor issue"]}', tokenCount: 10 }
     );
     const result = await handler(makeEvent(validInput));
     expect(result.score).toBe(8.5);
@@ -109,46 +116,46 @@ describe('judge handler - response parsing', () => {
   });
 
   it('clamps score below 1 to 1', async () => {
-    mockJudgeAnthropic.mockResolvedValue('{"score": -5, "explanation": "Bad", "problems": []}');
+    mockJudgeAnthropic.mockResolvedValue({ text: '{"score": -5, "explanation": "Bad", "problems": []}', tokenCount: 10 });
     const result = await handler(makeEvent(validInput));
     expect(result.score).toBe(1);
   });
 
   it('clamps score above 10 to 10', async () => {
-    mockJudgeAnthropic.mockResolvedValue('{"score": 15, "explanation": "Great", "problems": []}');
+    mockJudgeAnthropic.mockResolvedValue({ text: '{"score": 15, "explanation": "Great", "problems": []}', tokenCount: 10 });
     const result = await handler(makeEvent(validInput));
     expect(result.score).toBe(10);
   });
 
   it('defaults non-number score to 5', async () => {
-    mockJudgeAnthropic.mockResolvedValue('{"score": "high", "explanation": "Good", "problems": []}');
+    mockJudgeAnthropic.mockResolvedValue({ text: '{"score": "high", "explanation": "Good", "problems": []}', tokenCount: 10 });
     const result = await handler(makeEvent(validInput));
     expect(result.score).toBe(5);
   });
 
   it('defaults missing explanation', async () => {
-    mockJudgeAnthropic.mockResolvedValue('{"score": 7, "problems": []}');
+    mockJudgeAnthropic.mockResolvedValue({ text: '{"score": 7, "problems": []}', tokenCount: 10 });
     const result = await handler(makeEvent(validInput));
     expect(result.explanation).toBe('No explanation provided');
   });
 
   it('filters non-string items from problems array', async () => {
     mockJudgeAnthropic.mockResolvedValue(
-      '{"score": 7, "explanation": "OK", "problems": ["real problem", 123, null, "another"]}'
+      { text: '{"score": 7, "explanation": "OK", "problems": ["real problem", 123, null, "another"]}', tokenCount: 10 }
     );
     const result = await handler(makeEvent(validInput));
     expect(result.problems).toEqual(['real problem', 'another']);
   });
 
   it('returns empty problems when problems is not an array', async () => {
-    mockJudgeAnthropic.mockResolvedValue('{"score": 7, "explanation": "OK", "problems": "not array"}');
+    mockJudgeAnthropic.mockResolvedValue({ text: '{"score": 7, "explanation": "OK", "problems": "not array"}', tokenCount: 10 });
     const result = await handler(makeEvent(validInput));
     expect(result.problems).toEqual([]);
   });
 
   it('extracts JSON from response with surrounding text', async () => {
     mockJudgeAnthropic.mockResolvedValue(
-      'Here is my evaluation:\n```json\n{"score": 8, "explanation": "Good", "problems": []}\n```'
+      { text: 'Here is my evaluation:\n```json\n{"score": 8, "explanation": "Good", "problems": []}\n```', tokenCount: 10 }
     );
     const result = await handler(makeEvent(validInput));
     expect(result.score).toBe(8);
@@ -157,7 +164,7 @@ describe('judge handler - response parsing', () => {
 
 describe('judge handler - XML escaping', () => {
   it('escapes angle brackets in content passed to provider', async () => {
-    mockJudgeAnthropic.mockResolvedValue('{"score": 5, "explanation": "OK", "problems": []}');
+    mockJudgeAnthropic.mockResolvedValue({ text: '{"score": 5, "explanation": "OK", "problems": []}', tokenCount: 10 });
     await handler(
       makeEvent({
         ...validInput,
@@ -174,7 +181,7 @@ describe('judge handler - XML escaping', () => {
   });
 
   it('escapes content in conversation history', async () => {
-    mockJudgeAnthropic.mockResolvedValue('{"score": 5, "explanation": "OK", "problems": []}');
+    mockJudgeAnthropic.mockResolvedValue({ text: '{"score": 5, "explanation": "OK", "problems": []}', tokenCount: 10 });
     await handler(
       makeEvent({
         ...validInput,
@@ -201,7 +208,7 @@ describe('judge handler - error handling', () => {
   });
 
   it('returns error response when JSON parsing fails', async () => {
-    mockJudgeAnthropic.mockResolvedValue('This is not JSON at all');
+    mockJudgeAnthropic.mockResolvedValue({ text: 'This is not JSON at all', tokenCount: 10 });
     const result = await handler(makeEvent(validInput));
     expect(result.score).toBe(0);
     expect(result.explanation).toContain('No JSON found');

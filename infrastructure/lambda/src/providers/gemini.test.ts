@@ -222,13 +222,13 @@ describe('judgeGemini', () => {
       })
     );
     const result = await judgeGemini('key', 'sys', 'user');
-    expect(result).toBe('result');
+    expect(result).toEqual({ text: 'result', tokenCount: Math.ceil('result'.length / 4) });
   });
 
   it('returns empty string when candidates are missing', async () => {
     mockFetch.mockResolvedValue(createMockJSONResponse({ candidates: [] }));
     const result = await judgeGemini('key', 'sys', 'user');
-    expect(result).toBe('');
+    expect(result).toEqual({ text: '', tokenCount: 0 });
   });
 
   it('throws on API error', async () => {

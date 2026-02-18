@@ -235,7 +235,7 @@ describe('judgeAnthropic', () => {
     const body = JSON.parse(mockFetch.mock.calls[0][1].body);
     expect(body.system).toBe('system prompt');
     expect(body.messages).toEqual([{ role: 'user', content: 'user prompt' }]);
-    expect(body.max_tokens).toBe(4096);
+    expect(body.max_tokens).toBe(16000);
   });
 
   it('returns content text from response', async () => {
@@ -243,13 +243,13 @@ describe('judgeAnthropic', () => {
       createMockJSONResponse({ content: [{ text: 'judge result' }] })
     );
     const result = await judgeAnthropic('key', 'sys', 'user');
-    expect(result).toBe('judge result');
+    expect(result).toEqual({ text: 'judge result', tokenCount: Math.ceil('judge result'.length / 4) });
   });
 
   it('returns empty string when content is missing', async () => {
     mockFetch.mockResolvedValue(createMockJSONResponse({ content: [] }));
     const result = await judgeAnthropic('key', 'sys', 'user');
-    expect(result).toBe('');
+    expect(result).toEqual({ text: '', tokenCount: 0 });
   });
 
   it('throws on API error', async () => {
