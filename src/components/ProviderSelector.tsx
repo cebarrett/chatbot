@@ -13,7 +13,7 @@ import {
 import KeyboardArrowDownIcon from '@mui/icons-material/KeyboardArrowDown'
 import ErrorOutlineIcon from '@mui/icons-material/ErrorOutline'
 import CheckIcon from '@mui/icons-material/Check'
-import { chatProviderRegistry, getProviderById } from '../services/chatProviderRegistry'
+import { chatProviderRegistry, getProviderById, IMAGE_PROVIDER_IDS } from '../services/chatProviderRegistry'
 
 interface ProviderSelectorProps {
   selectedProviderId: string
@@ -102,63 +102,121 @@ export function ProviderSelector({
       >
         <Box sx={{ px: 2, py: 1 }}>
           <Typography variant="subtitle2" color="text.secondary">
-            AI Provider
-          </Typography>
-          <Typography variant="caption" color="text.secondary">
-            Select which AI responds to messages
+            Chat LLMs
           </Typography>
         </Box>
 
         <Divider />
 
-        {chatProviderRegistry.map((provider) => {
-          const isSelected = provider.id === selectedProviderId
-          const isConfigured = provider.isConfigured()
+        {chatProviderRegistry
+          .filter((p) => !IMAGE_PROVIDER_IDS.has(p.id))
+          .map((provider) => {
+            const isSelected = provider.id === selectedProviderId
+            const isConfigured = provider.isConfigured()
 
-          return (
-            <MenuItem
-              key={provider.id}
-              onClick={() => handleSelect(provider.id)}
-              selected={isSelected}
-              sx={{ py: 1 }}
-            >
-              {!isConfigured && (
-                <ListItemIcon sx={{ minWidth: 32 }}>
-                  <Tooltip title="Backend not configured. Set VITE_APPSYNC_URL to enable.">
-                    <ErrorOutlineIcon fontSize="small" sx={{ color: 'warning.main' }} />
-                  </Tooltip>
-                </ListItemIcon>
-              )}
-              <ListItemText
-                primary={
-                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                    <Box
-                      sx={{
-                        width: 8,
-                        height: 8,
-                        borderRadius: '50%',
-                        bgcolor: provider.color,
-                        opacity: isConfigured ? 1 : 0.5,
-                      }}
-                    />
-                    <Typography variant="body2" sx={{ opacity: isConfigured ? 1 : 0.6 }}>
-                      {provider.name}
+            return (
+              <MenuItem
+                key={provider.id}
+                onClick={() => handleSelect(provider.id)}
+                selected={isSelected}
+                sx={{ py: 1 }}
+              >
+                {!isConfigured && (
+                  <ListItemIcon sx={{ minWidth: 32 }}>
+                    <Tooltip title="Backend not configured. Set VITE_APPSYNC_URL to enable.">
+                      <ErrorOutlineIcon fontSize="small" sx={{ color: 'warning.main' }} />
+                    </Tooltip>
+                  </ListItemIcon>
+                )}
+                <ListItemText
+                  primary={
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                      <Box
+                        sx={{
+                          width: 8,
+                          height: 8,
+                          borderRadius: '50%',
+                          bgcolor: provider.color,
+                          opacity: isConfigured ? 1 : 0.5,
+                        }}
+                      />
+                      <Typography variant="body2" sx={{ opacity: isConfigured ? 1 : 0.6 }}>
+                        {provider.name}
+                      </Typography>
+                    </Box>
+                  }
+                  secondary={
+                    <Typography variant="caption" color="text.secondary">
+                      {provider.description}
+                      {!isConfigured && ' (not configured)'}
                     </Typography>
-                  </Box>
-                }
-                secondary={
-                  <Typography variant="caption" color="text.secondary">
-                    {provider.description}
-                    {!isConfigured && ' (not configured)'}
-                  </Typography>
-                }
-              />
-              {isSelected && (
-                <CheckIcon fontSize="small" sx={{ color: 'primary.main', ml: 1 }} />
-              )}
-            </MenuItem>
-          )
-        })}
+                  }
+                />
+                {isSelected && (
+                  <CheckIcon fontSize="small" sx={{ color: 'primary.main', ml: 1 }} />
+                )}
+              </MenuItem>
+            )
+          })}
+
+        <Box sx={{ px: 2, pt: 1.5, pb: 0.5 }}>
+          <Typography variant="subtitle2" color="text.secondary">
+            Image Models
+          </Typography>
+        </Box>
+
+        <Divider />
+
+        {chatProviderRegistry
+          .filter((p) => IMAGE_PROVIDER_IDS.has(p.id))
+          .map((provider) => {
+            const isSelected = provider.id === selectedProviderId
+            const isConfigured = provider.isConfigured()
+
+            return (
+              <MenuItem
+                key={provider.id}
+                onClick={() => handleSelect(provider.id)}
+                selected={isSelected}
+                sx={{ py: 1 }}
+              >
+                {!isConfigured && (
+                  <ListItemIcon sx={{ minWidth: 32 }}>
+                    <Tooltip title="Backend not configured. Set VITE_APPSYNC_URL to enable.">
+                      <ErrorOutlineIcon fontSize="small" sx={{ color: 'warning.main' }} />
+                    </Tooltip>
+                  </ListItemIcon>
+                )}
+                <ListItemText
+                  primary={
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                      <Box
+                        sx={{
+                          width: 8,
+                          height: 8,
+                          borderRadius: '50%',
+                          bgcolor: provider.color,
+                          opacity: isConfigured ? 1 : 0.5,
+                        }}
+                      />
+                      <Typography variant="body2" sx={{ opacity: isConfigured ? 1 : 0.6 }}>
+                        {provider.name}
+                      </Typography>
+                    </Box>
+                  }
+                  secondary={
+                    <Typography variant="caption" color="text.secondary">
+                      {provider.description}
+                      {!isConfigured && ' (not configured)'}
+                    </Typography>
+                  }
+                />
+                {isSelected && (
+                  <CheckIcon fontSize="small" sx={{ color: 'primary.main', ml: 1 }} />
+                )}
+              </MenuItem>
+            )
+          })}
 
         <Divider />
 
