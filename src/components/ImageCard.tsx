@@ -58,7 +58,6 @@ export function ImageCard({ block, onClick, fill }: ImageCardProps) {
             display: loaded ? 'block' : 'none',
             borderRadius: 4,
           }}
-          loading="lazy"
           onLoad={() => setLoaded(true)}
           onError={() => setError(true)}
         />
