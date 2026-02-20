@@ -36,7 +36,7 @@ export const chatProviderRegistry: ChatProviderConfig[] = [
   {
     id: 'claude',
     name: 'Claude',
-    description: 'Anthropic Claude Opus 4.6',
+    description: 'Anthropic Claude Sonnet 4.6',
     color: '#D97706', // Amber/orange
     isConfigured: isAppSyncConfigured,
     sendMessageStream: createProviderStream('claude'),

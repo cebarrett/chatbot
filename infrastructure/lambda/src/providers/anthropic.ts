@@ -2,11 +2,11 @@ import { ChatMessageInput, AnthropicMessage } from '../types';
 import { ChunkBatcher } from '../chunkBatcher';
 
 const ANTHROPIC_API_URL = 'https://api.anthropic.com/v1/messages';
-const DEFAULT_MODEL = 'claude-opus-4-6';
+const DEFAULT_MODEL = 'claude-sonnet-4-6-20250819';
 const ANTHROPIC_VERSION = '2023-06-01';
 
 const THINKING_CAPABLE_MODELS = new Set([
-  'claude-opus-4-6',
+  'claude-sonnet-4-6-20250819',
   'claude-sonnet-4-5-20250929',
   'claude-haiku-4-5-20251001',
   'claude-sonnet-4-20250514',

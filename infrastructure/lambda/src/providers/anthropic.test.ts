@@ -40,7 +40,7 @@ describe('streamAnthropic - request building', () => {
 
   it('uses default model when none specified', async () => {
     await streamAnthropic('key', [{ role: 'user', content: 'hi' }], 'req', 'user');
-    expect(captureRequestBody().model).toBe('claude-opus-4-6');
+    expect(captureRequestBody().model).toBe('claude-sonnet-4-6-20250819');
   });
 
   it('uses specified model when provided', async () => {
