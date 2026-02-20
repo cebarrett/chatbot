@@ -205,7 +205,10 @@ function App() {
 
     // If the active chat already has messages loaded, skip fetching
     const chat = chats.find((c) => c.id === activeChatId)
-    if (chat && chat.messages.length > 0) return
+    if (chat && chat.messages.length > 0) {
+      setIsLoadingChat(false)
+      return
+    }
 
     let cancelled = false
     setIsLoadingChat(true)
@@ -289,9 +292,14 @@ function App() {
     return chatId
   }, [newChatProviderId])
 
-  const handleSelectChat = (chatId: string) => {
+  const handleSelectChat = useCallback((chatId: string) => {
+    if (chatId === activeChatId) return
+    const chat = chats.find((c) => c.id === chatId)
+    if (!chat || chat.messages.length === 0) {
+      setIsLoadingChat(true)
+    }
     setActiveChatId(chatId)
-  }
+  }, [chats, activeChatId])
 
   const handleNewChat = useCallback(() => {
     // Just clear the active chat to show new chat window
