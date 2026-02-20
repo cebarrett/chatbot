@@ -14,8 +14,8 @@ interface AuthLayoutProps {
 }
 
 export function AuthLayout({ children }: AuthLayoutProps) {
-  const { mode } = useTheme()
-  const isDark = mode === 'dark'
+  const { resolvedMode } = useTheme()
+  const isDark = resolvedMode === 'dark'
 
   return (
     <>
