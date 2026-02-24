@@ -31,33 +31,23 @@ This is the first phase of multimodal chat threads, implementing item #4 from th
 
 ## 2. Intent Detection
 
-### 2.1 Approach: Two-Stage Classification in Lambda
+### 2.1 Approach: LLM Classification on Every Message
 
 Intent detection runs server-side in the Lambda handler, before provider routing. This ensures consistent behavior regardless of client and prevents the frontend from needing to understand routing logic.
 
-The classifier uses a **two-stage approach** to avoid adding latency to non-image requests:
+Every user message is classified by `gemini-2.0-flash-lite` — the fastest and cheapest Gemini model. A single-token yes/no response determines whether the message is an image generation request. This approach was chosen over a regex keyword pre-filter because:
 
-**Stage 1 — Keyword pre-filter (synchronous, ~0ms):**
-A regex check on the last user message for image-related keywords. If no keywords match, skip classification entirely and route to the text provider. This is the fast path for the vast majority of messages.
+- **Language-agnostic** — works for any language without maintaining locale-specific patterns
+- **Robust to phrasing** — handles creative, indirect, or colloquial requests ("I want something that looks like a Monet of my backyard")
+- **Zero maintenance** — no regex patterns to curate, test, or update as new phrasings emerge
+- **Negligible cost** — ~$0.00002 per classification, or ~$0.60 per 30,000 messages/month
 
-```typescript
-const IMAGE_INTENT_PATTERNS = [
-  /\b(generate|create|make|draw|paint|sketch|design|render|produce)\b.*\b(image|picture|photo|illustration|artwork|portrait|poster|icon|logo|diagram|infographic|comic|meme|wallpaper|banner|thumbnail|avatar|scene|landscape)\b/i,
-  /\b(image|picture|photo|illustration|artwork|portrait|poster|icon|logo|diagram)\b.*\b(of|showing|depicting|featuring|with)\b/i,
-  /\b(show me|visualize|illustrate|depict)\b/i,
-  /\b(dall-?e|stable diffusion|midjourney|image gen)\b/i,
-];
-
-function hasImageKeywords(message: string): boolean {
-  return IMAGE_INTENT_PATTERNS.some(pattern => pattern.test(message));
-}
-```
-
-**Stage 2 — LLM verification (async, ~200–400ms):**
-When keywords are detected, use a lightweight Gemini model to verify the intent. This eliminates false positives from the keyword filter (e.g., "Can you explain how image generation works?" matches keywords but is not an image request).
+The same `GEMINI_API_KEY` already in Secrets Manager is used, so no new secrets are needed.
 
 ```typescript
 const CLASSIFIER_MODEL = 'gemini-2.0-flash-lite';
+const CLASSIFIER_TIMEOUT_MS = 3000;
+
 const CLASSIFIER_PROMPT = `You are a binary classifier. Does the following user message request that you generate, create, or draw an image or picture? Answer only "yes" or "no".
 
 User message: """
@@ -65,27 +55,34 @@ User message: """
 """`;
 ```
 
-The classifier uses `gemini-2.0-flash-lite` — the fastest and cheapest Gemini model (~$0.00002 per classification). The same `GEMINI_API_KEY` already in Secrets Manager is used, so no new secrets are needed.
+### 2.2 Latency
 
-### 2.2 Classification Examples
+Flash Lite classification adds ~200–400ms to every request. This is acceptable because:
 
-| User message | Stage 1 (keywords) | Stage 2 (LLM) | Result |
-|---|---|---|---|
-| "What is photosynthesis?" | No match | Skipped | Text provider |
-| "Generate an image of a sunset over the ocean" | Match | "yes" | Nano Banana |
-| "How does image generation work?" | Match | "no" | Text provider |
-| "Draw me a cat wearing a top hat" | Match | "yes" | Nano Banana |
-| "Show me the code for a REST API" | Match | "no" | Text provider |
-| "Create a picture of a futuristic city" | Match | "yes" | Nano Banana |
-| "Can you make an image processing pipeline?" | Match | "no" | Text provider |
-| "I want a logo for my startup" | Match | "yes" | Nano Banana |
+- The classification runs *before* the main LLM call, so total latency is `classify + generate`, not doubled
+- 200-400ms is within the range of normal network jitter users already experience
+- The main LLM response (text or image) takes 1–15 seconds, so the classification overhead is <10% of perceived latency in all cases
 
-### 2.3 Edge Cases and Failure Modes
+### 2.3 Classification Examples
 
-- **Classifier timeout/error**: If the LLM classification fails (network error, model error), fall through to the text provider. The user gets a text response — wrong but safe. No image cost is incurred. The error is logged for monitoring.
-- **Ambiguous prompts**: "Show me a sunset" could be interpreted as "find me a photo" or "generate an image." The LLM classifier handles this better than keywords alone. When in doubt, the classifier should lean toward "no" to avoid unexpected image generation costs.
-- **Cost of false positives**: An incorrectly classified image generation costs ~$0.04 (Nano Banana) versus ~$0.002 for a text response. The two-stage approach minimizes this risk.
-- **Multilingual support**: The keyword filter is English-only for Phase 1. The LLM classifier handles multilingual prompts naturally. Non-English image requests that bypass keyword patterns will be routed to text. This is an acceptable limitation for Phase 1.
+| User message | Classification | Result |
+|---|---|---|
+| "What is photosynthesis?" | "no" | Text provider |
+| "Generate an image of a sunset over the ocean" | "yes" | Nano Banana |
+| "How does image generation work?" | "no" | Text provider |
+| "Draw me a cat wearing a top hat" | "yes" | Nano Banana |
+| "Show me the code for a REST API" | "no" | Text provider |
+| "Create a picture of a futuristic city" | "yes" | Nano Banana |
+| "Can you make an image processing pipeline?" | "no" | Text provider |
+| "I want a logo for my startup" | "yes" | Nano Banana |
+| "Dessine-moi un chat" (French: "Draw me a cat") | "yes" | Nano Banana |
+| "画一只猫" (Chinese: "Draw a cat") | "yes" | Nano Banana |
+
+### 2.4 Edge Cases and Failure Modes
+
+- **Classifier timeout/error**: If the LLM classification fails (network error, model error, 3-second timeout), fall through to the text provider. The user gets a text response — wrong but safe. No image cost is incurred. The error is logged for monitoring.
+- **Ambiguous prompts**: "Show me a sunset" could be interpreted as "find me a photo" or "generate an image." The classifier prompt instructs it to identify explicit generation requests. When in doubt, it should lean toward "no" to avoid unexpected image generation costs.
+- **Cost of false positives**: An incorrectly classified image generation costs ~$0.04 (Nano Banana) versus ~$0.002 for a text response. The classifier's precision is critical; the prompt is tuned to minimize false positives.
 
 ## 3. Architecture Changes
 
@@ -100,7 +97,7 @@ User selects "Gemini Image" provider → Frontend sends provider: GEMINI_IMAGE
 
 ```
 User has "Claude" selected → sends "Draw me a cat" → Frontend sends provider: ANTHROPIC
-→ Lambda keyword pre-filter: match → LLM classifier: "yes"
+→ Lambda classifies with Flash Lite: "yes"
 → Lambda routes to streamGeminiImage() instead of streamAnthropic()
 → Image response streamed back through same subscription
 → Frontend parses image content blocks from response
@@ -108,7 +105,7 @@ User has "Claude" selected → sends "Draw me a cat" → Frontend sends provider
 
 ```
 User has "Claude" selected → sends "What is recursion?" → Frontend sends provider: ANTHROPIC
-→ Lambda keyword pre-filter: no match
+→ Lambda classifies with Flash Lite: "no"
 → Lambda routes to streamAnthropic() (normal text flow)
 → Text response streamed back
 ```
@@ -116,27 +113,22 @@ User has "Claude" selected → sends "What is recursion?" → Frontend sends pro
 ### 3.3 Data Flow Diagram
 
 ```
-┌──────────┐  sendMessage        ┌──────────────────┐
-│ Frontend │  provider: ANTHROPIC│     Lambda        │
-│          │ ───────────────────→ │                  │
-│          │  "Draw a cat in     │  ┌─────────────┐ │
-│          │   a spacesuit"      │  │ Keyword      │ │
-│          │                     │  │ Pre-filter   │ │
-│          │                     │  └──────┬───────┘ │
-│          │                     │    match │         │
-│          │                     │  ┌──────▼───────┐ │
-│          │                     │  │ LLM Classify │ │  Gemini Flash Lite
-│          │                     │  │ (Flash Lite) │──────→ "yes"
-│          │                     │  └──────┬───────┘ │
-│          │                     │   image │ intent   │
-│          │                     │  ┌──────▼───────┐ │     ┌─────────────┐
-│          │   publishChunk      │  │ Nano Banana  │──────→│ Gemini API  │
-│          │ ←───────────────────│  │ (Image Gen)  │←──────│ (Image)     │
-│          │  chunk: {type:image}│  └──────────────┘ │     └─────────────┘
-│          │                     │                   │
-│          │  parseImageStream   │   Upload to S3    │
-│          │  → contentBlocks    │   → presigned URL │
-└──────────┘                     └───────────────────┘
+┌──────────┐  sendMessage        ┌───────────────────┐
+│ Frontend │  provider: ANTHROPIC│     Lambda         │
+│          │ ───────────────────→ │                   │
+│          │  "Draw a cat in     │  ┌──────────────┐  │
+│          │   a spacesuit"      │  │ Flash Lite   │  │   Gemini Flash Lite
+│          │                     │  │ Classifier   │──────→ "yes"
+│          │                     │  └──────┬───────┘  │
+│          │                     │   image │ intent    │
+│          │                     │  ┌──────▼───────┐  │     ┌─────────────┐
+│          │   publishChunk      │  │ Nano Banana  │──────→ │ Gemini API  │
+│          │ ←───────────────────│  │ (Image Gen)  │←────── │ (Image)     │
+│          │  chunk: {type:image}│  └──────────────┘  │     └─────────────┘
+│          │                     │                    │
+│          │  parseImageStream   │   Upload to S3     │
+│          │  → contentBlocks    │   → presigned URL  │
+└──────────┘                     └────────────────────┘
 ```
 
 ## 4. Implementation Plan
@@ -146,42 +138,28 @@ User has "Claude" selected → sends "What is recursion?" → Frontend sends pro
 **New file:** `infrastructure/lambda/src/intentClassifier.ts`
 
 ```typescript
-const IMAGE_INTENT_PATTERNS = [
-  /\b(generate|create|make|draw|paint|sketch|design|render|produce)\b.*\b(image|picture|photo|illustration|artwork|portrait|poster|icon|logo|diagram|infographic|comic|meme|wallpaper|banner|thumbnail|avatar|scene|landscape)\b/i,
-  /\b(image|picture|photo|illustration|artwork|portrait|poster|icon|logo|diagram)\b.*\b(of|showing|depicting|featuring|with)\b/i,
-  /\b(show me|visualize|illustrate|depict)\b/i,
-  /\b(dall-?e|stable diffusion|midjourney|image gen)\b/i,
-];
-
 const CLASSIFIER_MODEL = 'gemini-2.0-flash-lite';
 const CLASSIFIER_TIMEOUT_MS = 3000;
 
 export interface IntentResult {
   intent: 'text' | 'image';
-  confidence: 'keyword_miss' | 'llm_confirmed' | 'llm_denied' | 'llm_error';
+  confidence: 'llm_confirmed' | 'llm_denied' | 'llm_error';
 }
 
 /**
- * Determine whether the user's message is requesting image generation.
- * Two-stage: fast keyword pre-filter, then LLM verification.
+ * Classify whether the user's message is requesting image generation.
+ * Uses Gemini Flash Lite for a single-token yes/no classification.
+ * Falls back to 'text' on any error to avoid unexpected image costs.
  */
 export async function classifyIntent(
   message: string,
   geminiApiKey: string,
 ): Promise<IntentResult> {
-  // Stage 1: keyword pre-filter
-  const hasKeywords = IMAGE_INTENT_PATTERNS.some(p => p.test(message));
-  if (!hasKeywords) {
-    return { intent: 'text', confidence: 'keyword_miss' };
-  }
-
-  // Stage 2: LLM verification
   try {
-    const response = await classifyWithLLM(message, geminiApiKey);
-    if (response === 'yes') {
-      return { intent: 'image', confidence: 'llm_confirmed' };
-    }
-    return { intent: 'text', confidence: 'llm_denied' };
+    const answer = await classifyWithLLM(message, geminiApiKey);
+    return answer === 'yes'
+      ? { intent: 'image', confidence: 'llm_confirmed' }
+      : { intent: 'text', confidence: 'llm_denied' };
   } catch (error) {
     console.error('Intent classification failed, defaulting to text:', error);
     return { intent: 'text', confidence: 'llm_error' };
@@ -406,7 +384,7 @@ No new fields are needed on `SendMessageInput` or `SendMessageResponse`.
 
 | File | Change |
 |---|---|
-| `infrastructure/lambda/src/intentClassifier.ts` | **New** — two-stage intent classification (keyword + LLM) |
+| `infrastructure/lambda/src/intentClassifier.ts` | **New** — LLM-based intent classification via Gemini Flash Lite |
 | `infrastructure/lambda/src/chat.ts` | Add intent classification before provider routing |
 | `src/services/chatProviderRegistry.ts` | Remove `gemini-image` and `openai-image` entries |
 | `src/components/ProviderSelector.tsx` | Remove "Image Models" section, render flat provider list |
@@ -440,11 +418,10 @@ If a user had the old frontend open with an image provider selected, their `send
 
 | Component | Cost | Frequency |
 |---|---|---|
-| Keyword pre-filter | $0 (regex, in-process) | Every message |
-| LLM classification (Flash Lite) | ~$0.00002 per call | Only when keywords match (~5-15% of messages) |
+| LLM classification (Flash Lite) | ~$0.00002 per call | Every message |
 | Image generation (Nano Banana) | ~$0.04 per image | Only when classified as image intent |
 
-The classification cost is negligible. The main cost impact is that image generation now happens automatically when users ask for it, rather than requiring explicit provider selection. This could increase image generation volume if users discover they can request images from any provider selection. The existing rate limiter (token budget) provides cost control.
+At 1,000 messages/day, classification costs ~$0.02/day ($0.60/month) — negligible compared to text and image generation costs. The main cost impact is that image generation now happens automatically when users ask for it, rather than requiring explicit provider selection. This could increase image generation volume if users discover they can request images from any provider selection. The existing rate limiter (token budget) provides cost control.
 
 ## 8. Testing
 
@@ -452,40 +429,28 @@ The classification cost is negligible. The main cost impact is that image genera
 
 ```typescript
 // intentClassifier.test.ts
-describe('hasImageKeywords', () => {
-  it('matches explicit image requests', () => {
-    expect(hasImageKeywords('Generate an image of a sunset')).toBe(true);
-    expect(hasImageKeywords('Draw me a cat')).toBe(true);
-    expect(hasImageKeywords('Create a picture of a mountain')).toBe(true);
-  });
-
-  it('does not match non-image requests', () => {
-    expect(hasImageKeywords('What is the capital of France?')).toBe(false);
-    expect(hasImageKeywords('Write me a poem')).toBe(false);
-    expect(hasImageKeywords('Explain quantum computing')).toBe(false);
-  });
-
-  it('matches despite case differences', () => {
-    expect(hasImageKeywords('GENERATE AN IMAGE of a dog')).toBe(true);
-  });
-});
-
 describe('classifyIntent', () => {
-  it('returns text for non-image messages without calling LLM', async () => {
-    const result = await classifyIntent('Hello world', 'fake-key');
-    expect(result).toEqual({ intent: 'text', confidence: 'keyword_miss' });
-    // Verify no HTTP call was made
-  });
-
-  it('calls LLM for keyword matches and respects response', async () => {
+  it('classifies image generation requests as image intent', async () => {
     // Mock Gemini API to return "yes"
     const result = await classifyIntent('Generate an image of a cat', mockKey);
     expect(result).toEqual({ intent: 'image', confidence: 'llm_confirmed' });
   });
 
+  it('classifies text questions as text intent', async () => {
+    // Mock Gemini API to return "no"
+    const result = await classifyIntent('What is the capital of France?', mockKey);
+    expect(result).toEqual({ intent: 'text', confidence: 'llm_denied' });
+  });
+
   it('falls back to text on LLM error', async () => {
     // Mock Gemini API to throw
     const result = await classifyIntent('Draw me a picture', mockKey);
+    expect(result).toEqual({ intent: 'text', confidence: 'llm_error' });
+  });
+
+  it('falls back to text on timeout', async () => {
+    // Mock Gemini API to hang beyond CLASSIFIER_TIMEOUT_MS
+    const result = await classifyIntent('Draw a landscape', mockKey);
     expect(result).toEqual({ intent: 'text', confidence: 'llm_error' });
   });
 });
@@ -512,17 +477,17 @@ Detect image intent in the frontend before sending to Lambda. The frontend would
 
 **Rejected.** Client-side detection can be bypassed or inconsistent across clients. Moving detection to Lambda keeps the routing logic centralized and authoritative. It also means the frontend doesn't need to know about the image generation provider at all.
 
-### Alternative B: Rule-Based Only (No LLM Classifier)
+### Alternative B: Rule-Based Only (Regex Keyword Matching)
 
 Use keyword/regex matching alone without LLM verification.
 
-**Rejected.** Pure keyword matching has too many false positives ("explain image processing", "create an image pipeline in Python"). The LLM verification step costs ~$0.00002 and eliminates the most damaging failure mode (unexpected $0.04 image generation when the user wanted text).
+**Rejected.** Pure keyword matching has too many false positives ("explain image processing", "create an image pipeline in Python") and is English-only. Supporting additional languages requires maintaining locale-specific pattern sets — a growing maintenance burden. The LLM classifier handles all languages natively and distinguishes genuine image requests from keyword coincidences.
 
-### Alternative C: LLM Classification on Every Message (No Keyword Pre-Filter)
+### Alternative C: Two-Stage Approach (Keyword Pre-Filter + LLM Verification)
 
-Run the Gemini Flash Lite classifier on every message.
+Use a regex keyword pre-filter as a fast path: only invoke the LLM classifier when keywords match.
 
-**Rejected.** Adds 200-400ms latency to every request, including the ~85-95% that are clearly text. The keyword pre-filter provides a fast path for non-image messages at the cost of potentially missing unusual phrasings — an acceptable tradeoff since false negatives just produce a text response.
+**Rejected.** The keyword pre-filter is English-only and would silently drop non-English image requests (e.g., "Dessine-moi un chat", "画一只猫"). The cost savings are marginal (~$0.00002 per skipped classification) and not worth the localization gap or the maintenance burden of curating regex patterns.
 
 ### Alternative D: Let the Text Provider Decide
 
@@ -543,5 +508,4 @@ Add an "Image mode" toggle button near the chat input, instead of auto-detection
 3. **Provider preference for image generation** — user setting to choose between Nano Banana and GPT Image 1.5 for auto-routed image requests
 4. **Inline image options** — size and quality controls that appear when image intent is detected (before generation starts)
 5. **Streaming status update** — detect image intent from early chunks and update the typing indicator to "Generating image..." mid-stream
-6. **Multilingual keyword patterns** — extend the pre-filter to support common non-English image request phrasings
-7. **Intent classification metrics** — log classification results to monitor false positive/negative rates and tune the keyword patterns
+6. **Intent classification metrics** — log classification results to monitor false positive/negative rates and tune the classifier prompt
