@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import {
   Dialog,
   DialogTitle,
@@ -15,6 +15,8 @@ import {
 } from '@mui/material'
 import CloseIcon from '@mui/icons-material/Close'
 import SendIcon from '@mui/icons-material/Send'
+import MicIcon from '@mui/icons-material/Mic'
+import { useVoiceRecorder } from '../hooks/useVoiceRecorder'
 import ReactMarkdown from 'react-markdown'
 import remarkMath from 'remark-math'
 import rehypeKatex from 'rehype-katex'
@@ -93,6 +95,40 @@ export function JudgeFollowUpModal({
   const isDark = theme.palette.mode === 'dark'
   const mdSx = getMarkdownSx(isDark)
 
+  const {
+    state: recordingState,
+    duration,
+    startRecording,
+    stopRecording,
+    transcript,
+    error: voiceError,
+    isSupported: voiceSupported,
+    clearTranscript,
+    clearError: clearVoiceError,
+  } = useVoiceRecorder()
+
+  const isRecording = recordingState === 'recording'
+  const isTranscribing = recordingState === 'transcribing'
+
+  // When transcript arrives, append it to the question
+  useEffect(() => {
+    if (transcript) {
+      setQuestion((prev) => { // eslint-disable-line react-hooks/set-state-in-effect
+        const separator = prev.trim() ? ' ' : ''
+        return prev + separator + transcript
+      })
+      clearTranscript()
+    }
+  }, [transcript, clearTranscript])
+
+  // Surface voice errors as the form error
+  useEffect(() => {
+    if (voiceError) {
+      setError(voiceError)
+      clearVoiceError()
+    }
+  }, [voiceError, clearVoiceError])
+
   const markdownComponents = {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     code({ className, children, ...rest }: any) {
@@ -112,6 +148,14 @@ export function JudgeFollowUpModal({
       }
       return <code className={className} {...rest}>{children}</code>
     },
+  }
+
+  const handleMicClick = () => {
+    if (recordingState === 'idle') {
+      startRecording()
+    } else if (recordingState === 'recording') {
+      stopRecording()
+    }
   }
 
   const handleSubmit = async () => {
@@ -274,19 +318,57 @@ export function JudgeFollowUpModal({
               Ask a follow-up question about this rating. For example: "Why did you rate this a {rating.score.toFixed(1)}?" or "How could this response be improved?"
             </Typography>
 
-            <TextField
-              fullWidth
-              multiline
-              rows={3}
-              placeholder="Type your follow-up question..."
-              value={question}
-              onChange={(e) => setQuestion(e.target.value)}
-              onKeyDown={handleKeyDown}
-              disabled={isLoading}
-              autoFocus
-              error={!!error}
-              helperText={error}
-            />
+            <Box sx={{ display: 'flex', gap: 1, alignItems: 'flex-start' }}>
+              <TextField
+                fullWidth
+                multiline
+                rows={3}
+                placeholder={isRecording ? 'Recording...' : isTranscribing ? 'Transcribing...' : 'Type your follow-up question...'}
+                value={question}
+                onChange={(e) => setQuestion(e.target.value)}
+                onKeyDown={handleKeyDown}
+                disabled={isLoading || isTranscribing}
+                autoFocus
+                error={!!error}
+                helperText={error}
+              />
+              {voiceSupported && (
+                <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', pt: 1 }}>
+                  {isTranscribing ? (
+                    <IconButton disabled sx={{ width: 40, height: 40 }}>
+                      <CircularProgress size={20} />
+                    </IconButton>
+                  ) : (
+                    <IconButton
+                      onClick={handleMicClick}
+                      disabled={isLoading}
+                      sx={{
+                        bgcolor: isRecording ? 'error.main' : 'transparent',
+                        color: isRecording ? 'white' : 'text.secondary',
+                        '&:hover': {
+                          bgcolor: isRecording ? 'error.dark' : 'action.hover',
+                        },
+                        animation: isRecording ? 'pulse 1.5s ease-in-out infinite' : 'none',
+                        '@keyframes pulse': {
+                          '0%, 100%': { opacity: 1 },
+                          '50%': { opacity: 0.7 },
+                        },
+                      }}
+                    >
+                      <MicIcon />
+                    </IconButton>
+                  )}
+                  {isRecording && (
+                    <Typography
+                      variant="caption"
+                      sx={{ color: 'error.main', fontVariantNumeric: 'tabular-nums' }}
+                    >
+                      {Math.floor(duration / 60)}:{(duration % 60).toString().padStart(2, '0')}
+                    </Typography>
+                  )}
+                </Box>
+              )}
+            </Box>
           </Box>
         )}
       </DialogContent>
@@ -304,7 +386,7 @@ export function JudgeFollowUpModal({
             <Button
               onClick={handleSubmit}
               variant="contained"
-              disabled={isLoading || !question.trim()}
+              disabled={isLoading || isTranscribing || !question.trim()}
               endIcon={isLoading ? <CircularProgress size={16} /> : <SendIcon />}
             >
               {isLoading ? 'Asking...' : 'Ask'}
