@@ -44,7 +44,7 @@ export const chatProviderRegistry: ChatProviderConfig[] = [
   {
     id: 'gemini',
     name: 'Gemini',
-    description: 'Google Gemini 3 Pro',
+    description: 'Google Gemini 3.1 Pro',
     color: '#4285F4', // Google blue
     isConfigured: isAppSyncConfigured,
     sendMessageStream: createProviderStream('gemini'),
