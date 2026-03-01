@@ -745,4 +745,183 @@ describe('App integration tests', () => {
     expect(screen.getByText(/Backend not configured/)).toBeInTheDocument()
     expect(screen.getByText(/VITE_APPSYNC_URL/)).toBeInTheDocument()
   })
+
+  // ── Response editing tests ──────────────────────────────────────────────
+
+  describe('response editing (editResponses=true)', () => {
+    beforeEach(() => {
+      // Set URL parameter for response editing
+      window.history.pushState({}, '', '?editResponses=true')
+    })
+
+    afterEach(() => {
+      window.history.pushState({}, '', '/')
+    })
+
+    it('does not show edit button on assistant messages without URL parameter', async () => {
+      // Restore normal location (no URL param)
+      window.history.pushState({}, '', '/')
+
+      const user = userEvent.setup()
+      renderApp()
+
+      await waitFor(() => {
+        expect(screen.getByText('Welcome to Chatbot')).toBeInTheDocument()
+      })
+
+      const input = screen.getByPlaceholderText('Type your message...')
+      await user.type(input, 'No edit button test')
+      const sendButton = screen.getByTestId('SendIcon').closest('button')!
+      await user.click(sendButton)
+
+      await waitFor(
+        () => {
+          expect(screen.getByText('This is a mock assistant response.')).toBeInTheDocument()
+        },
+        { timeout: 5000 },
+      )
+
+      // Should NOT have an edit button on the assistant message (only user messages have edit)
+      const editIcons = screen.queryAllByTestId('EditIcon')
+      // The only edit icon should be on the user message (if present), not on assistant
+      for (const icon of editIcons) {
+        const button = icon.closest('button')
+        // Edit buttons on assistant messages would have the "Edit response" tooltip
+        expect(button?.getAttribute('aria-label')).not.toBe('Edit response and re-run reviews')
+      }
+    })
+
+    it('shows edit button on assistant messages with URL parameter', async () => {
+      const user = userEvent.setup()
+      renderApp()
+
+      await waitFor(() => {
+        expect(screen.getByText('Welcome to Chatbot')).toBeInTheDocument()
+      })
+
+      const input = screen.getByPlaceholderText('Type your message...')
+      await user.type(input, 'Edit button test')
+      const sendButton = screen.getByTestId('SendIcon').closest('button')!
+      await user.click(sendButton)
+
+      await waitFor(
+        () => {
+          expect(screen.getByText('This is a mock assistant response.')).toBeInTheDocument()
+        },
+        { timeout: 5000 },
+      )
+
+      // The assistant message should have an edit-response button
+      await waitFor(() => {
+        expect(screen.getByTestId('edit-response-button')).toBeInTheDocument()
+      })
+    })
+
+    it('opens inline editor and can cancel', async () => {
+      const user = userEvent.setup()
+      renderApp()
+
+      await waitFor(() => {
+        expect(screen.getByText('Welcome to Chatbot')).toBeInTheDocument()
+      })
+
+      const input = screen.getByPlaceholderText('Type your message...')
+      await user.type(input, 'Inline editor test')
+      const sendButton = screen.getByTestId('SendIcon').closest('button')!
+      await user.click(sendButton)
+
+      // Wait for response to finish AND edit button to appear (isTyping must be false)
+      await waitFor(
+        () => {
+          expect(screen.getByTestId('edit-response-button')).toBeInTheDocument()
+        },
+        { timeout: 5000 },
+      )
+
+      // Click the assistant message's edit button
+      await user.click(screen.getByTestId('edit-response-button'))
+
+      // Should show Save and Cancel buttons
+      await waitFor(() => {
+        expect(screen.getByText('Save & Re-evaluate')).toBeInTheDocument()
+        expect(screen.getByText('Cancel')).toBeInTheDocument()
+      })
+
+      // Click Cancel - should return to rendered content
+      await user.click(screen.getByText('Cancel'))
+
+      await waitFor(() => {
+        expect(screen.getByText('This is a mock assistant response.')).toBeInTheDocument()
+        expect(screen.queryByText('Save & Re-evaluate')).not.toBeInTheDocument()
+      })
+    })
+
+    it('saves edited response and re-runs judge evaluations', async () => {
+      mockFetchRatingsFromJudges.mockImplementation(() => ({
+        promise: Promise.resolve(),
+        cancel: vi.fn(),
+      }))
+
+      const user = userEvent.setup()
+      renderApp()
+
+      await waitFor(() => {
+        expect(screen.getByText('Welcome to Chatbot')).toBeInTheDocument()
+      })
+
+      const input = screen.getByPlaceholderText('Type your message...')
+      await user.type(input, 'Re-evaluate test')
+      const sendButton = screen.getByTestId('SendIcon').closest('button')!
+      await user.click(sendButton)
+
+      // Wait for response to finish AND edit button to appear
+      await waitFor(
+        () => {
+          expect(screen.getByTestId('edit-response-button')).toBeInTheDocument()
+        },
+        { timeout: 5000 },
+      )
+
+      // Record initial judge call count
+      const initialCallCount = mockFetchRatingsFromJudges.mock.calls.length
+
+      // Click the assistant edit button
+      await user.click(screen.getByTestId('edit-response-button'))
+
+      // Wait for the editing textarea to appear
+      await waitFor(() => {
+        expect(screen.getByText('Save & Re-evaluate')).toBeInTheDocument()
+      })
+
+      // Clear and type new content in the textarea
+      const textarea = screen.getByTestId('edit-response-textarea')
+      await user.clear(textarea)
+      await user.type(textarea, 'Manually edited response content.')
+
+      // Click Save & Re-evaluate
+      await user.click(screen.getByText('Save & Re-evaluate'))
+
+      // fetchRatingsFromJudges should be called again with the edited content
+      await waitFor(() => {
+        expect(mockFetchRatingsFromJudges.mock.calls.length).toBeGreaterThan(initialCallCount)
+      })
+
+      // Verify the new call used the edited content
+      const lastCall = mockFetchRatingsFromJudges.mock.calls[mockFetchRatingsFromJudges.mock.calls.length - 1]
+      expect(lastCall[2]).toBe('Manually edited response content.')
+
+      // The edited content should be displayed
+      await waitFor(() => {
+        expect(screen.getByText('Manually edited response content.')).toBeInTheDocument()
+      })
+
+      // updateMessage should be called to persist the edited content
+      expect(mockUpdateMessage).toHaveBeenCalledWith(
+        expect.objectContaining({
+          content: 'Manually edited response content.',
+          judgeRatings: JSON.stringify({}),
+        }),
+      )
+    })
+  })
 })
