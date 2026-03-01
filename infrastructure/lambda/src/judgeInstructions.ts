@@ -1,7 +1,7 @@
 /**
  * Judge-specific instruction addenda.
  *
- * Each key is a ChatProvider enum value (e.g. 'OPENAI', 'PERPLEXITY').
+ * Each key is a ChatProvider enum value (e.g. 'OPENAI').
  * The value is appended to the base system prompt when that provider acts
  * as a judge.  To add instructions for a new judge, add an entry here.
  */
@@ -19,18 +19,6 @@ IMPORTANT EVALUATION GUIDELINES:
 - Do NOT list "could have included more detail" or "could have mentioned X" as problems unless the missing information is critical to answering the user's question.
 - Reserve the "problems" array for genuine errors, factual inaccuracies, misleading statements, or significant omissions that would cause the user real harm or confusion. An empty problems array is perfectly appropriate for a good response.
 - A response that correctly and clearly answers the user's question is a good response (8+), even if you personally would have worded it differently.`,
-
-  // Perplexity models are web-search-augmented and inherently bias toward
-  // valuing citations/sources and treating search results as the sole source
-  // of truth.  This addendum prevents unfair penalization of responses based
-  // on the limitations of Perplexity's own web search results.
-  PERPLEXITY: `
-
-IMPORTANT EVALUATION GUIDELINES:
-- Do NOT penalize responses for lacking citations, references, or source links. The AI assistants being evaluated are not expected to provide citations or URLs.
-- Do NOT penalize or flag factual claims simply because they do not appear in your web search results. Your search results are limited and may not cover everything. A claim is not wrong just because you couldn't find it in a search.
-- Use your own knowledge and reasoning to evaluate accuracy, not just your search results. Only flag claims as inaccurate if you have strong evidence they are actually wrong, not merely because they are unverified by your search.
-- Evaluate responses purely on accuracy, helpfulness, completeness, and clarity of the content itself, the same way any other AI evaluator would.`,
 };
 
 /**

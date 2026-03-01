@@ -7,7 +7,6 @@ vi.mock('./secrets', () => ({
     OPENAI_API_KEY: 'test-openai-key',
     ANTHROPIC_API_KEY: 'test-anthropic-key',
     GEMINI_API_KEY: 'test-gemini-key',
-    PERPLEXITY_API_KEY: 'test-perplexity-key',
   }),
 }));
 
@@ -19,7 +18,6 @@ vi.mock('./providers', () => ({
   judgeOpenAI: vi.fn(),
   judgeAnthropic: vi.fn(),
   judgeGemini: vi.fn(),
-  judgePerplexity: vi.fn(),
 }));
 
 vi.mock('./rateLimiter', () => ({
@@ -30,13 +28,11 @@ vi.mock('./rateLimiter', () => ({
 }));
 
 import { handler } from './judge';
-import { judgeOpenAI, judgeAnthropic, judgeGemini, judgePerplexity } from './providers';
+import { judgeOpenAI, judgeAnthropic, judgeGemini } from './providers';
 
 const mockJudgeOpenAI = vi.mocked(judgeOpenAI);
 const mockJudgeAnthropic = vi.mocked(judgeAnthropic);
 const mockJudgeGemini = vi.mocked(judgeGemini);
-const mockJudgePerplexity = vi.mocked(judgePerplexity);
-
 function makeEvent(input: JudgeInput): AppSyncEvent<{ input: JudgeInput }> {
   return {
     arguments: { input },
@@ -55,7 +51,6 @@ beforeEach(() => {
   mockJudgeOpenAI.mockReset();
   mockJudgeAnthropic.mockReset();
   mockJudgeGemini.mockReset();
-  mockJudgePerplexity.mockReset();
 });
 
 describe('judge handler - validation', () => {
@@ -97,11 +92,6 @@ describe('judge handler - provider routing', () => {
     expect(mockJudgeGemini).toHaveBeenCalled();
   });
 
-  it('routes to PERPLEXITY judge', async () => {
-    mockJudgePerplexity.mockResolvedValue({ text: '{"score": 6, "explanation": "OK", "problems": []}', tokenCount: 10 });
-    const result = await handler(makeEvent({ ...validInput, judgeProvider: 'PERPLEXITY' }));
-    expect(mockJudgePerplexity).toHaveBeenCalled();
-  });
 });
 
 describe('judge handler - response parsing', () => {

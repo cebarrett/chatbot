@@ -4,7 +4,7 @@ This file provides guidance for Claude Code when working with this repository.
 
 ## Project Overview
 
-This is a multi-provider LLM chatbot application with a React + TypeScript frontend and AWS serverless backend. Users can chat with multiple LLM providers (OpenAI, Anthropic Claude, Google Gemini, Perplexity, Grok) and have responses evaluated by an AI judge system. The frontend is built with Vite and Material-UI, uses Clerk for authentication, and communicates with an AWS AppSync GraphQL API. The backend uses Lambda functions that securely call LLM APIs with keys stored in Secrets Manager, and persists chat history in DynamoDB. Additional features include voice input via audio transcription, judge follow-up conversations, per-user preferences backed by DynamoDB, and per-user rate limiting.
+This is a multi-provider LLM chatbot application with a React + TypeScript frontend and AWS serverless backend. Users can chat with multiple LLM providers (OpenAI, Anthropic Claude, Google Gemini, Grok) and have responses evaluated by an AI judge system. The frontend is built with Vite and Material-UI, uses Clerk for authentication, and communicates with an AWS AppSync GraphQL API. The backend uses Lambda functions that securely call LLM APIs with keys stored in Secrets Manager, and persists chat history in DynamoDB. Additional features include voice input via audio transcription, judge follow-up conversations, per-user preferences backed by DynamoDB, and per-user rate limiting.
 
 ## Commands
 
@@ -62,7 +62,7 @@ This is a multi-provider LLM chatbot application with a React + TypeScript front
 - `appsyncChat.ts` - Chat streaming via AppSync mutations and subscriptions
 - `appsyncJudge.ts` - Judge quality evaluations and follow-up questions via AppSync
 - `chatHistoryService.ts` - Chat CRUD operations (create, list, delete, save/update messages) via AppSync/DynamoDB
-- `chatProviderRegistry.ts` - Provider registry (OpenAI, Claude, Gemini, Perplexity, Grok)
+- `chatProviderRegistry.ts` - Provider registry (OpenAI, Claude, Gemini, Grok)
 - `judgeRegistry.ts` - Judge registry with localStorage persistence for enabled judges
 - `transcriptionService.ts` - Audio transcription via AppSync (Whisper API)
 - `userPreferencesService.ts` - User preferences CRUD with localStorage write-through cache
@@ -100,7 +100,7 @@ This is a multi-provider LLM chatbot application with a React + TypeScript front
 - `types.ts` - Shared TypeScript types for Lambda handlers
 - `createChat.ts`, `deleteChat.ts`, `listChats.ts` - Chat CRUD resolvers
 - `getUserPreferences.ts`, `updateUserPreferences.ts`, `userPreferences.ts` - User preferences CRUD resolvers
-- `providers/` - LLM provider implementations: `openai.ts`, `anthropic.ts`, `gemini.ts`, `perplexity.ts`, `grok.ts`
+- `providers/` - LLM provider implementations: `openai.ts`, `anthropic.ts`, `gemini.ts`, `grok.ts`
 
 ## Testing
 

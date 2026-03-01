@@ -200,7 +200,7 @@ export const TRANSCRIBE_AUDIO_MUTATION = `
 `;
 
 // Types matching the GraphQL schema
-export type ChatProvider = 'OPENAI' | 'ANTHROPIC' | 'GEMINI' | 'PERPLEXITY' | 'GROK' | 'GEMINI_IMAGE' | 'OPENAI_IMAGE';
+export type ChatProvider = 'OPENAI' | 'ANTHROPIC' | 'GEMINI' | 'GROK' | 'GEMINI_IMAGE' | 'OPENAI_IMAGE';
 
 export interface ChatMessageInput {
   role: 'user' | 'assistant' | 'system';

@@ -12,7 +12,7 @@ import {
 import { ChatProvider } from './types';
 
 describe('validateProvider', () => {
-  it.each(['OPENAI', 'ANTHROPIC', 'GEMINI', 'PERPLEXITY'] as const)(
+  it.each(['OPENAI', 'ANTHROPIC', 'GEMINI', 'GROK'] as const)(
     'accepts valid provider: %s',
     (provider) => {
       expect(() => validateProvider(provider)).not.toThrow();

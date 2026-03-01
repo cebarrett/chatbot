@@ -35,7 +35,7 @@ export interface JudgeFollowUpInput {
   model?: string;
 }
 
-export type ChatProvider = 'OPENAI' | 'ANTHROPIC' | 'GEMINI' | 'PERPLEXITY' | 'GROK' | 'GEMINI_IMAGE' | 'OPENAI_IMAGE';
+export type ChatProvider = 'OPENAI' | 'ANTHROPIC' | 'GEMINI' | 'GROK' | 'GEMINI_IMAGE' | 'OPENAI_IMAGE';
 
 // GraphQL output types
 export interface SendMessageResponse {
@@ -83,7 +83,6 @@ export interface LLMSecrets {
   OPENAI_API_KEY: string;
   ANTHROPIC_API_KEY: string;
   GEMINI_API_KEY: string;
-  PERPLEXITY_API_KEY: string;
   GROK_API_KEY: string;
 }
 
