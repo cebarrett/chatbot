@@ -235,4 +235,27 @@ describe('judgeGemini', () => {
     mockFetch.mockResolvedValue(createMockErrorResponse(500, 'Server error'));
     await expect(judgeGemini('key', 'sys', 'user')).rejects.toThrow('Gemini API error: 500');
   });
+
+  it('does not set temperature for Gemini 3 models (uses default 1.0)', async () => {
+    mockFetch.mockResolvedValue(
+      createMockJSONResponse({
+        candidates: [{ content: { parts: [{ text: 'result' }] } }],
+      })
+    );
+    await judgeGemini('key', 'sys', 'user', 'gemini-3-pro-preview');
+    const body = JSON.parse(mockFetch.mock.calls[0][1].body);
+    expect(body.generationConfig.temperature).toBeUndefined();
+    expect(body.generationConfig.thinkingConfig).toEqual({ thinkingLevel: 'HIGH' });
+  });
+
+  it('sets temperature 0.3 for Gemini 2.5 models', async () => {
+    mockFetch.mockResolvedValue(
+      createMockJSONResponse({
+        candidates: [{ content: { parts: [{ text: 'result' }] } }],
+      })
+    );
+    await judgeGemini('key', 'sys', 'user', 'gemini-2.5-pro');
+    const body = JSON.parse(mockFetch.mock.calls[0][1].body);
+    expect(body.generationConfig.temperature).toBe(0.3);
+  });
 });

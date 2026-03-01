@@ -193,23 +193,28 @@ export async function judgeGemini(
   const url = `${GEMINI_API_BASE}/${modelName}:generateContent?key=${apiKey}`;
 
   const useThinking = THINKING_CAPABLE_MODELS.has(modelName);
+  const isGemini3 = modelName.startsWith('gemini-3');
 
   const generationConfig: Record<string, unknown> = {
     maxOutputTokens: 4096,
-    temperature: 0.3,
   };
 
   if (useThinking) {
-    // Gemini 3 uses thinkingLevel; Gemini 2.5 uses thinkingBudget (incompatible)
-    if (modelName.startsWith('gemini-3')) {
+    // Gemini 3 uses thinkingLevel; Gemini 2.5 uses thinkingBudget (incompatible).
+    // Gemini 3 models require temperature 1.0 (the default) when thinking is
+    // enabled — setting a lower value causes 400 errors or degraded output.
+    if (isGemini3) {
       generationConfig.thinkingConfig = {
         thinkingLevel: 'HIGH',
       };
     } else {
+      generationConfig.temperature = 0.3;
       generationConfig.thinkingConfig = {
         thinkingBudget: 8192,
       };
     }
+  } else {
+    generationConfig.temperature = 0.3;
   }
 
   const response = await fetch(url, {
