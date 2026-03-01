@@ -83,6 +83,7 @@ export interface LLMSecrets {
   OPENAI_API_KEY: string;
   ANTHROPIC_API_KEY: string;
   GEMINI_API_KEY: string;
+  PERPLEXITY_API_KEY: string;
   GROK_API_KEY: string;
 }
 
