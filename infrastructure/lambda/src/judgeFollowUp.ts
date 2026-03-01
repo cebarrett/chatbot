@@ -4,7 +4,7 @@ import {
   JudgeFollowUpResponse,
 } from './types';
 import { getSecrets } from './secrets';
-import { judgeOpenAI, judgeAnthropic, judgeGemini, judgePerplexity, judgeGrok } from './providers';
+import { judgeOpenAI, judgeAnthropic, judgeGemini, judgeGrok } from './providers';
 import { validateJudgeFollowUpInput, ValidationError } from './validation';
 import { resolveInternalUserId } from './userService';
 import { checkTokenBudget, checkAndIncrementRequestCount, recordTokenUsage, RateLimitError } from './rateLimiter';
@@ -50,7 +50,7 @@ function buildFollowUpPrompt(
   previousProblems: string[],
   previousFollowUps: Array<{ question: string; answer: string }> | undefined,
   followUpQuestion: string,
-  webSearchContext?: string | null
+  webSearchContext?: string | null,
 ): string {
   let historySection = '';
   if (conversationHistory && conversationHistory.length > 0) {
@@ -187,7 +187,7 @@ export async function handler(
       previousProblems,
       previousFollowUps,
       followUpQuestion,
-      webSearchContext
+      webSearchContext,
     );
 
     // Build the full system prompt (base + any provider-specific instructions)
@@ -212,12 +212,6 @@ export async function handler(
       }
       case 'GEMINI': {
         const result = await judgeGemini(secrets.GEMINI_API_KEY, systemPrompt, userPrompt, model);
-        responseText = result.text;
-        tokenCount = result.tokenCount;
-        break;
-      }
-      case 'PERPLEXITY': {
-        const result = await judgePerplexity(secrets.PERPLEXITY_API_KEY, systemPrompt, userPrompt, model);
         responseText = result.text;
         tokenCount = result.tokenCount;
         break;

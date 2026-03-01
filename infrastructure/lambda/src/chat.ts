@@ -7,7 +7,7 @@ import {
 } from './types';
 import { getSecrets } from './secrets';
 import { publishChunk } from './appsync';
-import { streamOpenAI, streamAnthropic, streamGemini, streamPerplexity, streamGrok, streamGeminiImage, streamOpenAIImage } from './providers';
+import { streamOpenAI, streamAnthropic, streamGemini, streamGrok, streamGeminiImage, streamOpenAIImage } from './providers';
 import { validateSendMessageInput, ValidationError } from './validation';
 import { resolveInternalUserId } from './userService';
 import { checkTokenBudget, checkAndIncrementRequestCount, recordTokenUsage, RateLimitError } from './rateLimiter';
@@ -104,7 +104,7 @@ async function initAndStream(
 }
 
 async function streamInBackground(
-  secrets: { OPENAI_API_KEY: string; ANTHROPIC_API_KEY: string; GEMINI_API_KEY: string; PERPLEXITY_API_KEY: string; GROK_API_KEY: string },
+  secrets: { OPENAI_API_KEY: string; ANTHROPIC_API_KEY: string; GEMINI_API_KEY: string; GROK_API_KEY: string },
   provider: ChatProvider,
   messages: { role: 'user' | 'assistant' | 'system'; content: string }[],
   requestId: string,
@@ -128,9 +128,6 @@ async function streamInBackground(
         break;
       case 'GEMINI':
         tokenCount = await streamGemini(secrets.GEMINI_API_KEY, messages, requestId, userId, model);
-        break;
-      case 'PERPLEXITY':
-        tokenCount = await streamPerplexity(secrets.PERPLEXITY_API_KEY, messages, requestId, userId, model);
         break;
       case 'GROK':
         tokenCount = await streamGrok(secrets.GROK_API_KEY, messages, requestId, userId, model);

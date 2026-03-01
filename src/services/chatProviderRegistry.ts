@@ -66,14 +66,6 @@ export const chatProviderRegistry: ChatProviderConfig[] = [
     sendMessageStream: createProviderStream('grok'),
   },
   {
-    id: 'perplexity',
-    name: 'Perplexity',
-    description: 'Perplexity Sonar Reasoning Pro',
-    color: '#20808D', // Perplexity teal
-    isConfigured: isAppSyncConfigured,
-    sendMessageStream: createProviderStream('perplexity'),
-  },
-  {
     id: 'gemini-image',
     name: 'Gemini Image',
     description: 'Google Nano Banana Pro',

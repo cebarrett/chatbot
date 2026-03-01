@@ -41,7 +41,7 @@ export interface JudgeFollowUpInput {
   model?: string;
 }
 
-export type ChatProvider = 'OPENAI' | 'ANTHROPIC' | 'GEMINI' | 'PERPLEXITY' | 'GROK' | 'GEMINI_IMAGE' | 'OPENAI_IMAGE';
+export type ChatProvider = 'OPENAI' | 'ANTHROPIC' | 'GEMINI' | 'GROK' | 'GEMINI_IMAGE' | 'OPENAI_IMAGE';
 
 // GraphQL output types
 export interface SendMessageResponse {

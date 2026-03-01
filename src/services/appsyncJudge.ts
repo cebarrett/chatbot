@@ -27,8 +27,6 @@ function mapJudgeToEnum(judgeId: string): ChatProvider {
       return 'ANTHROPIC';
     case 'gemini':
       return 'GEMINI';
-    case 'perplexity':
-      return 'PERPLEXITY';
     case 'grok':
       return 'GROK';
     default:

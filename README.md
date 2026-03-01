@@ -1,10 +1,10 @@
 # Chatbot
 
-A multi-provider LLM chatbot with an AI judge system. Chat with OpenAI, Anthropic Claude, Google Gemini, Perplexity, and Grok, then have responses evaluated for quality by independent AI judges. Built with React, TypeScript, and AWS serverless infrastructure.
+A multi-provider LLM chatbot with an AI judge system. Chat with OpenAI, Anthropic Claude, Google Gemini, and Grok, then have responses evaluated for quality by independent AI judges. Built with React, TypeScript, and AWS serverless infrastructure.
 
 ## Features
 
-- **Multi-provider chat** - Switch between OpenAI, Claude, Gemini, Perplexity, and Grok
+- **Multi-provider chat** - Switch between OpenAI, Claude, Gemini, and Grok
 - **Real-time streaming** - Responses stream in via WebSocket subscriptions
 - **AI judge system** - Enable multiple AI judges to rate response quality, with follow-up questions
 - **Voice input** - Record audio and transcribe to text via Whisper API
@@ -152,7 +152,7 @@ Create a `.env` file from `.env.example`:
 - **API**: AWS AppSync GraphQL with real-time WebSocket subscriptions
 - **Compute**: Node.js 22 Lambda functions for chat streaming, judge evaluation, and audio transcription
 - **Storage**: DynamoDB (chat history, user preferences, rate limits), Secrets Manager (API keys)
-- **Providers**: OpenAI, Anthropic Claude, Google Gemini, Perplexity, Grok
+- **Providers**: OpenAI, Anthropic Claude, Google Gemini, Grok
 
 ## Deployment
 
