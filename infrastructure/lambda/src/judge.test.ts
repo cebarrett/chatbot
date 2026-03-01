@@ -24,6 +24,7 @@ vi.mock('./rateLimiter', () => ({
   checkTokenBudget: vi.fn().mockResolvedValue(undefined),
   checkAndIncrementRequestCount: vi.fn().mockResolvedValue(undefined),
   recordTokenUsage: vi.fn().mockResolvedValue(undefined),
+  isRateLimitExempt: vi.fn().mockReturnValue(false),
   RateLimitError: class RateLimitError extends Error {},
 }));
 

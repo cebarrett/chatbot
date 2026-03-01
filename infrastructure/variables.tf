@@ -52,6 +52,12 @@ variable "rate_limit_daily_tokens" {
   default     = 2000000
 }
 
+variable "rate_limit_exempt_clerk_ids" {
+  description = "Comma-separated list of Clerk user IDs exempt from rate limits (e.g. for developer/admin accounts)"
+  type        = string
+  default     = ""
+}
+
 # CloudWatch alarm configuration
 variable "alarm_notification_email" {
   description = "Email address for CloudWatch alarm notifications (leave empty to skip)"
