@@ -1,10 +1,12 @@
 import { useState } from 'react'
-import { Box, Paper, Typography, IconButton, Tooltip, Collapse, useTheme } from '@mui/material'
+import { Box, Paper, Typography, IconButton, Tooltip, Collapse, useTheme, TextField, Button } from '@mui/material'
 import SmartToyIcon from '@mui/icons-material/SmartToy'
 import PersonIcon from '@mui/icons-material/Person'
 import EditIcon from '@mui/icons-material/Edit'
 import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline'
 import PsychologyAltIcon from '@mui/icons-material/PsychologyAlt'
+import CheckIcon from '@mui/icons-material/Check'
+import CloseIcon from '@mui/icons-material/Close'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import remarkMath from 'remark-math'
@@ -48,6 +50,7 @@ interface ChatMessageProps {
   conversationHistory?: Message[]  // For follow-up context
   respondingProvider?: string  // Provider that generated the response
   onFollowUpComplete?: (judgeId: string, exchanges: JudgeFollowUpExchange[]) => void
+  onEditResponse?: (messageId: string, newContent: string) => void  // Edit assistant response and re-run judges
 }
 
 export function ChatMessage({
@@ -60,12 +63,15 @@ export function ChatMessage({
   onDelete,
   conversationHistory,
   respondingProvider,
+  onEditResponse,
   onFollowUpComplete,
 }: ChatMessageProps) {
   const isUser = message.role === 'user'
   const theme = useTheme()
   const isDark = theme.palette.mode === 'dark'
   const showEditButton = isUser && isLastUserMessage && onEdit
+  const [isEditingResponse, setIsEditingResponse] = useState(false)
+  const [editResponseValue, setEditResponseValue] = useState('')
 
   const hasContentBlocks = !isUser && message.contentBlocks && message.contentBlocks.length > 0
   const imageBlocks = hasContentBlocks
@@ -119,6 +125,25 @@ export function ChatMessage({
           >
             {message.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
           </Typography>
+          {onEditResponse && !isEditingResponse && (
+            <Tooltip title="Edit response and re-run reviews">
+              <IconButton
+                size="small"
+                data-testid="edit-response-button"
+                onClick={() => {
+                  setEditResponseValue(message.content)
+                  setIsEditingResponse(true)
+                }}
+                sx={{
+                  opacity: 0.5,
+                  p: 0.25,
+                  '&:hover': { opacity: 1 },
+                }}
+              >
+                <EditIcon sx={{ fontSize: 16 }} />
+              </IconButton>
+            </Tooltip>
+          )}
         </Box>
         <Box
           sx={{
@@ -168,85 +193,133 @@ export function ChatMessage({
             },
           }}
         >
-          {thinking && (
-            <Box sx={{ mb: 1.5 }}>
-              <Box
-                onClick={() => setShowThinking((prev) => !prev)}
+          {isEditingResponse ? (
+            <Box>
+              <TextField
+                multiline
+                fullWidth
+                minRows={4}
+                maxRows={20}
+                value={editResponseValue}
+                onChange={(e) => setEditResponseValue(e.target.value)}
+                variant="outlined"
+                size="small"
+                inputProps={{ 'data-testid': 'edit-response-textarea' }}
                 sx={{
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: 0.5,
-                  cursor: 'pointer',
-                  px: 1.5,
-                  py: 0.5,
-                  borderRadius: 1,
-                  bgcolor: isDark ? 'rgba(255, 255, 255, 0.06)' : 'rgba(0, 0, 0, 0.04)',
-                  '&:hover': {
-                    bgcolor: isDark ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.08)',
+                  '& .MuiOutlinedInput-root': {
+                    fontFamily: 'monospace',
+                    fontSize: '0.875rem',
                   },
-                  transition: 'background-color 0.2s',
-                  userSelect: 'none',
                 }}
-              >
-                <PsychologyAltIcon sx={{ fontSize: 18, color: 'text.secondary' }} />
-                <Typography variant="caption" sx={{ color: 'text.secondary', fontWeight: 500 }}>
-                  {showThinking ? 'Hide thinking' : 'Show thinking'}
-                </Typography>
+              />
+              <Box sx={{ display: 'flex', gap: 1, mt: 1 }}>
+                <Button
+                  size="small"
+                  variant="contained"
+                  startIcon={<CheckIcon />}
+                  onClick={() => {
+                    if (editResponseValue.trim() && editResponseValue !== message.content) {
+                      onEditResponse!(message.id, editResponseValue)
+                    }
+                    setIsEditingResponse(false)
+                  }}
+                  disabled={!editResponseValue.trim() || editResponseValue === message.content}
+                >
+                  Save &amp; Re-evaluate
+                </Button>
+                <Button
+                  size="small"
+                  variant="outlined"
+                  startIcon={<CloseIcon />}
+                  onClick={() => setIsEditingResponse(false)}
+                >
+                  Cancel
+                </Button>
               </Box>
-              <Collapse in={showThinking}>
-                <Box
-                  sx={{
-                    mt: 1,
-                    pl: 1.5,
-                    borderLeft: '2px solid',
-                    borderColor: isDark ? 'rgba(255, 255, 255, 0.15)' : 'rgba(0, 0, 0, 0.15)',
-                    color: 'text.secondary',
-                    fontSize: '0.9em',
-                    '& p': { m: 0, mb: 1, '&:last-child': { mb: 0 } },
+            </Box>
+          ) : (
+            <>
+              {thinking && (
+                <Box sx={{ mb: 1.5 }}>
+                  <Box
+                    onClick={() => setShowThinking((prev) => !prev)}
+                    sx={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: 0.5,
+                      cursor: 'pointer',
+                      px: 1.5,
+                      py: 0.5,
+                      borderRadius: 1,
+                      bgcolor: isDark ? 'rgba(255, 255, 255, 0.06)' : 'rgba(0, 0, 0, 0.04)',
+                      '&:hover': {
+                        bgcolor: isDark ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.08)',
+                      },
+                      transition: 'background-color 0.2s',
+                      userSelect: 'none',
+                    }}
+                  >
+                    <PsychologyAltIcon sx={{ fontSize: 18, color: 'text.secondary' }} />
+                    <Typography variant="caption" sx={{ color: 'text.secondary', fontWeight: 500 }}>
+                      {showThinking ? 'Hide thinking' : 'Show thinking'}
+                    </Typography>
+                  </Box>
+                  <Collapse in={showThinking}>
+                    <Box
+                      sx={{
+                        mt: 1,
+                        pl: 1.5,
+                        borderLeft: '2px solid',
+                        borderColor: isDark ? 'rgba(255, 255, 255, 0.15)' : 'rgba(0, 0, 0, 0.15)',
+                        color: 'text.secondary',
+                        fontSize: '0.9em',
+                        '& p': { m: 0, mb: 1, '&:last-child': { mb: 0 } },
+                      }}
+                    >
+                      <ReactMarkdown remarkPlugins={[remarkGfm, remarkMath]} rehypePlugins={[rehypeKatex]}>{thinking}</ReactMarkdown>
+                    </Box>
+                  </Collapse>
+                </Box>
+              )}
+              {visibleContent && (
+                <ReactMarkdown
+                  remarkPlugins={[remarkGfm, remarkMath]}
+                  rehypePlugins={[rehypeKatex]}
+                  components={{
+                    code({ className, children, ...rest }) {
+                      const match = /language-(\w+)/.exec(className || '')
+                      const codeString = String(children).replace(/\n$/, '')
+                      if (match) {
+                        return (
+                          <SyntaxHighlighter
+                            style={isDark ? oneDark : oneLight}
+                            language={match[1]}
+                            PreTag="div"
+                            customStyle={{
+                              margin: 0,
+                              borderRadius: '4px',
+                              fontSize: '0.875em',
+                            }}
+                          >
+                            {codeString}
+                          </SyntaxHighlighter>
+                        )
+                      }
+                      return (
+                        <code className={className} {...rest}>
+                          {children}
+                        </code>
+                      )
+                    },
                   }}
                 >
-                  <ReactMarkdown remarkPlugins={[remarkGfm, remarkMath]} rehypePlugins={[rehypeKatex]}>{thinking}</ReactMarkdown>
-                </Box>
-              </Collapse>
-            </Box>
-          )}
-          {visibleContent && (
-            <ReactMarkdown
-              remarkPlugins={[remarkGfm, remarkMath]}
-              rehypePlugins={[rehypeKatex]}
-              components={{
-                code({ className, children, ...rest }) {
-                  const match = /language-(\w+)/.exec(className || '')
-                  const codeString = String(children).replace(/\n$/, '')
-                  if (match) {
-                    return (
-                      <SyntaxHighlighter
-                        style={isDark ? oneDark : oneLight}
-                        language={match[1]}
-                        PreTag="div"
-                        customStyle={{
-                          margin: 0,
-                          borderRadius: '4px',
-                          fontSize: '0.875em',
-                        }}
-                      >
-                        {codeString}
-                      </SyntaxHighlighter>
-                    )
-                  }
-                  return (
-                    <code className={className} {...rest}>
-                      {children}
-                    </code>
-                  )
-                },
-              }}
-            >
-              {visibleContent}
-            </ReactMarkdown>
-          )}
-          {imageBlocks.length > 0 && (
-            <ImageGallery images={imageBlocks} />
+                  {visibleContent}
+                </ReactMarkdown>
+              )}
+              {imageBlocks.length > 0 && (
+                <ImageGallery images={imageBlocks} />
+              )}
+            </>
           )}
         </Box>
         {(message.judgeRatings || loadingJudges.length > 0 || failedJudges.length > 0) && (

@@ -151,6 +151,12 @@ function App() {
   const [newChatProviderId, setNewChatProviderId] = useState(DEFAULT_PROVIDER_ID)
   const onboardingRef = useRef<OnboardingControllerHandle>(null)
 
+  // Enable response editing via URL parameter: ?editResponses=true
+  const responseEditingEnabled = useMemo(() => {
+    const params = new URLSearchParams(window.location.search)
+    return params.get('editResponses') === 'true'
+  }, [])
+
   // Sort chats by updatedAt descending so most recently active chats appear first
   const sortedChats = useMemo(
     () => [...chats].sort((a, b) => b.updatedAt.getTime() - a.updatedAt.getTime()),
@@ -453,6 +459,92 @@ function App() {
       )
     },
     []
+  )
+
+  const handleEditResponse = useCallback(
+    (messageId: string, newContent: string) => {
+      if (!activeChatId) return
+      const chatId = activeChatId
+      const chat = chats.find((c) => c.id === chatId)
+      if (!chat) return
+
+      const message = chat.messages.find((m) => m.id === messageId)
+      if (!message || message.role !== 'assistant') return
+
+      // Cancel any in-progress judge requests
+      if (judgeCancelRef.current) {
+        judgeCancelRef.current()
+        judgeCancelRef.current = null
+      }
+
+      // Update message content and clear existing ratings
+      setChats((prev) =>
+        prev.map((c) => {
+          if (c.id === chatId) {
+            return {
+              ...c,
+              updatedAt: new Date(),
+              messages: c.messages.map((msg) =>
+                msg.id === messageId
+                  ? { ...msg, content: newContent, judgeRatings: undefined }
+                  : msg
+              ),
+            }
+          }
+          return c
+        })
+      )
+
+      // Clear failed judges for this message
+      setFailedJudges((prev) => {
+        const next = new Map(prev)
+        next.delete(messageId)
+        return next
+      })
+
+      // Persist updated content to DynamoDB
+      if (!chat.incognito) {
+        updateMessageRemote({
+          chatId,
+          messageId,
+          timestamp: message.timestamp.toISOString(),
+          content: newContent,
+          judgeRatings: JSON.stringify({}),
+        }).catch((err) => console.error('Failed to persist edited response:', err))
+      }
+
+      // Re-run judge evaluations
+      if (enabledJudges.length > 0) {
+        const respondingProviderId = chat.providerId || newChatProviderId
+        // Build conversation history up to and including the user message before this response
+        const msgIndex = chat.messages.findIndex((m) => m.id === messageId)
+        const messagesForApi = msgIndex > 0 ? chat.messages.slice(0, msgIndex) : []
+
+        setJudgingMessageId(messageId)
+        setPendingJudges([...enabledJudges])
+        const { cancel: cancelJudges } = fetchRatingsFromJudges(
+          enabledJudges,
+          messagesForApi,
+          newContent,
+          respondingProviderId,
+          (judgeId, rating) => {
+            updateMessageRating(chatId, messageId, message.timestamp, judgeId, rating)
+            setPendingJudges((prev) => prev.filter((id) => id !== judgeId))
+          },
+          (judgeId, judgeName, errorMsg) => {
+            setPendingJudges((prev) => prev.filter((id) => id !== judgeId))
+            setFailedJudges((prev) => {
+              const next = new Map(prev)
+              const existing = next.get(messageId) || []
+              next.set(messageId, [...existing, { judgeId, judgeName, error: errorMsg }])
+              return next
+            })
+          }
+        )
+        judgeCancelRef.current = cancelJudges
+      }
+    },
+    [activeChatId, chats, enabledJudges, newChatProviderId, updateMessageRating]
   )
 
   const handleDeleteMessage = useCallback(
@@ -1108,6 +1200,7 @@ function App() {
                   onDelete={handleDeleteMessage}
                   conversationHistory={messages.slice(0, index + 1)}
                   respondingProvider={activeProviderId}
+                  onEditResponse={responseEditingEnabled && !isTyping ? handleEditResponse : undefined}
                   onFollowUpComplete={(judgeId, exchanges) =>
                     handleFollowUpComplete(
                       activeChat!.id,
