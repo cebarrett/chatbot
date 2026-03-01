@@ -1,13 +1,17 @@
-export interface JudgeFollowUp {
+export interface JudgeFollowUpExchange {
   question: string
   answer: string
 }
+
+// Kept as an alias for backward compatibility with persisted data
+export type JudgeFollowUp = JudgeFollowUpExchange
 
 export interface QualityRating {
   score: number // 1.0 to 10.0 (two significant figures)
   explanation: string
   problems: string[]
-  followUp?: JudgeFollowUp
+  followUp?: JudgeFollowUpExchange      // Legacy single exchange (kept for reading old data)
+  followUps?: JudgeFollowUpExchange[]    // Multi-turn follow-up exchanges
 }
 
 // Dynamic judge ratings - keyed by judge ID

@@ -14,7 +14,7 @@ import rehypeKatex from 'rehype-katex'
 import 'katex/dist/katex.min.css'
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter'
 import { oneDark, oneLight } from 'react-syntax-highlighter/dist/esm/styles/prism'
-import type { Message, JudgeFollowUp, JudgeError, ContentBlock } from '../types'
+import type { Message, JudgeFollowUpExchange, JudgeError, ContentBlock } from '../types'
 import { ResponseQualityRating } from './ResponseQualityRating'
 import { ImageGallery } from './ImageGallery'
 
@@ -49,7 +49,7 @@ interface ChatMessageProps {
   onDelete?: (messageId: string) => void
   conversationHistory?: Message[]  // For follow-up context
   respondingProvider?: string  // Provider that generated the response
-  onFollowUpComplete?: (judgeId: string, followUp: JudgeFollowUp) => void
+  onFollowUpComplete?: (judgeId: string, exchanges: JudgeFollowUpExchange[]) => void
   onEditResponse?: (messageId: string, newContent: string) => void  // Edit assistant response and re-run judges
 }
 

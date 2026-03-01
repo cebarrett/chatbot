@@ -247,6 +247,11 @@ export interface JudgeResponse {
   judgeProvider: string;
 }
 
+export interface JudgeFollowUpExchangeInput {
+  question: string;
+  answer: string;
+}
+
 export interface JudgeFollowUpInput {
   judgeProvider: ChatProvider;
   originalPrompt: string;
@@ -256,6 +261,7 @@ export interface JudgeFollowUpInput {
   previousScore: number;
   previousExplanation: string;
   previousProblems: string[];
+  previousFollowUps?: JudgeFollowUpExchangeInput[];
   followUpQuestion: string;
   model?: string;
 }

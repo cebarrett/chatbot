@@ -15,7 +15,7 @@ import { ChatHistorySidebar } from './components/ChatHistorySidebar'
 import { ProviderSelector } from './components/ProviderSelector'
 import { OnboardingModal } from './components/OnboardingModal'
 import { useUserPreferences } from './contexts/UserPreferencesContext'
-import type { Message, Chat, JudgeFollowUp, JudgeError, ContentBlock } from './types'
+import type { Message, Chat, JudgeFollowUpExchange, JudgeError, ContentBlock } from './types'
 import { getDummyResponse, generateId } from './utils/dummyResponses'
 import {
   listChats as fetchChatList,
@@ -418,7 +418,7 @@ function App() {
   }, [])
 
   const handleFollowUpComplete = useCallback(
-    (chatId: string, messageId: string, messageTimestamp: Date, judgeId: string, followUp: JudgeFollowUp) => {
+    (chatId: string, messageId: string, messageTimestamp: Date, judgeId: string, exchanges: JudgeFollowUpExchange[]) => {
       setChats((prev) =>
         prev.map((chat) => {
           if (chat.id === chatId) {
@@ -431,11 +431,11 @@ function App() {
                     ...msg.judgeRatings,
                     [judgeId]: {
                       ...msg.judgeRatings[judgeId],
-                      followUp,
+                      followUps: exchanges,
                     },
                   }
 
-                  // Persist follow-up to DynamoDB (non-blocking)
+                  // Persist follow-ups to DynamoDB (non-blocking)
                   updateMessageRemote({
                     chatId,
                     messageId,
@@ -1201,13 +1201,13 @@ function App() {
                   conversationHistory={messages.slice(0, index + 1)}
                   respondingProvider={activeProviderId}
                   onEditResponse={responseEditingEnabled && !isTyping ? handleEditResponse : undefined}
-                  onFollowUpComplete={(judgeId, followUp) =>
+                  onFollowUpComplete={(judgeId, exchanges) =>
                     handleFollowUpComplete(
                       activeChat!.id,
                       message.id,
                       message.timestamp,
                       judgeId,
-                      followUp
+                      exchanges
                     )
                   }
                 />

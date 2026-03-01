@@ -283,5 +283,47 @@ describe('validateJudgeFollowUpInput', () => {
       })
     ).toThrow(ValidationError);
   });
+
+  it('accepts valid previousFollowUps', () => {
+    expect(() =>
+      validateJudgeFollowUpInput({
+        ...validInput,
+        previousFollowUps: [
+          { question: 'Why?', answer: 'Because...' },
+          { question: 'How?', answer: 'Like this...' },
+        ],
+      })
+    ).not.toThrow();
+  });
+
+  it('accepts undefined previousFollowUps', () => {
+    expect(() =>
+      validateJudgeFollowUpInput({ ...validInput, previousFollowUps: undefined })
+    ).not.toThrow();
+  });
+
+  it('rejects non-array previousFollowUps', () => {
+    expect(() =>
+      validateJudgeFollowUpInput({ ...validInput, previousFollowUps: 'not array' as any })
+    ).toThrow(ValidationError);
+  });
+
+  it('rejects previousFollowUps with invalid exchange', () => {
+    expect(() =>
+      validateJudgeFollowUpInput({ ...validInput, previousFollowUps: [null as any] })
+    ).toThrow(ValidationError);
+  });
+
+  it('rejects previousFollowUps with oversized question', () => {
+    expect(() =>
+      validateJudgeFollowUpInput({
+        ...validInput,
+        previousFollowUps: [{
+          question: 'x'.repeat(VALIDATION_LIMITS.MAX_FOLLOW_UP_QUESTION_BYTES + 1),
+          answer: 'answer',
+        }],
+      })
+    ).toThrow(ValidationError);
+  });
 });
 

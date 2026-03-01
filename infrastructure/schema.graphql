@@ -25,6 +25,11 @@ input JudgeInput {
   model: String
 }
 
+input JudgeFollowUpExchangeInput {
+  question: String!
+  answer: String!
+}
+
 input JudgeFollowUpInput {
   judgeProvider: ChatProvider!
   originalPrompt: String!
@@ -34,6 +39,7 @@ input JudgeFollowUpInput {
   previousScore: Float!
   previousExplanation: String!
   previousProblems: [String!]!
+  previousFollowUps: [JudgeFollowUpExchangeInput!]
   followUpQuestion: String!
   model: String
 }

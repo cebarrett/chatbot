@@ -264,6 +264,29 @@ export function validateJudgeFollowUpInput(input: JudgeFollowUpInput): void {
     throw new ValidationError('previousProblems must be an array');
   }
 
+  // Validate previous follow-ups if provided
+  if (input.previousFollowUps) {
+    if (!Array.isArray(input.previousFollowUps)) {
+      throw new ValidationError('previousFollowUps must be an array');
+    }
+    for (let i = 0; i < input.previousFollowUps.length; i++) {
+      const exchange = input.previousFollowUps[i];
+      if (!exchange || typeof exchange !== 'object') {
+        throw new ValidationError(`previousFollowUps[${i}] is invalid`);
+      }
+      validateStringField(
+        exchange.question,
+        `previousFollowUps[${i}].question`,
+        VALIDATION_LIMITS.MAX_FOLLOW_UP_QUESTION_BYTES
+      );
+      validateStringField(
+        exchange.answer,
+        `previousFollowUps[${i}].answer`,
+        VALIDATION_LIMITS.MAX_RESPONSE_SIZE_BYTES
+      );
+    }
+  }
+
   // Validate conversation history if provided
   if (input.conversationHistory) {
     validateMessages(input.conversationHistory);
