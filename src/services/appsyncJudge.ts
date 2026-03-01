@@ -1,5 +1,5 @@
 // AppSync-based judge service
-import type { QualityRating, Message, JudgeFollowUp } from '../types';
+import type { QualityRating, Message, JudgeFollowUpExchange } from '../types';
 import { executeGraphQL, isAppSyncConfigured } from './appsyncClient';
 import {
   JUDGE_RESPONSE_MUTATION,
@@ -102,8 +102,9 @@ export async function askFollowUpQuestion(
   respondingProvider: string,
   rating: QualityRating,
   followUpQuestion: string,
+  previousFollowUps?: JudgeFollowUpExchange[],
   signal?: AbortSignal
-): Promise<JudgeFollowUp> {
+): Promise<JudgeFollowUpExchange> {
   if (!isAppSyncConfigured()) {
     throw new AppSyncJudgeError(
       'AppSync not configured. Please set VITE_APPSYNC_URL and VITE_APPSYNC_API_KEY.'
@@ -131,6 +132,9 @@ export async function askFollowUpQuestion(
     previousScore: rating.score,
     previousExplanation: rating.explanation,
     previousProblems: rating.problems,
+    previousFollowUps: previousFollowUps && previousFollowUps.length > 0
+      ? previousFollowUps.map(({ question, answer }) => ({ question, answer }))
+      : undefined,
     followUpQuestion,
   };
 

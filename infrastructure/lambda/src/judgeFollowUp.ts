@@ -48,6 +48,7 @@ function buildFollowUpPrompt(
   previousScore: number,
   previousExplanation: string,
   previousProblems: string[],
+  previousFollowUps: Array<{ question: string; answer: string }> | undefined,
   followUpQuestion: string,
   webSearchContext?: string | null
 ): string {
@@ -77,6 +78,17 @@ ${escapeXmlContent(webSearchContext)}
 `;
   }
 
+  let followUpHistorySection = '';
+  if (previousFollowUps && previousFollowUps.length > 0) {
+    const formattedExchanges = previousFollowUps
+      .map((exchange, i) =>
+        `<exchange index="${i + 1}">\n<user_question>${escapeXmlContent(exchange.question)}</user_question>\n<your_answer>${escapeXmlContent(exchange.answer)}</your_answer>\n</exchange>`)
+      .join('\n');
+    followUpHistorySection = `\n\n<previous_follow_up_exchanges>
+${formattedExchanges}
+</previous_follow_up_exchanges>`;
+  }
+
   return `Here is the context of your previous evaluation:
 
 ${historySection}<user_prompt>
@@ -90,7 +102,7 @@ ${searchSection}
 <your_previous_evaluation>
 <score>${previousScore.toFixed(1)}/10</score>
 <explanation>${escapeXmlContent(previousExplanation)}</explanation>${problemsSection}
-</your_previous_evaluation>
+</your_previous_evaluation>${followUpHistorySection}
 
 <user_follow_up_question>
 ${escapeXmlContent(followUpQuestion)}
@@ -128,6 +140,7 @@ export async function handler(
     previousScore,
     previousExplanation,
     previousProblems,
+    previousFollowUps,
     followUpQuestion,
     model,
   } = input;
@@ -172,6 +185,7 @@ export async function handler(
       previousScore,
       previousExplanation,
       previousProblems,
+      previousFollowUps,
       followUpQuestion,
       webSearchContext
     );
