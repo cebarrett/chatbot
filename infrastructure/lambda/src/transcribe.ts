@@ -6,7 +6,7 @@ import {
 import { getSecrets } from './secrets';
 import { validateTranscribeInput, ValidationError } from './validation';
 import { resolveInternalUserId } from './userService';
-import { checkTokenBudget, checkAndIncrementRequestCount, RateLimitError } from './rateLimiter';
+import { checkTokenBudget, checkAndIncrementRequestCount, RateLimitError, isRateLimitExempt } from './rateLimiter';
 
 interface TranscribeEventArgs {
   input: TranscribeAudioInput;
@@ -48,14 +48,16 @@ export async function handler(
   const internalUserId = await resolveInternalUserId(identity);
   console.log(`Processing transcription request for internalUser: ${internalUserId}`);
 
-  try {
-    await checkTokenBudget(internalUserId);
-    await checkAndIncrementRequestCount(internalUserId);
-  } catch (error) {
-    if (error instanceof RateLimitError) {
-      throw new Error(error.message);
+  if (!isRateLimitExempt(identity.sub)) {
+    try {
+      await checkTokenBudget(internalUserId);
+      await checkAndIncrementRequestCount(internalUserId);
+    } catch (error) {
+      if (error instanceof RateLimitError) {
+        throw new Error(error.message);
+      }
+      throw error;
     }
-    throw error;
   }
 
   // Get OpenAI API key

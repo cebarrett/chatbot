@@ -8,6 +8,20 @@ const TABLE_NAME = process.env.DYNAMODB_TABLE_NAME!;
 const MAX_DAILY_REQUESTS = parseInt(process.env.RATE_LIMIT_DAILY_REQUESTS || '200', 10);
 const MAX_DAILY_TOKENS = parseInt(process.env.RATE_LIMIT_DAILY_TOKENS || '2000000', 10);
 
+const EXEMPT_CLERK_IDS: Set<string> = new Set(
+  (process.env.RATE_LIMIT_EXEMPT_CLERK_IDS || '')
+    .split(',')
+    .map(id => id.trim())
+    .filter(Boolean)
+);
+
+/**
+ * Check if a Clerk user ID is exempt from rate limits.
+ */
+export function isRateLimitExempt(clerkUserId: string): boolean {
+  return EXEMPT_CLERK_IDS.has(clerkUserId);
+}
+
 export class RateLimitError extends Error {
   readonly code = 'RATE_LIMIT_EXCEEDED';
 

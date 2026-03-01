@@ -10,7 +10,7 @@ import { publishChunk } from './appsync';
 import { streamOpenAI, streamAnthropic, streamGemini, streamGrok, streamGeminiImage, streamOpenAIImage } from './providers';
 import { validateSendMessageInput, ValidationError } from './validation';
 import { resolveInternalUserId } from './userService';
-import { checkTokenBudget, checkAndIncrementRequestCount, recordTokenUsage, RateLimitError } from './rateLimiter';
+import { checkTokenBudget, checkAndIncrementRequestCount, recordTokenUsage, RateLimitError, isRateLimitExempt } from './rateLimiter';
 
 interface ChatEventArgs {
   input: SendMessageInput;
@@ -77,9 +77,11 @@ async function initAndStream(
     internalUserId = await resolveInternalUserId(identity);
     console.log(`Processing chat request: ${requestId} for provider: ${provider}, internalUser: ${internalUserId}, externalUser: ${externalUserId}`);
 
-    // Check rate limits: token budget first (read-only), then request count (atomic write)
-    await checkTokenBudget(internalUserId);
-    await checkAndIncrementRequestCount(internalUserId);
+    // Check rate limits (exempt users bypass)
+    if (!isRateLimitExempt(identity.sub)) {
+      await checkTokenBudget(internalUserId);
+      await checkAndIncrementRequestCount(internalUserId);
+    }
   } catch (error) {
     console.error('Error processing chat request:', error);
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';

@@ -7,7 +7,7 @@ import { getSecrets } from './secrets';
 import { judgeOpenAI, judgeAnthropic, judgeGemini, judgeGrok } from './providers';
 import { validateJudgeInput, ValidationError } from './validation';
 import { resolveInternalUserId } from './userService';
-import { checkTokenBudget, checkAndIncrementRequestCount, recordTokenUsage, RateLimitError } from './rateLimiter';
+import { checkTokenBudget, checkAndIncrementRequestCount, recordTokenUsage, RateLimitError, isRateLimitExempt } from './rateLimiter';
 import { getJudgeSystemPrompt } from './judgeInstructions';
 import { fetchWebSearchContext } from './webSearchContext';
 
@@ -142,20 +142,22 @@ export async function handler(
   const internalUserId = await resolveInternalUserId(identity);
   console.log(`Processing judge request with provider: ${judgeProvider}, internalUser: ${internalUserId}`);
 
-  // Check rate limits: token budget first (read-only), then request count (atomic write)
-  try {
-    await checkTokenBudget(internalUserId);
-    await checkAndIncrementRequestCount(internalUserId);
-  } catch (error) {
-    if (error instanceof RateLimitError) {
-      return {
-        score: 0,
-        explanation: error.message,
-        problems: ['Rate limit exceeded'],
-        judgeProvider: judgeProvider,
-      };
+  // Check rate limits (exempt users bypass)
+  if (!isRateLimitExempt(identity.sub)) {
+    try {
+      await checkTokenBudget(internalUserId);
+      await checkAndIncrementRequestCount(internalUserId);
+    } catch (error) {
+      if (error instanceof RateLimitError) {
+        return {
+          score: 0,
+          explanation: error.message,
+          problems: ['Rate limit exceeded'],
+          judgeProvider: judgeProvider,
+        };
+      }
+      throw error;
     }
-    throw error;
   }
 
   try {
