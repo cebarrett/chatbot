@@ -41,7 +41,7 @@ describe('streamGemini - request building', () => {
 
   it('uses default model when none specified', async () => {
     await streamGemini('key', [{ role: 'user', content: 'hi' }], 'req', 'user');
-    expect(captureUrl()).toContain('/gemini-3-pro-preview:');
+    expect(captureUrl()).toContain('/gemini-3.1-pro-preview:');
   });
 
   it('uses specified model when provided', async () => {
@@ -242,7 +242,7 @@ describe('judgeGemini', () => {
         candidates: [{ content: { parts: [{ text: 'result' }] } }],
       })
     );
-    await judgeGemini('key', 'sys', 'user', 'gemini-3-pro-preview');
+    await judgeGemini('key', 'sys', 'user', 'gemini-3.1-pro-preview');
     const body = JSON.parse(mockFetch.mock.calls[0][1].body);
     expect(body.generationConfig.temperature).toBeUndefined();
     expect(body.generationConfig.thinkingConfig).toEqual({ thinkingLevel: 'HIGH' });
