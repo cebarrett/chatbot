@@ -52,7 +52,7 @@ export const chatProviderRegistry: ChatProviderConfig[] = [
   {
     id: 'openai',
     name: 'ChatGPT',
-    description: 'OpenAI GPT-5.2',
+    description: 'OpenAI GPT-5.4',
     color: '#10A37F', // OpenAI green
     isConfigured: isAppSyncConfigured,
     sendMessageStream: createProviderStream('openai'),
