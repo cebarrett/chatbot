@@ -65,6 +65,7 @@ interface JudgeFollowUpThreadProps {
   conversationHistory: Message[]
   responseContent: string
   respondingProvider: string
+  customSystemPrompt?: string
   onFollowUpComplete: (exchanges: JudgeFollowUpExchange[]) => void
 }
 
@@ -76,6 +77,7 @@ export function JudgeFollowUpThread({
   conversationHistory,
   responseContent,
   respondingProvider,
+  customSystemPrompt,
   onFollowUpComplete,
 }: JudgeFollowUpThreadProps) {
   // Merge legacy single followUp with new followUps array
@@ -141,7 +143,8 @@ export function JudgeFollowUpThread({
         respondingProvider,
         rating,
         question.trim(),
-        exchanges.length > 0 ? exchanges : undefined
+        exchanges.length > 0 ? exchanges : undefined,
+        customSystemPrompt,
       )
       const newExchanges = [...exchanges, result]
       setExchanges(newExchanges)

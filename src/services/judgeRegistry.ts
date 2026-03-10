@@ -7,13 +7,13 @@ export interface JudgeConfig {
   description: string
   color: string // For UI badge coloring
   isConfigured: () => boolean
-  getRating: (conversationHistory: Message[], latestResponse: string, respondingProvider: string, signal?: AbortSignal) => Promise<QualityRating>
+  getRating: (conversationHistory: Message[], latestResponse: string, respondingProvider: string, customSystemPrompt?: string, signal?: AbortSignal) => Promise<QualityRating>
 }
 
 // Create a wrapper that binds the judge ID
 function createJudgeRating(judgeId: string) {
-  return (conversationHistory: Message[], latestResponse: string, respondingProvider: string, signal?: AbortSignal) =>
-    getAppSyncRating(judgeId, conversationHistory, latestResponse, respondingProvider, signal)
+  return (conversationHistory: Message[], latestResponse: string, respondingProvider: string, customSystemPrompt?: string, signal?: AbortSignal) =>
+    getAppSyncRating(judgeId, conversationHistory, latestResponse, respondingProvider, customSystemPrompt, signal)
 }
 
 // Registry of all available judges
@@ -102,7 +102,8 @@ export function fetchRatingsFromJudges(
   latestResponse: string,
   respondingProvider: string,
   onRating: (judgeId: string, rating: QualityRating) => void,
-  onError?: (judgeId: string, judgeName: string, error: string) => void
+  onError?: (judgeId: string, judgeName: string, error: string) => void,
+  customSystemPrompt?: string,
 ): JudgeFetchResult {
   const abortController = new AbortController()
 
@@ -111,7 +112,7 @@ export function fetchRatingsFromJudges(
       const judge = getJudgeById(judgeId)
       if (judge) {
         try {
-          const rating = await judge.getRating(conversationHistory, latestResponse, respondingProvider, abortController.signal)
+          const rating = await judge.getRating(conversationHistory, latestResponse, respondingProvider, customSystemPrompt, abortController.signal)
           // Don't call onRating if aborted
           if (!abortController.signal.aborted) {
             onRating(judgeId, rating)

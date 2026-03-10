@@ -39,7 +39,7 @@ import {
 import { JudgeSelector } from './components/JudgeSelector'
 import type { QualityRating } from './types'
 
-const SYSTEM_PROMPT = `You are a helpful, friendly assistant. Be concise and clear in your responses.`
+const DEFAULT_SYSTEM_PROMPT = `You are a helpful, friendly assistant. Be concise and clear in your responses.`
 
 /**
  * Parse raw streamed content from an image provider into ContentBlocks.
@@ -147,6 +147,14 @@ function App() {
   const [incognitoMode, setIncognitoMode] = useState(false)
   const [newChatProviderId, setNewChatProviderId] = useState(DEFAULT_PROVIDER_ID)
   const onboardingRef = useRef<OnboardingControllerHandle>(null)
+  const { get: getPref } = useUserPreferences()
+  const customSystemPrompt = getPref<string>('customSystemPrompt', '')
+
+  // Build the system prompt: base prompt + any user custom instructions
+  const systemPrompt = useMemo(() => {
+    if (!customSystemPrompt) return DEFAULT_SYSTEM_PROMPT
+    return `${DEFAULT_SYSTEM_PROMPT}\n\nAdditional user instructions:\n${customSystemPrompt}`
+  }, [customSystemPrompt])
 
   // Enable response editing via URL parameter: ?editResponses=true
   const responseEditingEnabled = useMemo(() => {
@@ -536,7 +544,8 @@ function App() {
               next.set(messageId, [...existing, { judgeId, judgeName, error: errorMsg }])
               return next
             })
-          }
+          },
+          customSystemPrompt || undefined,
         )
         judgeCancelRef.current = cancelJudges
       }
@@ -865,7 +874,7 @@ function App() {
       let wasCancelled = false
 
       if (provider?.isConfigured()) {
-        const { promise, cancel } = provider.sendMessageStream(messagesForApi, SYSTEM_PROMPT, (streamedContent) => {
+        const { promise, cancel } = provider.sendMessageStream(messagesForApi, systemPrompt, (streamedContent) => {
           finalResponse = streamedContent
           updateBotMessage(chatIdForStream, botMessageId, streamedContent)
           // Reset stall timer on each chunk received
@@ -964,7 +973,8 @@ function App() {
               next.set(botMessageId, [...existing, { judgeId, judgeName, error: errorMsg }])
               return next
             })
-          }
+          },
+          customSystemPrompt || undefined,
         )
         judgeCancelRef.current = cancelJudges
       }
@@ -1193,6 +1203,7 @@ function App() {
                   onDelete={handleDeleteMessage}
                   conversationHistory={messages.slice(0, index + 1)}
                   respondingProvider={activeProviderId}
+                  customSystemPrompt={customSystemPrompt || undefined}
                   onEditResponse={responseEditingEnabled && !isTyping ? handleEditResponse : undefined}
                   onFollowUpComplete={(judgeId, exchanges) =>
                     handleFollowUpComplete(

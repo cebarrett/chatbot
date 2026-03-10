@@ -51,6 +51,7 @@ function buildFollowUpPrompt(
   previousFollowUps: Array<{ question: string; answer: string }> | undefined,
   followUpQuestion: string,
   webSearchContext?: string | null,
+  customSystemPrompt?: string,
 ): string {
   let historySection = '';
   if (conversationHistory && conversationHistory.length > 0) {
@@ -89,9 +90,18 @@ ${formattedExchanges}
 </previous_follow_up_exchanges>`;
   }
 
+  let customInstructionsSection = '';
+  if (customSystemPrompt) {
+    customInstructionsSection = `<custom_user_instructions>
+${escapeXmlContent(customSystemPrompt)}
+</custom_user_instructions>
+
+`;
+  }
+
   return `Here is the context of your previous evaluation:
 
-${historySection}<user_prompt>
+${customInstructionsSection}${historySection}<user_prompt>
 ${escapeXmlContent(originalPrompt)}
 </user_prompt>
 
@@ -137,6 +147,7 @@ export async function handler(
     responseToJudge,
     respondingProvider,
     conversationHistory,
+    customSystemPrompt,
     previousScore,
     previousExplanation,
     previousProblems,
@@ -190,6 +201,7 @@ export async function handler(
       previousFollowUps,
       followUpQuestion,
       webSearchContext,
+      customSystemPrompt,
     );
 
     // Build the full system prompt (base + any provider-specific instructions)
