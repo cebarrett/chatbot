@@ -2,18 +2,16 @@ import { useState, useRef, useEffect, useCallback, useMemo, useImperativeHandle,
 import { useAuth } from '@clerk/clerk-react'
 import { Box, Typography, Paper, Alert, Snackbar, IconButton, Tooltip, CircularProgress, useMediaQuery, useTheme as useMuiTheme, Chip, Button } from '@mui/material'
 import SmartToyIcon from '@mui/icons-material/SmartToy'
-import LightModeIcon from '@mui/icons-material/LightMode'
-import DarkModeIcon from '@mui/icons-material/DarkMode'
 import MenuIcon from '@mui/icons-material/Menu'
 import VisibilityOffIcon from '@mui/icons-material/VisibilityOff'
 import HelpOutlineIcon from '@mui/icons-material/HelpOutline'
-import { useTheme } from './contexts/ThemeContext'
 import { AuthLayout, UserButton } from './components/AuthLayout'
 import { ChatMessage } from './components/ChatMessage'
 import { ChatInput } from './components/ChatInput'
 import { ChatHistorySidebar } from './components/ChatHistorySidebar'
 import { ProviderSelector } from './components/ProviderSelector'
 import { OnboardingModal } from './components/OnboardingModal'
+import { SettingsMenu } from './components/SettingsMenu'
 import { useUserPreferences } from './contexts/UserPreferencesContext'
 import type { Message, Chat, JudgeFollowUpExchange, JudgeError, ContentBlock } from './types'
 import { getDummyResponse, generateId } from './utils/dummyResponses'
@@ -143,7 +141,6 @@ function App() {
   const isNearBottomRef = useRef(true)
   const streamCancelRef = useRef<(() => void) | null>(null)
   const judgeCancelRef = useRef<(() => void) | null>(null)
-  const { resolvedMode, toggleMode } = useTheme()
   const muiTheme = useMuiTheme()
   const isMobile = useMediaQuery(muiTheme.breakpoints.down('md'))
   const [sidebarOpen, setSidebarOpen] = useState(false)
@@ -1109,11 +1106,7 @@ function App() {
                 <HelpOutlineIcon fontSize="small" />
               </IconButton>
             </Tooltip>
-            <Tooltip title={resolvedMode === 'light' ? 'Switch to dark mode' : 'Switch to light mode'}>
-              <IconButton onClick={toggleMode} size="small">
-                {resolvedMode === 'light' ? <DarkModeIcon /> : <LightModeIcon />}
-              </IconButton>
-            </Tooltip>
+            <SettingsMenu />
             <UserButton afterSignOutUrl="/" />
             {!providerConfigured && (
               <Tooltip title="The backend API is not configured. Set the VITE_APPSYNC_URL environment variable to connect to your AppSync backend.">
