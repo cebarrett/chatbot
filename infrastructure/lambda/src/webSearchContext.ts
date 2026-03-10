@@ -1,7 +1,8 @@
 /**
- * Fetches web search context using Perplexity's Sonar API to help judges
- * fact-check AI responses. Uses the lightweight 'sonar' model for fast,
- * cheap search-grounded results.
+ * Fetches web search context using Perplexity's Sonar API.
+ * Used by both chat providers (to ground responses in web facts) and
+ * judges (to fact-check AI responses). Uses the lightweight 'sonar'
+ * model for fast, cheap search-grounded results.
  */
 
 const PERPLEXITY_API_URL = 'https://api.perplexity.ai/chat/completions';
@@ -89,6 +90,70 @@ Provide key facts and any corrections or confirmations of claims made in the res
   } catch (error) {
     // Web search is supplementary — never block judge evaluation
     console.warn('Web search context error:', error);
+    return null;
+  }
+}
+
+/**
+ * Fetches web search context for a chat provider to ground its response
+ * in up-to-date web information. Unlike the judge variant, this searches
+ * based solely on the user's question (there is no AI response yet).
+ *
+ * Best-effort: returns null on any failure so chat can proceed without
+ * search context.
+ */
+export async function fetchChatSearchContext(
+  apiKey: string,
+  userMessage: string
+): Promise<WebSearchResult | null> {
+  try {
+    const truncatedMessage = userMessage.length > MAX_RESPONSE_FOR_SEARCH
+      ? userMessage.substring(0, MAX_RESPONSE_FOR_SEARCH) + '...'
+      : userMessage;
+
+    const response = await fetch(PERPLEXITY_API_URL, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${apiKey}`,
+      },
+      body: JSON.stringify({
+        model: SEARCH_MODEL,
+        messages: [
+          {
+            role: 'system',
+            content: 'You are a web research assistant. Search the web for information relevant to the user\'s question. Provide a concise summary of key facts found, including source URLs when available. Be objective and factual.',
+          },
+          {
+            role: 'user',
+            content: `Find relevant and up-to-date web information to help answer the following question:\n\n${truncatedMessage}`,
+          },
+        ],
+        max_tokens: SEARCH_MAX_TOKENS,
+      }),
+    });
+
+    if (!response.ok) {
+      console.warn(`Chat search context fetch failed: ${response.status}`);
+      return null;
+    }
+
+    const data = await response.json() as Record<string, any>;
+    const content: string = data.choices?.[0]?.message?.content || '';
+    const tokenCount: number = data.usage?.total_tokens || Math.ceil(content.length / 4);
+
+    const cleaned = content
+      .replace(/<think>[\s\S]*?<\/think>/g, '')
+      .trim();
+
+    if (!cleaned) {
+      return null;
+    }
+
+    return { context: cleaned, tokenCount };
+  } catch (error) {
+    // Web search is supplementary — never block chat
+    console.warn('Chat search context error:', error);
     return null;
   }
 }

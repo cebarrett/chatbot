@@ -11,6 +11,7 @@ import { streamOpenAI, streamAnthropic, streamGemini, streamGrok, streamGeminiIm
 import { validateSendMessageInput, ValidationError } from './validation';
 import { resolveInternalUserId } from './userService';
 import { checkTokenBudget, checkAndIncrementRequestCount, recordTokenUsage, RateLimitError, isRateLimitExempt } from './rateLimiter';
+import { fetchChatSearchContext } from './webSearchContext';
 
 interface ChatEventArgs {
   input: SendMessageInput;
@@ -106,7 +107,7 @@ async function initAndStream(
 }
 
 async function streamInBackground(
-  secrets: { OPENAI_API_KEY: string; ANTHROPIC_API_KEY: string; GEMINI_API_KEY: string; GROK_API_KEY: string },
+  secrets: { OPENAI_API_KEY: string; ANTHROPIC_API_KEY: string; GEMINI_API_KEY: string; GROK_API_KEY: string; PERPLEXITY_API_KEY: string },
   provider: ChatProvider,
   messages: { role: 'user' | 'assistant' | 'system'; content: string }[],
   requestId: string,
@@ -121,18 +122,42 @@ async function streamInBackground(
     // Extract the last user message as the image prompt for image providers
     const lastUserMessage = [...messages].reverse().find(m => m.role === 'user')?.content || '';
 
+    // Fetch web search context for text chat providers (not image generation)
+    let searchTokenCount = 0;
+    let augmentedMessages = messages;
+    if (provider !== 'GEMINI_IMAGE' && provider !== 'OPENAI_IMAGE') {
+      const searchResult = await fetchChatSearchContext(
+        secrets.PERPLEXITY_API_KEY,
+        lastUserMessage
+      );
+      if (searchResult) {
+        searchTokenCount = searchResult.tokenCount;
+        console.log(`Chat search context fetched (${searchTokenCount} tokens)`);
+        // Inject search context as a system message before the conversation
+        augmentedMessages = [
+          {
+            role: 'system' as const,
+            content: `The following web search results may be relevant to the user's question. Use them to provide accurate, up-to-date information when applicable, but rely on your own knowledge when the search results are not relevant.\n\n<web_search_context>\n${searchResult.context}\n</web_search_context>`,
+          },
+          ...messages,
+        ];
+      } else {
+        console.log('No chat search context available');
+      }
+    }
+
     switch (provider) {
       case 'OPENAI':
-        tokenCount = await streamOpenAI(secrets.OPENAI_API_KEY, messages, requestId, userId, model);
+        tokenCount = await streamOpenAI(secrets.OPENAI_API_KEY, augmentedMessages, requestId, userId, model);
         break;
       case 'ANTHROPIC':
-        tokenCount = await streamAnthropic(secrets.ANTHROPIC_API_KEY, messages, requestId, userId, model);
+        tokenCount = await streamAnthropic(secrets.ANTHROPIC_API_KEY, augmentedMessages, requestId, userId, model);
         break;
       case 'GEMINI':
-        tokenCount = await streamGemini(secrets.GEMINI_API_KEY, messages, requestId, userId, model);
+        tokenCount = await streamGemini(secrets.GEMINI_API_KEY, augmentedMessages, requestId, userId, model);
         break;
       case 'GROK':
-        tokenCount = await streamGrok(secrets.GROK_API_KEY, messages, requestId, userId, model);
+        tokenCount = await streamGrok(secrets.GROK_API_KEY, augmentedMessages, requestId, userId, model);
         break;
       case 'GEMINI_IMAGE':
         tokenCount = await streamGeminiImage(secrets.GEMINI_API_KEY, lastUserMessage, requestId, userId, requestId);
@@ -145,7 +170,7 @@ async function streamInBackground(
     }
 
     try {
-      await recordTokenUsage(internalUserId, tokenCount);
+      await recordTokenUsage(internalUserId, tokenCount + searchTokenCount);
     } catch (err) {
       console.error('Failed to record token usage:', err);
     }
