@@ -75,6 +75,7 @@ function buildUserPrompt(
   responseToJudge: string,
   respondingProvider: string,
   webSearchContext?: string | null,
+  customSystemPrompt?: string,
 ): string {
   // Strip think blocks so judges only see the visible response content
   const cleanedResponse = stripThinkBlocks(responseToJudge);
@@ -101,9 +102,19 @@ ${escapeXmlContent(webSearchContext)}
 `;
   }
 
+  let customInstructionsSection = '';
+  if (customSystemPrompt) {
+    customInstructionsSection = `
+<custom_user_instructions>
+${escapeXmlContent(customSystemPrompt)}
+</custom_user_instructions>
+
+`;
+  }
+
   return `Please evaluate the following AI response:
 
-${historySection}<user_prompt>
+${customInstructionsSection}${historySection}<user_prompt>
 ${escapeXmlContent(originalPrompt)}
 </user_prompt>
 
@@ -111,7 +122,7 @@ ${escapeXmlContent(originalPrompt)}
 ${escapeXmlContent(cleanedResponse)}
 </ai_response>
 ${searchSection}
-Evaluate the AI response above and provide your JSON assessment.`;
+Evaluate the AI response above and provide your JSON assessment.${customSystemPrompt ? ' The AI assistant was given the custom instructions shown above — consider whether the response follows them appropriately.' : ''}`;
 }
 
 export async function handler(
@@ -136,7 +147,7 @@ export async function handler(
     };
   }
 
-  const { judgeProvider, originalPrompt, responseToJudge, respondingProvider, conversationHistory, model } = input;
+  const { judgeProvider, originalPrompt, responseToJudge, respondingProvider, conversationHistory, customSystemPrompt, model } = input;
 
   // Resolve internal user ID from Clerk ID (creates mapping if first login)
   const internalUserId = await resolveInternalUserId(identity);
@@ -186,6 +197,7 @@ export async function handler(
       responseToJudge,
       respondingProvider,
       webSearchContext,
+      customSystemPrompt,
     );
 
     // Build the full system prompt (base + any provider-specific instructions)

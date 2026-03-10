@@ -23,6 +23,7 @@ interface ResponseQualityRatingProps {
   conversationHistory?: Message[]  // For follow-up context
   responseContent?: string  // The assistant response that was rated
   respondingProvider?: string  // Provider that generated the response
+  customSystemPrompt?: string  // User's custom instructions for judge context
   onFollowUpComplete?: (judgeId: string, exchanges: JudgeFollowUpExchange[]) => void  // Callback when follow-up is answered
 }
 
@@ -277,6 +278,7 @@ export function ResponseQualityRating({
   conversationHistory,
   responseContent,
   respondingProvider,
+  customSystemPrompt,
   onFollowUpComplete,
 }: ResponseQualityRatingProps) {
   const [expanded, setExpanded] = useState(false)
@@ -404,6 +406,7 @@ export function ResponseQualityRating({
                       conversationHistory={conversationHistory!}
                       responseContent={responseContent!}
                       respondingProvider={respondingProvider!}
+                      customSystemPrompt={customSystemPrompt}
                       onFollowUpComplete={(exchanges) => onFollowUpComplete!(judgeId, exchanges)}
                     />
                   ) : undefined

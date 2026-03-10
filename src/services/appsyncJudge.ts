@@ -40,6 +40,7 @@ export async function getQualityRating(
   conversationHistory: Message[],
   latestResponse: string,
   respondingProvider: string,
+  customSystemPrompt?: string,
   signal?: AbortSignal
 ): Promise<QualityRating> {
   if (!isAppSyncConfigured()) {
@@ -66,6 +67,7 @@ export async function getQualityRating(
     responseToJudge: latestResponse,
     respondingProvider,
     conversationHistory: history,
+    ...(customSystemPrompt ? { customSystemPrompt } : {}),
   };
 
   const response = await executeGraphQL<{ judgeResponse: JudgeResponse }>(
@@ -101,6 +103,7 @@ export async function askFollowUpQuestion(
   rating: QualityRating,
   followUpQuestion: string,
   previousFollowUps?: JudgeFollowUpExchange[],
+  customSystemPrompt?: string,
   signal?: AbortSignal
 ): Promise<JudgeFollowUpExchange> {
   if (!isAppSyncConfigured()) {
@@ -127,6 +130,7 @@ export async function askFollowUpQuestion(
     responseToJudge: latestResponse,
     respondingProvider,
     conversationHistory: history,
+    ...(customSystemPrompt ? { customSystemPrompt } : {}),
     previousScore: rating.score,
     previousExplanation: rating.explanation,
     previousProblems: rating.problems,

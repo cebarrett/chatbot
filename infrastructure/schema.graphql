@@ -22,6 +22,7 @@ input JudgeInput {
   responseToJudge: String!
   respondingProvider: String!
   conversationHistory: [ChatMessageInput!]
+  customSystemPrompt: String
   model: String
 }
 
@@ -36,6 +37,7 @@ input JudgeFollowUpInput {
   responseToJudge: String!
   respondingProvider: String!
   conversationHistory: [ChatMessageInput!]
+  customSystemPrompt: String
   previousScore: Float!
   previousExplanation: String!
   previousProblems: [String!]!

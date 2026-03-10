@@ -19,6 +19,7 @@ export interface JudgeInput {
   responseToJudge: string;
   respondingProvider: string;
   conversationHistory?: ChatMessageInput[];
+  customSystemPrompt?: string;
   model?: string;
 }
 
@@ -33,6 +34,7 @@ export interface JudgeFollowUpInput {
   responseToJudge: string;
   respondingProvider: string;
   conversationHistory?: ChatMessageInput[];
+  customSystemPrompt?: string;
   previousScore: number;
   previousExplanation: string;
   previousProblems: string[];

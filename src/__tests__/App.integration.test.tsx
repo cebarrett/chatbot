@@ -114,6 +114,27 @@ vi.mock('../utils/dummyResponses', async (importOriginal) => {
   }
 })
 
+// Mock UserPreferencesContext so App can call useUserPreferences without a provider
+const mockPrefsStore: Record<string, unknown> = {}
+vi.mock('../contexts/UserPreferencesContext', () => ({
+  useUserPreferences: () => ({
+    get: (key: string, defaultValue: unknown) => {
+      // Read from localStorage to honour per-test setup (e.g. onboarding_completed)
+      try {
+        const raw = localStorage.getItem('chatbot_user_preferences')
+        if (raw) {
+          const parsed = JSON.parse(raw)
+          if (key in parsed) return parsed[key]
+        }
+      } catch { /* ignore */ }
+      return key in mockPrefsStore ? mockPrefsStore[key] : defaultValue
+    },
+    set: (patch: Record<string, unknown>) => Object.assign(mockPrefsStore, patch),
+    loading: false,
+  }),
+  UserPreferencesProvider: ({ children }: { children: React.ReactNode }) => <>{children}</>,
+}))
+
 // ── Helpers ─────────────────────────────────────────────────────────────────
 
 import App from '../App'

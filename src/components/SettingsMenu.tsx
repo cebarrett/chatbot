@@ -14,7 +14,9 @@ import LightModeIcon from '@mui/icons-material/LightMode'
 import DarkModeIcon from '@mui/icons-material/DarkMode'
 import SettingsBrightnessIcon from '@mui/icons-material/SettingsBrightness'
 import CheckIcon from '@mui/icons-material/Check'
+import EditNoteIcon from '@mui/icons-material/EditNote'
 import { useTheme } from '../contexts/ThemeContext'
+import { CustomSystemPromptDialog } from './CustomSystemPromptDialog'
 
 type ThemeMode = 'light' | 'dark' | 'system'
 
@@ -27,6 +29,7 @@ const themeOptions: { value: ThemeMode; label: string; icon: React.ReactElement 
 export function SettingsMenu() {
   const { mode, setMode } = useTheme()
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null)
+  const [promptDialogOpen, setPromptDialogOpen] = useState(false)
   const open = Boolean(anchorEl)
 
   const handleOpen = (event: React.MouseEvent<HTMLElement>) => {
@@ -79,7 +82,27 @@ export function SettingsMenu() {
           </MenuItem>
         ))}
         <Divider />
+        <Typography
+          variant="caption"
+          color="text.secondary"
+          sx={{ px: 2, py: 0.5, display: 'block' }}
+        >
+          Custom Instructions
+        </Typography>
+        <MenuItem
+          onClick={() => {
+            handleClose()
+            setPromptDialogOpen(true)
+          }}
+        >
+          <ListItemIcon><EditNoteIcon fontSize="small" /></ListItemIcon>
+          <ListItemText>Edit Instructions</ListItemText>
+        </MenuItem>
       </Menu>
+      <CustomSystemPromptDialog
+        open={promptDialogOpen}
+        onClose={() => setPromptDialogOpen(false)}
+      />
     </>
   )
 }

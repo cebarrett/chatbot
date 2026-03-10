@@ -49,6 +49,7 @@ interface ChatMessageProps {
   onDelete?: (messageId: string) => void
   conversationHistory?: Message[]  // For follow-up context
   respondingProvider?: string  // Provider that generated the response
+  customSystemPrompt?: string  // User's custom instructions for judge context
   onFollowUpComplete?: (judgeId: string, exchanges: JudgeFollowUpExchange[]) => void
   onEditResponse?: (messageId: string, newContent: string) => void  // Edit assistant response and re-run judges
 }
@@ -63,6 +64,7 @@ export function ChatMessage({
   onDelete,
   conversationHistory,
   respondingProvider,
+  customSystemPrompt,
   onEditResponse,
   onFollowUpComplete,
 }: ChatMessageProps) {
@@ -332,6 +334,7 @@ export function ChatMessage({
               conversationHistory={conversationHistory}
               responseContent={message.content}
               respondingProvider={respondingProvider}
+              customSystemPrompt={customSystemPrompt}
               onFollowUpComplete={onFollowUpComplete}
             />
           </Box>
