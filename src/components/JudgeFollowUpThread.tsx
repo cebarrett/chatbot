@@ -304,7 +304,7 @@ export function JudgeFollowUpThread({
                 maxRows={3}
                 sx={{
                   '& .MuiInputBase-root': {
-                    fontSize: '0.8rem',
+                    fontSize: '16px',
                     py: 0.5,
                   },
                 }}

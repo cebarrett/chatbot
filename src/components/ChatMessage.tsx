@@ -208,7 +208,7 @@ export function ChatMessage({
                 sx={{
                   '& .MuiOutlinedInput-root': {
                     fontFamily: 'monospace',
-                    fontSize: '0.875rem',
+                    fontSize: '16px',
                   },
                 }}
               />

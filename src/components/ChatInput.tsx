@@ -157,6 +157,7 @@ export function ChatInput({ onSend, onStop, disabled = false, isTyping = false, 
         sx={{
           '& .MuiOutlinedInput-root': {
             borderRadius: 3,
+            fontSize: '16px',
           },
         }}
       />
