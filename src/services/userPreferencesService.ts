@@ -42,7 +42,7 @@ export function loadCachedPreferences(): Record<string, unknown> {
   return {};
 }
 
-function writeCachePreferences(prefs: Record<string, unknown>): void {
+export function writeCachePreferences(prefs: Record<string, unknown>): void {
   if (typeof window === 'undefined') return;
   try {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(prefs));

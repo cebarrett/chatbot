@@ -13,6 +13,7 @@ import {
   loadCachedPreferences,
   fetchPreferences,
   savePreferences,
+  writeCachePreferences,
 } from '../services/userPreferencesService'
 
 // The preferences object is intentionally untyped at this layer.
@@ -59,7 +60,15 @@ export function UserPreferencesProvider({ children }: UserPreferencesProviderPro
     fetchPreferences()
       .then((serverPrefs) => {
         if (!cancelled) {
-          setPreferences(serverPrefs)
+          // Merge server prefs INTO local state rather than replacing.
+          // This prevents locally-saved preferences (e.g. onboarding_completed)
+          // from being wiped when the DynamoDB save failed silently.
+          // Server values win for keys present on both sides.
+          setPreferences((prev) => {
+            const merged = { ...prev, ...serverPrefs }
+            writeCachePreferences(merged)
+            return merged
+          })
         }
       })
       .catch((err) => {
