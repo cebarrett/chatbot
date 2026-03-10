@@ -3,6 +3,7 @@ import { createRoot } from 'react-dom/client'
 import { ClerkProvider } from '@clerk/clerk-react'
 import { dark } from '@clerk/themes'
 import { ThemeProvider, useTheme } from './contexts/ThemeContext'
+import { UserPreferencesProvider } from './contexts/UserPreferencesContext'
 import { getClerkPublishableKey } from './config/clerk'
 import App from './App.tsx'
 
@@ -26,7 +27,9 @@ createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <ThemeProvider>
       <ClerkWithTheme>
-        <App />
+        <UserPreferencesProvider>
+          <App />
+        </UserPreferencesProvider>
       </ClerkWithTheme>
     </ThemeProvider>
   </StrictMode>,

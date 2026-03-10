@@ -7,7 +7,6 @@ import {
 import { Box, Container, Typography, Paper } from '@mui/material'
 import { useTheme } from '../contexts/ThemeContext'
 import { AuthProvider } from '../contexts/AuthContext'
-import { UserPreferencesProvider } from '../contexts/UserPreferencesContext'
 
 interface AuthLayoutProps {
   children: React.ReactNode
@@ -21,9 +20,7 @@ export function AuthLayout({ children }: AuthLayoutProps) {
     <>
       <SignedIn>
         <AuthProvider>
-          <UserPreferencesProvider>
-            {children}
-          </UserPreferencesProvider>
+          {children}
         </AuthProvider>
       </SignedIn>
       <SignedOut>
